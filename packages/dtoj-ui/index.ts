@@ -7,7 +7,7 @@ import {
 } from 'hydrooj';
 import {
     activities, announcements, brand, communityTabs, contestTabs,
-    countdowns, courseKinds, directions, paths, places, posts, wikiGroups,
+    chapterNote, countdowns, courseKinds, courseMark, directions, listed, paths, places, posts, wikiGroups,
 } from './data';
 
 function queryOf(handler: Handler, key: string) {
@@ -83,12 +83,16 @@ function langChoices() {
 
 function courseOf(tdoc: any) {
     const dag = tdoc.dag || [];
+    const id = tdoc.docId.toHexString();
+    const mark = courseMark(id);
     return {
-        id: tdoc.docId.toHexString(),
+        id,
         title: tdoc.title,
         brief: tdoc.content || '',
         chapters: dag.length,
         problems: TrainingModel.getPids(dag).length,
+        direction: mark.direction,
+        kind: mark.kind,
     };
 }
 
@@ -135,11 +139,11 @@ class DtojTrainingHandler extends DtojDataHandler {
         if (q) query.title = { $regex: new RegExp(escapeRegExp(q), 'i') };
         await this.ctx.parallel('training/list', query, this);
         const hotDocs = await TrainingModel.getMulti(domainId, { ...query, pin: { $gt: 0 } }).toArray();
-        const [tdocs, tpcount] = await this.paginate(
-            TrainingModel.getMulti(domainId, { ...query, pin: { $not: { $gt: 0 } } }),
-            page,
-            'training',
-        );
+        const matched = (await TrainingModel.getMulti(domainId, { ...query, pin: { $not: { $gt: 0 } } }).toArray())
+            .filter((tdoc) => listed(tdoc.docId.toHexString(), direction, kind));
+        const pageSize = Number(this.ctx.setting.get('pagination.training')) || 20;
+        const pages = matched.length ? Math.floor((matched.length + pageSize - 1) / pageSize) : 0;
+        const tdocs = matched.slice((page - 1) * pageSize, page * pageSize);
         this.view('dtoj_training', {
             directions,
             kinds: courseKinds,
@@ -149,7 +153,7 @@ class DtojTrainingHandler extends DtojDataHandler {
             hot: hotDocs.map(courseOf),
             courses: tdocs.map(courseOf),
             page,
-            pages: tpcount,
+            pages,
             qs: queryString({ q, direction, kind }),
         });
     }
@@ -160,12 +164,14 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
     async get(domainId: string, tid: ObjectId) {
         const tdoc = await TrainingModel.get(domainId, tid);
         const dag = tdoc.dag || [];
+        const id = tdoc.docId.toHexString();
         this.view('dtoj_training_detail', {
             course: courseOf(tdoc),
             chapters: dag.map((node, index) => ({
                 index: index + 1,
                 title: node.title,
                 pids: node.pids || [],
+                note: chapterNote(id, index + 1),
             })),
         });
     }

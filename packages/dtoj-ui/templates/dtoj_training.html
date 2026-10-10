@@ -15,6 +15,7 @@
         <div class="dtoj-row">
           {% for c in hot %}
           <a class="dtoj-tile" href="{{ url('dtoj_training_detail', tid=c.id) }}">
+            {% if c.direction or c.kind %}<p>{% if c.direction %}<span class="dtoj-tag">{{ c.direction }}</span>{% endif %}{% if c.kind %}<span class="dtoj-tag">{{ c.kind }}</span>{% endif %}</p>{% endif %}
             <h3>{{ c.title }}</h3>
             <p>{{ c.brief }}</p>
             <p>{{ c.chapters }} 章 · {{ c.problems }} 道练习</p>
@@ -28,7 +29,7 @@
         <header class="dtoj-panel-head">
           <div>
             <h2>筛选</h2>
-            <p>方向和类型没有对应字段，点选只切换高亮。标题搜索会筛选列表。</p>
+            <p>方向和类型按对照表筛选下面的课程。没有对照的课只在「全部」和「其他」里出现。标题搜索仍然有效。</p>
           </div>
         </header>
         <div class="dtoj-pad">
@@ -63,6 +64,7 @@
         <div class="dtoj-room">
           {% for c in courses %}
           <a class="dtoj-tile" href="{{ url('dtoj_training_detail', tid=c.id) }}">
+            {% if c.direction or c.kind %}<p>{% if c.direction %}<span class="dtoj-tag">{{ c.direction }}</span>{% endif %}{% if c.kind %}<span class="dtoj-tag">{{ c.kind }}</span>{% endif %}</p>{% endif %}
             <h3>{{ c.title }}</h3>
             <p>{{ c.brief }}</p>
             <p>{{ c.chapters }} 章 · {{ c.problems }} 道练习</p>
@@ -72,20 +74,6 @@
           {% endfor %}
         </div>
         {{ paginator.render(page, pages, add_qs=qs) }}
-      </article>
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>密钥加入</h2>
-            <p>不校验密钥，按钮不会提交。</p>
-          </div>
-        </header>
-        <div class="dtoj-pad">
-          <div class="dtoj-join">
-            <input class="textbox" type="text" placeholder="课程密钥" disabled>
-            <button type="button" class="dtoj-sign" disabled>加入课程</button>
-          </div>
-        </div>
       </article>
       {% include "dtoj_library.html" %}
     </div>
