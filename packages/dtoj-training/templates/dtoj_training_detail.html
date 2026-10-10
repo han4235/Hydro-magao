@@ -12,6 +12,7 @@
             {% if course.direction or course.kind %}<p>{% if course.direction %}<span class="dtoj-tag">{{ course.direction }}</span>{% endif %}{% if course.kind %}<span class="dtoj-tag">{{ course.kind }}</span>{% endif %}</p>{% endif %}
             <p>{{ course.chapters }} 章 · {{ course.problems }} 道练习</p>
           </div>
+          {% if canEdit %}<a class="dtoj-go" href="{{ url('dtoj_training_edit', tid=course.id) }}">编辑</a>{% endif %}
         </header>
         <div class="dtoj-pad">
           <p>{{ course.brief }}</p>
@@ -20,10 +21,14 @@
             <li>
               第 {{ ch.index }} 章 {{ ch.title }}
               <p>{{ ch.note }}</p>
-              {% if ch.pids.length %}
-              <span class="dtoj-meta">题号
-                {% for pid in ch.pids %}
-                <a href="{{ url('problem_detail', pid=pid) }}">{{ pid }}</a>
+              {% if ch.problems.length %}
+              <span class="dtoj-meta">题目
+                {% for item in ch.problems %}
+                {% if item.missing %}
+                <span>{{ item.show }} 题库里没有这道题</span>
+                {% else %}
+                <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.show }} {{ item.title }}</a>
+                {% endif %}
                 {% endfor %}
               </span>
               {% endif %}
@@ -33,7 +38,6 @@
           <p class="dtoj-back"><a href="{{ url('training_main') }}">返回训练</a></p>
         </div>
       </article>
-      {% include "dtoj_library.html" %}
     </div>
   </div>
 </div>

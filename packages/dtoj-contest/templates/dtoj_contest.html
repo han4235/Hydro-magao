@@ -1,75 +1,429 @@
 {% set page_name = "dtoj_contest" %}
 {% extends "layout/basic.html" %}
-{% import "components/paginator.html" as paginator with context %}
 {% block content %}
 {% include "dtoj_style.html" %}
+<style>
+  .dtoj-race { display: flex; flex-direction: column; gap: 28px; }
+  .dtoj-race-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .dtoj-race-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-race-lead { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .dtoj-race-new {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--brand-deep);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-race-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 22px;
+    margin: 0;
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-race-tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-race-tabs a.is-on {
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--brand);
+  }
+  .dtoj-race-block { display: flex; flex-direction: column; gap: 14px; }
+  .dtoj-race-block h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 760;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-race-block > p { margin: 0; color: var(--muted); font-size: 14px; }
+  .dtoj-race-picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+  .dtoj-race-picks.is-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: scroll;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+    scrollbar-color: rgba(30, 41, 59, 0.35) rgba(30, 41, 59, 0.08);
+    scrollbar-width: thin;
+  }
+  .dtoj-race-picks.is-scroll::-webkit-scrollbar { height: 8px; }
+  .dtoj-race-picks.is-scroll::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.08); border-radius: 999px; }
+  .dtoj-race-picks.is-scroll::-webkit-scrollbar-thumb { background: rgba(30, 41, 59, 0.32); border-radius: 999px; }
+  .dtoj-race-picks.is-scroll .dtoj-race-card { flex: 0 0 calc((100% - 24px) / 3.18); scroll-snap-align: start; }
+  .dtoj-race-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(30, 41, 59, 0.1);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ink);
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(23, 34, 55, 0.06);
+  }
+  .dtoj-race-card:hover { box-shadow: 0 12px 24px rgba(23, 34, 55, 0.1); }
+  .dtoj-race-cap { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; color: #fff; }
+  .dtoj-race-card.is-ended .dtoj-race-cap { background: #2c4668; }
+  .dtoj-race-card.is-live .dtoj-race-cap { background: #1a7a48; }
+  .dtoj-race-card.is-soon .dtoj-race-cap { background: #1e40af; }
+  .dtoj-race-cap header, .dtoj-race-body footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dtoj-race-cap header span { color: rgba(255, 255, 255, 0.9); font-size: 12px; font-weight: 700; }
+  .dtoj-race-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-race-state i { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .dtoj-race-cap h3 {
+    margin: 0;
+    min-height: 2.4em;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 760;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dtoj-race-body { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 10px 12px 8px; }
+  .dtoj-race-brief {
+    margin: 0;
+    min-height: 36px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dtoj-race-clock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .dtoj-race-clock div { display: flex; flex-direction: column; gap: 2px; }
+  .dtoj-race-clock span { color: var(--ink); font-size: 12px; font-weight: 700; }
+  .dtoj-race-clock small { color: var(--muted); font-size: 12px; }
+  .dtoj-race-clock b { color: var(--ink); font-size: 18px; font-weight: 760; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dtoj-race-when { margin: 0; color: var(--muted); font-size: 12px; }
+  .dtoj-race-facts { margin: 0; color: var(--ink); font-size: 12px; }
+  .dtoj-race-facts b { font-weight: 760; }
+  .dtoj-race-facts span { margin-left: 8px; color: var(--muted); font-weight: 700; }
+  .dtoj-race-body footer { margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(30, 41, 59, 0.1); font-size: 12px; font-weight: 700; }
+  .dtoj-race-go { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+  .dtoj-race-sheet { overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+  .dtoj-race-sheet table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  .dtoj-race-sheet th, .dtoj-race-sheet td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
+  .dtoj-race-sheet th { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-race-sheet tr:last-child td { border-bottom: 0; }
+  .dtoj-race-sheet a { color: var(--ink); font-weight: 700; text-decoration: none; }
+  .dtoj-race-live { color: #145c32; font-weight: 700; }
+  .dtoj-race-rated { color: #9a3412; font-weight: 700; }
+  .dtoj-race a:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.4); outline-offset: 2px; }
+  .dtoj-mock-tracks, .dtoj-mock-levels { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-mock-tracks a, .dtoj-mock-levels a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-mock-tracks a { border: 1px solid rgba(30, 41, 59, 0.16); background: #fff; }
+  .dtoj-mock-tracks a.is-on { border-color: #172237; background: #172237; color: #fff; }
+  .dtoj-mock-levels a { border: 1px solid transparent; background: transparent; }
+  .dtoj-mock-levels a.is-on { border-color: rgba(30, 41, 59, 0.28); background: #fff; }
+  .dtoj-mock-note { margin: 0; color: var(--muted); font-size: 14px; }
+  .dtoj-mock-board {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+  }
+  .dtoj-mock-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .dtoj-mock-head h2 { margin: 0; }
+  .dtoj-mock-find { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dtoj-mock-find label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .dtoj-mock-find input, .dtoj-mock-find select {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid rgba(30, 41, 59, 0.16);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  .dtoj-mock-find input { width: 220px; }
+  .dtoj-mock-find button {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.16);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--brand-deep);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-mock-group { display: flex; flex-direction: column; gap: 8px; }
+  .dtoj-mock-group header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dtoj-mock-group header b { font-size: 16px; }
+  .dtoj-mock-group header a { color: var(--brand); font-size: 14px; font-weight: 700; text-decoration: none; }
+  .dtoj-mock-count { margin: 0; color: var(--muted); font-size: 12px; }
+  .dtoj-mock-invite { margin-left: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  @media (max-width: 860px) {
+    .dtoj-race-picks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dtoj-race-picks.is-scroll { display: flex; }
+    .dtoj-race-picks.is-scroll .dtoj-race-card { flex-basis: calc((100% - 12px) / 2.15); }
+  }
+  @media (max-width: 720px) {
+    .dtoj-race-picks { grid-template-columns: 1fr; }
+    .dtoj-race-picks.is-scroll { display: flex; }
+    .dtoj-race-picks.is-scroll .dtoj-race-card { flex-basis: 86%; }
+    .dtoj-race-head { align-items: flex-start; flex-direction: column; }
+  }
+</style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
-    <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>比赛</h2>
-            <p>这些标签没有对应字段，点选只切换高亮，卡片列表不跟着变。</p>
-          </div>
-        </header>
-        <nav class="dtoj-tabs" aria-label="比赛分页">
-          {% for t in tabs %}
-          <a class="{% if tab == t %}on{% endif %}" href="{{ url('contest_main', query={tab: t}) }}" {% if tab == t %}aria-current="page"{% endif %}>{{ t }}</a>
-          {% endfor %}
-        </nav>
-        <div class="dtoj-row">
-          {% for c in contests %}
-          <a class="dtoj-meet" href="{{ url('dtoj_contest_detail', tid=c.id) }}">
-            <p class="dtoj-count-tag">{{ c.group }}{% if featured and c.id == featured.id %} · 主推{% endif %}</p>
-            <h3>{{ c.title }}</h3>
-            <p>{% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D H:mm')|safe }}{% else %}—{% endif %} 至 {% if c.endAt %}{{ datetimeSpan(c.endAt, false, 'YYYY-M-D H:mm')|safe }}{% else %}—{% endif %}</p>
-            <p class="dtoj-meet-stats"><b>{{ c.hours }}</b> 小时 · <b>{{ c.problems }}</b> 题 · <b>{{ c.people }}</b> 人</p>
-            <p>{{ c.rule }} · {{ c.access }}</p>
-            <span class="dtoj-meet-go">查看比赛</span>
+    <div class="dtoj-shell dtoj-race">
+      <div class="dtoj-race-head">
+        <div>
+          <h1 class="dtoj-race-title">比赛</h1>
+          <p class="dtoj-race-lead">按周赛、月赛查看即将开始和已经结束的比赛。精选是单独打在一场比赛上的标记。</p>
+        </div>
+        {% if canCreate %}<a class="dtoj-race-new" href="{{ url('dtoj_contest_create') }}">新建比赛</a>{% endif %}
+      </div>
+      <nav class="dtoj-race-tabs" aria-label="比赛分类">
+        {% for t in tabs %}
+        <a class="{% if tab == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab={{ t }}">
+          {% if t == '精选' %}
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.2 9.8 4.9l4.1.6-3 2.9.7 4.1L8 10.6 4.4 12.5l.7-4.1-3-2.9 4.1-.6z"/></svg>
+          {% endif %}
+          {% if t == '其他' %}其他比赛{% else %}{{ t }}{% endif %}
+        </a>
+        {% endfor %}
+      </nav>
+
+      {% if mock %}
+      <nav class="dtoj-mock-tracks" aria-label="模拟赛方向">
+        {% for t in mock.tracks %}
+        <a class="{% if mock.track == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ t }}">{{ t }}</a>
+        {% endfor %}
+      </nav>
+      <p class="dtoj-mock-note">定向比赛只给获授权的选手看。带邀请码的比赛要凭码参加。</p>
+      {% if mock.track == 'GESP' %}
+      <nav class="dtoj-mock-levels" aria-label="模拟赛级别">
+        <a class="{% if not mock.level %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}">全部级别</a>
+        {% for lv in mock.levels %}
+        <a class="{% if mock.level == lv %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}&level={{ lv }}">{{ lv }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
+      {% endif %}
+
+      <section class="dtoj-race-block">
+        <h2>精选比赛</h2>
+        <p>{% if mock %}适合完整限时训练的模拟赛。{% elif tab == '精选' %}所有标了精选的比赛，不限周赛或月赛。{% else %}这一类里另外标成精选的场次。{% endif %}</p>
+        {% if picks.length %}
+        <div class="dtoj-race-picks{% if tab != '精选' and picks.length > 3 %} is-scroll{% endif %}">
+          {% for c in picks %}
+          <a class="dtoj-race-card is-{{ c.state }}" href="{{ url('dtoj_contest_detail', tid=c.id) }}">
+            <div class="dtoj-race-cap">
+              <header>
+                <span>{{ c.group }}</span>
+                <span class="dtoj-race-state"><i></i>{{ c.stateText }}</span>
+              </header>
+              <h3>{{ c.title }}</h3>
+            </div>
+            <div class="dtoj-race-body">
+              <p class="dtoj-race-brief">{% if c.brief %}{{ c.brief }}{% else %}这场比赛还没有写说明。{% endif %}</p>
+              <div class="dtoj-race-clock">
+                <div>
+                  <span>{{ c.clockLabel }}</span>
+                  <small>{{ c.clockNote }}</small>
+                </div>
+                <b>{{ c.clock }}</b>
+              </div>
+              <p class="dtoj-race-when">开始于 {% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</p>
+              <p class="dtoj-race-facts"><b>{{ c.hours }}</b> 小时　<b>{{ c.problems }}</b> 道题　<b>{{ c.people }}</b> 人参加<span>{{ c.rule }}</span></p>
+              <footer><span>{{ c.access }}</span><span class="dtoj-race-go">查看比赛 →</span></footer>
+            </div>
           </a>
-          {% else %}
-          <p class="dtoj-pad">这一页没有比赛。</p>
           {% endfor %}
         </div>
-      </article>
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>{{ tab }}</h2>
+        {% else %}
+        <p>{% if mock %}这个方向还没有标成精选的模拟赛。{% else %}还没有标成精选的比赛。新建或编辑比赛时勾选精选即可。{% endif %}</p>
+        {% endif %}
+      </section>
+
+      {% if mock %}
+      <section class="dtoj-mock-board">
+        <div class="dtoj-mock-head">
+          <h2>{{ mock.heading }}</h2>
+          <form class="dtoj-mock-find" method="get" action="{{ url('contest_main') }}">
+            <input type="hidden" name="tab" value="模拟赛">
+            <input type="hidden" name="track" value="{{ mock.track }}">
+            {% if mock.level %}<input type="hidden" name="level" value="{{ mock.level }}">{% endif %}
+            <input name="q" value="{{ mock.q }}" placeholder="搜索比赛名称或场次" aria-label="搜索比赛名称或场次">
+            <button type="submit">搜索</button>
+            <label>排序
+              <select name="sort" aria-label="排序" onchange="this.form.submit()">
+                <option value="new" {% if mock.sort == 'new' %}selected{% endif %}>场次 · 从新到旧</option>
+                <option value="old" {% if mock.sort == 'old' %}selected{% endif %}>场次 · 从旧到新</option>
+              </select>
+            </label>
+          </form>
+        </div>
+        {% if mock.groups.length %}
+          {% for g in mock.groups %}
+          <div class="dtoj-mock-group">
+            {% if g.title %}
+            <header>
+              <b>{{ g.title }}</b>
+              <a href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}&level={{ g.level }}">查看全部 {{ g.total }} 场 →</a>
+            </header>
+            <p class="dtoj-mock-count">近期模拟赛 {{ g.total }} 场</p>
+            {% endif %}
+            {% if g.rows.length %}
+            <div class="dtoj-race-sheet">
+              <table>
+                <thead>
+                  <tr><th>开始时间</th><th>比赛</th><th>时长</th><th>类型</th><th>状态</th><th>人数</th></tr>
+                </thead>
+                <tbody>
+                  {% for c in g.rows %}
+                  <tr>
+                    <td>{% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</td>
+                    <td>
+                      <a href="{{ url('dtoj_contest_detail', tid=c.id) }}">{{ c.title }}</a>
+                      {% if c.access == '邀请码' %}<span class="dtoj-mock-invite">凭邀请码</span>{% endif %}
+                    </td>
+                    <td>{{ c.hours }} h</td>
+                    <td>{{ c.rule }}</td>
+                    <td>{% if c.state == 'live' %}<span class="dtoj-race-live">进行中</span>{% elif c.state == 'ended' %}已结束{% else %}未开始{% endif %}</td>
+                    <td>{{ c.people }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
           </div>
-        </header>
-        <div class="dtoj-table-scroll">
-          <table class="data-table">
+          {% endfor %}
+        {% else %}
+        <p class="dtoj-mock-count">这个方向还没有对得上的模拟赛。</p>
+        {% endif %}
+      </section>
+      {% elif tab != '精选' %}
+      <section class="dtoj-race-block">
+        <h2>近期比赛</h2>
+        {% if recent.length %}
+        <div class="dtoj-race-sheet">
+          <table>
             <thead>
-              <tr>
-                <th>开始</th>
-                <th>比赛</th>
-                <th>时长</th>
-                <th>题量</th>
-                <th>赛制</th>
-                <th>人数</th>
-                <th>方式</th>
-              </tr>
+              <tr><th>开始时间</th><th>比赛</th><th>时长</th><th>类型</th><th>状态</th><th>人数</th></tr>
             </thead>
             <tbody>
-              {% for c in contests %}
+              {% for c in recent %}
               <tr>
-                <td>{% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D H:mm')|safe }}{% else %}—{% endif %}</td>
+                <td>{% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</td>
                 <td><a href="{{ url('dtoj_contest_detail', tid=c.id) }}">{{ c.title }}</a></td>
-                <td>{{ c.hours }} 小时</td>
-                <td>{{ c.problems }}</td>
+                <td>{{ c.hours }} h</td>
                 <td>{{ c.rule }}</td>
+                <td>{% if c.state == 'live' %}<span class="dtoj-race-live">进行中</span>{% else %}未开始{% endif %}</td>
                 <td>{{ c.people }}</td>
-                <td>{{ c.access }}</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        {{ paginator.render(page, pages, add_qs=qs) }}
-      </article>
-      {% include "dtoj_library.html" %}
+        {% else %}
+        <p>这一类没有即将开始或正在进行的比赛。</p>
+        {% endif %}
+      </section>
+
+      <section class="dtoj-race-block">
+        <h2>历史比赛</h2>
+        {% if history.length %}
+        <div class="dtoj-race-sheet">
+          <table>
+            <thead>
+              <tr><th>开始时间</th><th>比赛</th><th>时长</th><th>类型</th><th>评级</th><th>参加</th><th>人数</th></tr>
+            </thead>
+            <tbody>
+              {% for c in history %}
+              <tr>
+                <td>{% if c.beginAt %}{{ datetimeSpan(c.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</td>
+                <td><a href="{{ url('dtoj_contest_detail', tid=c.id) }}">{{ c.title }}</a></td>
+                <td>{{ c.hours }} h</td>
+                <td>{{ c.rule }}</td>
+                <td>{% if c.rated %}<span class="dtoj-race-rated">Rated</span>{% else %}—{% endif %}</td>
+                <td>{% if c.joined %}已参加{% else %}未参加{% endif %}</td>
+                <td>{{ c.people }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>这一类还没有结束的比赛。</p>
+        {% endif %}
+      </section>
+      {% endif %}
     </div>
   </div>
 </div>

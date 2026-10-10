@@ -1,108 +1,122 @@
-<div class="footer">
-  <div class="row"><div class="columns">
-  {% if show_topics|default(true) %}
-    <div class="row footer__links">
-      <div class="medium-3 large-2 columns footer__category expandable">
-        <h1>
-          {{ _('Status') }}
-          <span class="expand-icon">
-            <span class="icon icon-expand_more"></span>
-          </span>
-        </h1>
-        <div class="footer__category__expander"><ul class="footer__category__list">
-          <li class="footer__category__item"><a href="{{ url('record_main') }}">{{ _('Judging Queue') }}</a></li>
-          <li class="footer__category__item"><a href="{{ url('status') }}">{{ _('Service Status') }}</a></li>
-        </ul></div>
-      </div>
-      <div class="medium-3 large-2 columns footer__category expandable">
-        <h1>
-          {{ _('Development') }}
-          <span class="expand-icon">
-            <span class="icon icon-expand_more"></span>
-          </span>
-        </h1>
-        <div class="footer__category__expander"><ul class="footer__category__list">
-          <li class="footer__category__item"><a href="https://github.com/hydro-dev/Hydro" target="_blank">{{ _('Open Source') }}</a></li>
-        </ul></div>
-      </div>
-      <div class="medium-3 large-2 columns footer__category expandable">
-        <h1>
-          {{ _('Support') }}
-          <span class="expand-icon">
-            <span class="icon icon-expand_more"></span>
-          </span>
-        </h1>
-        <div class="footer__category__expander"><ul class="footer__category__list">
-          <li class="footer__category__item"><a href="{{ url('wiki_help') }}">{{ _('Help') }}</a></li>
-          <li class="footer__category__item"><a href="{{ url('wiki_about', anchor='contact') }}">{{ _('Contact Us') }}</a></li>
-        </ul></div>
-      </div>
-      <div class="medium-3 large-2 columns footer__category expandable end">
-        <h1>
-          {{ _('About') }}
-          <span class="expand-icon">
-            <span class="icon icon-expand_more"></span>
-          </span>
-        </h1>
-        <div class="footer__category__expander"><ul class="footer__category__list">
-          <li class="footer__category__item"><a href="{{ url('wiki_about') }}">{{ _('About') }}</a></li>
-          <li class="footer__category__item"><a href="{{ url('wiki_about', anchor='privacy') }}">{{ _('Privacy') }}</a></li>
-          <li class="footer__category__item"><a href="{{ url('wiki_about', anchor='tos') }}">{{ _('Terms of Service') }}</a></li>
-          <li class="footer__category__item"><a href="{{ url('wiki_about', anchor='contact') }}">{{ _('Copyright Complaint') }}</a></li>
-        </ul></div>
-      </div>
-    </div>
-  {% endif %}
-    <div class="footer__extra-link clearfix">
-      <div class="footer__extra-left">
-        <ol class="clearfix">
-          {% if not show_topics|default(true) %}
-          <li class="footer__extra-link-item"><a href="{{ url('wiki_about') }}">{{ _('About') }}</a></li>
-          <li class="footer__extra-link-item"><a href="{{ url('wiki_about', anchor='contact') }}">{{ _('Contact Us') }}</a></li>
-          <li class="footer__extra-link-item"><a href="{{ url('wiki_about', anchor='privacy') }}">{{ _('Privacy') }}</a></li>
-          <li class="footer__extra-link-item"><a href="{{ url('wiki_about', anchor='tos') }}">{{ _('Terms of Service') }}</a></li>
-          <li class="footer__extra-link-item"><a href="{{ url('wiki_about', anchor='contact') }}">{{ _('Copyright Complaint') }}</a></li>
-          {% endif %}
-          <li class="footer__extra-link-item nojs--hide" data-dropdown-target="#menu-footer-lang">
-            <span><span class="icon icon-global"></span> Language <span class="icon icon-expand_less"></span></span>
-            <ol class="dropdown-target menu" id="menu-footer-lang">
-            {%- for k, v in model.setting.SETTINGS_BY_KEY['viewLang'].range -%}
-              <li class="menu__item"><a class="menu__link" href="{{ url('switch_language', lang=k) }}">{{ v }}</a></li>
-            {%- endfor -%}
-            </ol>
-          </li>
-          <li class="footer__extra-link-item">
-            {% if handler.session.legacy %}
-              <a href="/legacy">{{ _('Standard mode') }}</a>
-            {% else %}
-              <a href="/legacy?legacy=true">{{ _('Legacy mode') }}</a>
-            {% endif %}
-          </li>
-          <li class="footer__extra-link-item nojs--hide" data-dropdown-target="#menu-footer-theme">
-            <span><span class="icon icon-global"></span> {{ _('Theme') }} <span class="icon icon-expand_less"></span></span>
-            <ol class="dropdown-target menu" id="menu-footer-theme">
-              <li class="menu__item"><a class="menu__link" href="{{ url('set_theme', theme='light') }}">{{ _('Light') }}</a></li>
-              <li class="menu__item"><a class="menu__link" href="{{ url('set_theme', theme='dark') }}">{{ _('Dark') }}</a></li>
-            </ol>
-          </li>
+<footer class="footer">
+  <div class="dtoj-foot">
+    {%- set extra_domain = handler.domain.ui.footer_extra_html|default('') -%}
+    {%- set extra_system = model.system.get('ui-default.footer_extra_html')|default('') -%}
+    {%- set extra = (extra_domain ~ '\n' ~ extra_system).split('\n') -%}
+    <p class="dtoj-foot-line dtoj-foot-legal">
+      {%- for html in extra -%}
+        {%- if html.trim() -%}<span class="dtoj-foot-extra">{{ html|safe }}</span>{%- endif -%}
+      {%- endfor -%}
+    </p>
+    <p class="dtoj-foot-line">© {{ Date().split(' ')[3] }} 青石练习场. All rights reserved.</p>
+    <div class="dtoj-foot-line dtoj-foot-tools">
+      <span class="dtoj-foot-tool nojs--hide" data-dropdown-pos="top left" data-dropdown-target="#menu-footer-lang">
+        <span class="dtoj-foot-trigger" tabindex="0">{{ _('Language') }}</span>
+        <ol class="dropdown-target menu" id="menu-footer-lang">
+        {%- for k, v in model.setting.SETTINGS_BY_KEY['viewLang'].range -%}
+          <li class="menu__item"><a class="menu__link" href="{{ url('switch_language', lang=k) }}">{{ v }}</a></li>
+        {%- endfor -%}
         </ol>
-      </div>
-      <div class="footer__extra-right">
-        <ol class="clearfix">
-          {%- for html in (handler.domain.ui.footer_extra_html|default('')).split('\n') -%}
-            <li class="footer__extra-link-item">{{ html|safe }}</li>
-          {%- endfor -%}
-          {%- for html in (model.system.get('ui-default.footer_extra_html')|default('')).split('\n') -%}
-            <li class="footer__extra-link-item">{{ html|safe }}</li>
-          {%- endfor -%}
-          <li class="footer__extra-link-item">Worker {{ process.env.NODE_APP_INSTANCE }}, {{ Date.now() - handler.args.__start }}ms</li>
-          <!-- Prepare {{ handler.args.__prepareDone - handler.args.__prepare }}ms -->
-          <!-- Method {{ handler.args.__methodDone - handler.args.__method }}ms -->
-          {# You are not permitted to hide, edit or remove the following copyright info unless you have purchased an active enterprise license. #}
-          {# 除非您已购买了有效的企业版授权，否则您不得隐藏、修改或移除下方的版权信息。 #}
-          <li class="footer__extra-link-item">Powered by <a href="https://hydro.js.org">Hydro v{{ global.Hydro.version.hydrooj }}</a> {{ "Professional" if model.system.get('server.pro') else "Community" }}</li>
+      </span>
+      <span class="dtoj-foot-dot" aria-hidden="true"></span>
+      {% if handler.session.legacy %}
+        <a href="/legacy">{{ _('Standard mode') }}</a>
+      {% else %}
+        <a href="/legacy?legacy=true">{{ _('Legacy mode') }}</a>
+      {% endif %}
+      <span class="dtoj-foot-dot" aria-hidden="true"></span>
+      <span class="dtoj-foot-tool nojs--hide" data-dropdown-pos="top left" data-dropdown-target="#menu-footer-theme">
+        <span class="dtoj-foot-trigger" tabindex="0">{{ _('Theme') }}</span>
+        <ol class="dropdown-target menu" id="menu-footer-theme">
+          <li class="menu__item"><a class="menu__link" href="{{ url('set_theme', theme='light') }}">{{ _('Light') }}</a></li>
+          <li class="menu__item"><a class="menu__link" href="{{ url('set_theme', theme='dark') }}">{{ _('Dark') }}</a></li>
         </ol>
-      </div>
+      </span>
+      <span class="dtoj-foot-dot" aria-hidden="true"></span>
+      {# 除非您已购买了有效的企业版授权，否则您不得隐藏、修改或移除下方的版权信息。 #}
+      <span class="dtoj-foot-credit">Powered by <a href="https://hydro.js.org">Hydro v{{ global.Hydro.version.hydrooj }}</a> {{ "Professional" if model.system.get('server.pro') else "Community" }}</span>
     </div>
-  </div></div>
-</div>
+  </div>
+</footer>
+<style>
+  #panel > .main { flex: 1 0 auto; }
+  .footer {
+    background: #fff;
+    color: #3e4c59;
+    border-top: 1px solid rgba(30, 41, 59, 0.09);
+  }
+  .dtoj-foot {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 72px 36px;
+    text-align: center;
+  }
+  .dtoj-foot-line {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.7;
+    letter-spacing: 0;
+  }
+  .dtoj-foot-line + .dtoj-foot-line { margin-top: 4px; }
+  .dtoj-foot-legal:not(:has(.dtoj-foot-extra)) { display: none; }
+  .dtoj-foot-extra { margin: 0 0.35em; }
+  .dtoj-foot-extra a,
+  .dtoj-foot a {
+    color: inherit;
+    text-decoration: none;
+    text-underline-offset: 0.18em;
+  }
+  .dtoj-foot a:hover { color: #1e40af; text-decoration: underline; }
+  .dtoj-foot-tools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px 0;
+  }
+  .dtoj-foot-dot {
+    width: 3px;
+    height: 3px;
+    margin: 0 10px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+  }
+  .dtoj-foot-tool { position: relative; }
+  .dtoj-foot-trigger {
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .dtoj-foot-trigger:hover { color: #1e40af; }
+  .dtoj-foot a:focus-visible,
+  .dtoj-foot-trigger:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+  }
+  .footer ::selection { background: #d5e4f0; color: #1c2833; }
+  html.theme--dark .footer,
+  html[data-mantine-color-scheme="dark"] .footer {
+    background: #121820;
+    color: #d5deea;
+    border-top-color: rgba(246, 248, 253, 0.12);
+  }
+  html.theme--dark .footer ::selection,
+  html[data-mantine-color-scheme="dark"] .footer ::selection {
+    background: #243044;
+    color: #f6f8fd;
+  }
+  html.layout--immersive .footer {
+    background: transparent;
+    color: #fff;
+    border-top-color: transparent;
+  }
+  html.layout--immersive .footer a:hover,
+  html.layout--immersive .dtoj-foot-trigger:hover { color: #fff; }
+  @media (max-width: 600px) {
+    .dtoj-foot { padding: 24px 16px 72px; }
+    .dtoj-foot-dot { margin: 0 8px; }
+    .dtoj-foot-tools > .dtoj-foot-dot:nth-last-child(2) { display: none; }
+    .dtoj-foot-credit { flex-basis: 100%; }
+  }
+</style>

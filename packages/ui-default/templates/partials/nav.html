@@ -1,3 +1,79 @@
+<style>
+  .nav {
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .nav .nav__item { letter-spacing: 0; }
+  .nav .nav__item--round { font-weight: 700; }
+  .dtoj-nav-drop { position: relative; }
+  .nav .dtoj-nav-drop-btn {
+    display: block;
+    width: auto;
+    margin: 0;
+    border: 0;
+    border-top: 3px solid transparent;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    color: #000;
+    letter-spacing: 0;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .nav .dtoj-nav-drop-btn:hover,
+  .nav .dtoj-nav-drop-btn:focus {
+    color: #000;
+  }
+  .dtoj-nav-caret {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 4px;
+    vertical-align: 1px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+  }
+  .dtoj-nav-drop.is-open .dtoj-nav-caret {
+    border-top: 0;
+    border-bottom: 5px solid currentColor;
+  }
+  .dtoj-nav-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 30;
+    width: 232px;
+    padding: 14px 8px 8px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 14px 32px rgba(23, 34, 55, 0.14);
+  }
+  .dtoj-nav-panel[hidden] { display: none; }
+  .dtoj-nav-space {
+    margin: 0 12px 6px;
+    color: #8b95a5;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .dtoj-nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #111827;
+    text-decoration: none;
+  }
+  .dtoj-nav-link strong { font-size: 16px; font-weight: 760; }
+  .dtoj-nav-link small { color: #8b95a5; font-size: 13px; font-weight: 500; }
+  .dtoj-nav-link:hover, .dtoj-nav-link.is-on { background: #f4f7fb; }
+  @media (max-width: 800px) {
+    .dtoj-nav-panel { position: static; width: auto; margin-top: 4px; box-shadow: none; }
+  }
+</style>
 {%- macro nav_item(item) -%}
 <li class="nav__list-item">
   <a href="{{ url(item.name, item.args, query=item.args.query(handler) if typeof(item.args.query) == 'function' else item.args.query or {}) }}" class="nav__item{% if page_name.startsWith(item.args.prefix) %} nav--active{% endif %}">
@@ -13,7 +89,27 @@
         <a href="/"><img class="nav__logo" src="{{ ctx.setting.get('ui-default.nav_logo_dark') }}"></a>
       </li>
       {%- for item in overrideNav|default(ui.getNodes('Nav')) -%}{% if item.checker(handler) %}
+        {% if item.name == 'dtoj_community' %}
+        <li class="nav__list-item dtoj-nav-drop{% if page_name.startsWith('dtoj_community') or page_name.startsWith('dtoj_discuss') or page_name.startsWith('dtoj_shop') %} nav--active{% endif %}">
+          <button type="button" class="nav__item dtoj-nav-drop-btn{% if page_name.startsWith('dtoj_community') or page_name.startsWith('dtoj_discuss') or page_name.startsWith('dtoj_shop') %} nav--active{% endif %}" aria-expanded="false" aria-controls="dtoj-nav-community">
+            社区 <span class="dtoj-nav-caret" aria-hidden="true"></span>
+          </button>
+          <div class="dtoj-nav-panel" id="dtoj-nav-community" hidden>
+            <p class="dtoj-nav-space">社区空间</p>
+            <a class="dtoj-nav-link{% if page_name.startsWith('dtoj_community') %} is-on{% endif %}" href="{{ url('dtoj_community') }}">
+              <strong>社区</strong><small>浏览动态与文章</small>
+            </a>
+            <a class="dtoj-nav-link{% if page_name.startsWith('dtoj_discuss') %} is-on{% endif %}" href="{{ url('discussion_main') }}">
+              <strong>讨论</strong><small>交流题目与解法</small>
+            </a>
+            <a class="dtoj-nav-link{% if page_name.startsWith('dtoj_shop') %} is-on{% endif %}" href="{{ url('dtoj_shop') }}">
+              <strong>神秘商店</strong><small>查看商品与订单</small>
+            </a>
+          </div>
+        </li>
+        {% elif item.name != 'discussion_main' and item.name != 'dtoj_shop' %}
         {{ nav_item(item) }}
+        {% endif %}
       {% endif %}{%- endfor -%}
     </ol>
     <ol class="nav__list nav__list--secondary clearfix">
@@ -136,3 +232,27 @@
   </div></div>
 </nav>
 <nav class="nav--shadow"></nav>
+<script>
+  (function () {
+    var drop = document.querySelector('.dtoj-nav-drop');
+    if (!drop) return;
+    var btn = drop.querySelector('.dtoj-nav-drop-btn');
+    var panel = drop.querySelector('.dtoj-nav-panel');
+    function setOpen(open) {
+      drop.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      panel.hidden = !open;
+    }
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(panel.hidden);
+    });
+    document.addEventListener('click', function (event) {
+      if (!drop.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') setOpen(false);
+    });
+  }());
+</script>

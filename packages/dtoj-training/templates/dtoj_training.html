@@ -1,81 +1,271 @@
 {% set page_name = "dtoj_training" %}
 {% extends "layout/basic.html" %}
 {% import "components/paginator.html" as paginator with context %}
+{% macro course_card(c) %}
+<a class="dtoj-course" href="{{ url('dtoj_training_detail', tid=c.id) }}">
+  <p class="dtoj-course-dir">{{ c.direction or '其他' }}</p>
+  <h3>{{ c.title }}</h3>
+  {% if c.brief %}<p class="dtoj-course-brief">{{ c.brief }}</p>{% endif %}
+  {% if c.kind %}<p><span class="dtoj-course-kind">{{ c.kind }}</span></p>{% endif %}
+  {% if c.preview.length %}
+  <p class="dtoj-course-catalog">课程目录</p>
+  <ol>
+    {% for ch in c.preview %}
+    <li><span>{{ ch.n }}</span> {{ ch.title }}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  <footer>
+    <span>{{ c.chapters }} 小节 · {{ c.problems }} 道题</span>
+    <span class="dtoj-course-go">查看课程
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+  </footer>
+</a>
+{% endmacro %}
 {% block content %}
 {% include "dtoj_style.html" %}
+<style>
+  .dtoj-train { display: flex; flex-direction: column; gap: 28px; }
+  .dtoj-train-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .dtoj-train-head h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-train-head p { margin: 8px 0 0; max-width: 42rem; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .dtoj-train-head .dtoj-train-new {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 11px;
+    color: var(--brand-deep);
+    background: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-train-head .dtoj-train-new:focus-visible,
+  .dtoj-course:focus-visible,
+  .dtoj-facet a:focus-visible,
+  .dtoj-train-search button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-train-block h2 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-train-kicker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .dtoj-train-pick {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f8f1dc;
+    color: #6a4b00;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-train-block > p { margin: 6px 0 0; color: var(--muted); }
+  .dtoj-course-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+    margin-top: 18px;
+  }
+  .dtoj-course {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100%;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.92);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    transition: transform 0.18s ease-out;
+  }
+  .dtoj-course:hover { transform: translateY(-1px); }
+  .dtoj-course-dir { margin: 0; color: var(--brand); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+  .dtoj-course h3 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.3;
+  }
+  .dtoj-course-brief {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dtoj-course-kind {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-course-catalog { margin: 8px 0 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .dtoj-course ol { list-style: none; margin: 0; padding: 10px 12px; border-radius: 16px; background: #f4f7fb; }
+  .dtoj-course li { display: flex; gap: 10px; color: var(--ink); font-size: 14px; line-height: 1.8; }
+  .dtoj-course li span { color: var(--brand); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .dtoj-course footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .dtoj-course-go { display: inline-flex; align-items: center; gap: 2px; color: var(--brand-deep); font-weight: 700; }
+  .dtoj-course-go svg { width: 16px; height: 16px; }
+  .dtoj-facet { margin-top: 16px; }
+  .dtoj-facet-label { margin: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .dtoj-facet-row { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .dtoj-facet a {
+    color: var(--muted);
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 4px;
+  }
+  .dtoj-facet a.on { color: var(--brand); border-bottom-color: var(--brand); }
+  .dtoj-facet a span { margin-left: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dtoj-train-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .dtoj-train-search input {
+    flex: 1 1 240px;
+    min-height: 48px;
+    margin: 0;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .dtoj-train-search input::placeholder { color: #5f6b7a; }
+  .dtoj-train-search button {
+    min-height: 48px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .dtoj-train-search button:hover { transform: translateY(-1px); }
+  .dtoj-train-count { margin-left: auto; color: var(--muted); font-weight: 700; }
+  .dtoj-train .dtoj-home .pager, .dtoj-train .pager { margin-top: 8px; }
+  @media (max-width: 980px) {
+    .dtoj-course-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 680px) {
+    .dtoj-course-grid { grid-template-columns: 1fr; }
+    .dtoj-train-count { margin-left: 0; }
+    .dtoj-train-head { align-items: flex-start; flex-direction: column; }
+  }
+</style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
-    <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>热门课程</h2>
-          </div>
-        </header>
-        <div class="dtoj-row">
-          {% for c in hot %}
-          <a class="dtoj-tile" href="{{ url('dtoj_training_detail', tid=c.id) }}">
-            {% if c.direction or c.kind %}<p>{% if c.direction %}<span class="dtoj-tag">{{ c.direction }}</span>{% endif %}{% if c.kind %}<span class="dtoj-tag">{{ c.kind }}</span>{% endif %}</p>{% endif %}
-            <h3>{{ c.title }}</h3>
-            <p>{{ c.brief }}</p>
-            <p>{{ c.chapters }} 章 · {{ c.problems }} 道练习</p>
-          </a>
-          {% else %}
-          <p class="dtoj-pad">没有置顶课程。</p>
-          {% endfor %}
+    <div class="dtoj-shell dtoj-train">
+      <header class="dtoj-train-head">
+        <div>
+          <h1>训练课程</h1>
+          <p>选择一门课程，阅读讲义并完成对应练习。</p>
         </div>
-      </article>
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>筛选</h2>
-            <p>方向和类型按对照表筛选下面的课程。没有对照的课只在「全部」和「其他」里出现。标题搜索仍然有效。</p>
-          </div>
-        </header>
-        <div class="dtoj-pad">
-          <form method="get" class="dtoj-join">
-            {% if direction %}<input type="hidden" name="direction" value="{{ direction }}">{% endif %}
-            {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
-            <label class="dtoj-field">标题<input class="textbox" name="q" value="{{ q }}"></label>
-            <button type="submit" class="dtoj-go">搜索</button>
-          </form>
-          <p class="dtoj-count-tag">方向</p>
-          <div class="dtoj-chips">
-            <a class="dtoj-chip{% if not direction %} on{% endif %}" href="{{ url('training_main', query={kind: kind, q: q}) }}" {% if not direction %}aria-current="true"{% endif %}>全部</a>
+        {% if canCreate %}<a class="dtoj-train-new" href="{{ url('dtoj_training_create') }}">新建训练</a>{% endif %}
+      </header>
+      {% if hot.length %}
+      <section class="dtoj-train-block">
+        <div class="dtoj-train-kicker">
+          <h2>热门课程</h2>
+          <span class="dtoj-train-pick">精选</span>
+        </div>
+        <p>置顶的课程放在这里。</p>
+        <div class="dtoj-course-grid">
+          {% for c in hot %}{{ course_card(c) }}{% endfor %}
+        </div>
+      </section>
+      {% endif %}
+      <section class="dtoj-train-block">
+        <h2>全部课程</h2>
+        <p>按竞赛方向选择课程，用专题学习与阶段练习巩固。</p>
+        <div class="dtoj-facet">
+          <p class="dtoj-facet-label">学习方向</p>
+          <div class="dtoj-facet-row">
+            <a class="{% if not direction %}on{% endif %}" href="{{ url('training_main', query={kind: kind, q: q}) }}" {% if not direction %}aria-current="true"{% endif %}>全部课程 <span>{{ counts.total }}</span></a>
             {% for d in directions %}
-            <a class="dtoj-chip{% if direction == d %} on{% endif %}" href="{{ url('training_main', query={direction: d, kind: kind, q: q}) }}" {% if direction == d %}aria-current="true"{% endif %}>{{ d }}</a>
-            {% endfor %}
-          </div>
-          <p class="dtoj-count-tag">类型</p>
-          <div class="dtoj-chips">
-            <a class="dtoj-chip{% if not kind %} on{% endif %}" href="{{ url('training_main', query={direction: direction, q: q}) }}" {% if not kind %}aria-current="true"{% endif %}>全部</a>
-            {% for k in kinds %}
-            <a class="dtoj-chip{% if kind == k %} on{% endif %}" href="{{ url('training_main', query={direction: direction, kind: k, q: q}) }}" {% if kind == k %}aria-current="true"{% endif %}>{{ k }}</a>
+            <a class="{% if direction == d %}on{% endif %}" href="{{ url('training_main', query={direction: d, kind: kind, q: q}) }}" {% if direction == d %}aria-current="true"{% endif %}>{% if d == '其他' %}其他课程{% else %}{{ d }}{% endif %} <span>{{ counts.direction[d] }}</span></a>
             {% endfor %}
           </div>
         </div>
-      </article>
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>全部课程</h2>
+        <div class="dtoj-facet">
+          <p class="dtoj-facet-label">课程类型</p>
+          <div class="dtoj-facet-row">
+            <a class="{% if not kind %}on{% endif %}" href="{{ url('training_main', query={direction: direction, q: q}) }}" {% if not kind %}aria-current="true"{% endif %}>全部类型 <span>{{ counts.total }}</span></a>
+            {% for k in kinds %}
+            <a class="{% if kind == k %}on{% endif %}" href="{{ url('training_main', query={direction: direction, kind: k, q: q}) }}" {% if kind == k %}aria-current="true"{% endif %}>{{ k }} <span>{{ counts.kind[k] }}</span></a>
+            {% endfor %}
           </div>
-        </header>
-        <div class="dtoj-room">
+        </div>
+        <form method="get" class="dtoj-train-search">
+          {% if direction %}<input type="hidden" name="direction" value="{{ direction }}">{% endif %}
+          {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+          <label class="dtoj-field" style="flex:1 1 240px">
+            <span class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">搜索</span>
+            <input name="q" value="{{ q }}" placeholder="搜索课程名称或简介">
+          </label>
+          <button type="submit">搜索</button>
+          <p class="dtoj-train-count">共 {{ shown }} 门课程</p>
+        </form>
+        <div class="dtoj-course-grid">
           {% for c in courses %}
-          <a class="dtoj-tile" href="{{ url('dtoj_training_detail', tid=c.id) }}">
-            {% if c.direction or c.kind %}<p>{% if c.direction %}<span class="dtoj-tag">{{ c.direction }}</span>{% endif %}{% if c.kind %}<span class="dtoj-tag">{{ c.kind }}</span>{% endif %}</p>{% endif %}
-            <h3>{{ c.title }}</h3>
-            <p>{{ c.brief }}</p>
-            <p>{{ c.chapters }} 章 · {{ c.problems }} 道练习</p>
-          </a>
+          {{ course_card(c) }}
           {% else %}
-          <p class="dtoj-pad">没有课程。</p>
+          <p>没有课程。</p>
           {% endfor %}
         </div>
         {{ paginator.render(page, pages, add_qs=qs) }}
-      </article>
-      {% include "dtoj_library.html" %}
+      </section>
     </div>
   </div>
 </div>

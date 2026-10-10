@@ -1,0 +1,119 @@
+{% set page_name = pageName %}
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-race-edit { display: flex; flex-direction: column; gap: 18px; }
+  .dtoj-race-edit h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-race-edit .dtoj-pad { display: flex; flex-direction: column; gap: 14px; }
+  .dtoj-race-edit .dtoj-fields { margin: 0; }
+  .dtoj-race-edit textarea.textbox { height: auto; min-height: 88px; padding: 10px 12px; }
+  .dtoj-race-edit button { border: 0; cursor: pointer; width: auto; padding: 0 18px; }
+  .dtoj-race-error { margin: 0; color: #8a1f1f; font-size: 14px; font-weight: 700; }
+  .dtoj-race-hit { margin: 0; font-size: 14px; }
+  .dtoj-race-edit .dtoj-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .dtoj-race-edit .dtoj-actions a, .dtoj-race-edit .dtoj-actions button { min-height: 44px; }
+  .dtoj-race-feature span { display: flex; align-items: center; gap: 8px; min-height: 42px; font-size: 14px; font-weight: 650; }
+  .dtoj-race-feature input { width: 18px; height: 18px; margin: 0; }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-race-edit">
+      <h1>{% if canDelete %}编辑比赛{% else %}新建比赛{% endif %}</h1>
+      <form method="post" class="dtoj-panel">
+        <div class="dtoj-pad">
+          {% if error %}<p class="dtoj-race-error">{{ error }}</p>{% endif %}
+          <div class="dtoj-fields">
+            <label>标题<input class="textbox" name="title" value="{{ title }}"></label>
+            <label>分类
+              <select class="select" name="tab">
+                {% for t in tabs %}
+                <option value="{{ t }}" {% if tab == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="dtoj-race-feature">精选
+              <span><input type="checkbox" name="featured" value="1" {% if featured %}checked{% endif %}> 单独标成精选，和上面的分类不冲突</span>
+            </label>
+            <label id="dtoj-track" hidden>方向
+              <select class="select" name="track">
+                <option value="" {% if not track %}selected{% endif %}>请选择方向</option>
+                {% for t in tracks %}
+                <option value="{{ t }}" {% if track == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label id="dtoj-level" hidden>级别
+              <select class="select" name="level">
+                <option value="" {% if not level %}selected{% endif %}>请选择级别</option>
+                {% for lv in levels %}
+                <option value="{{ lv }}" {% if level == lv %}selected{% endif %}>{{ lv }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>赛制
+              <select class="select" name="rule">
+                {% for item in rules %}
+                <option value="{{ item.id }}" {% if rule == item.id %}selected{% endif %}>{{ item.text }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>开始日期<input class="textbox" type="date" name="beginDate" value="{{ beginDate }}"></label>
+            <label>开始时间<input class="textbox" type="time" name="beginTime" value="{{ beginTime }}"></label>
+            <label>时长（小时）<input class="textbox" name="duration" value="{{ duration }}" inputmode="decimal"></label>
+            <label>邀请码<input class="textbox" name="code" value="{{ code }}" placeholder="留空则公开"></label>
+          </div>
+          <label class="dtoj-field">简介<textarea class="textbox" name="content">{{ content }}</textarea></label>
+          <label class="dtoj-field">题号<input class="textbox" name="pids" value="{{ pids }}" placeholder="用空格或逗号分开，从下面的搜索结果里抄"></label>
+          <p class="dtoj-count-tag">从题库找题号</p>
+          <div class="dtoj-join">
+            <label class="dtoj-field">题号或标题<input class="textbox" name="pq" value="{{ pq }}"></label>
+            <button class="dtoj-alt" type="submit" name="operation" value="search">搜索</button>
+          </div>
+          {% for hit in hits %}
+          <p class="dtoj-race-hit"><span class="dtoj-tag">{{ hit.pid }}</span> {{ hit.title }}</p>
+          {% endfor %}
+          <div class="dtoj-actions">
+            <button class="dtoj-go" type="submit" name="operation" value="save">保存</button>
+            {% if canDelete %}<button class="dtoj-alt" type="submit" name="operation" value="delete">删除</button>{% endif %}
+            <a class="dtoj-alt" href="{{ url('contest_main') }}">返回比赛</a>
+          </div>
+        </div>
+      </form>
+      <script>
+        (function () {
+          var form = document.querySelector('.dtoj-race-edit form');
+          var tab = form.querySelector('[name="tab"]');
+          var track = form.querySelector('[name="track"]');
+          var level = form.querySelector('[name="level"]');
+          var trackBox = document.getElementById('dtoj-track');
+          var levelBox = document.getElementById('dtoj-level');
+          function sync() {
+            var mock = tab.value === '模拟赛';
+            var gesp = mock && track.value === 'GESP';
+            trackBox.hidden = !mock;
+            levelBox.hidden = !gesp;
+            if (!mock) {
+              track.value = '';
+              level.value = '';
+            } else if (!gesp) {
+              level.value = '';
+            }
+          }
+          tab.addEventListener('change', sync);
+          track.addEventListener('change', sync);
+          sync();
+        }());
+      </script>
+    </div>
+  </div>
+</div>
+{% endblock %}
