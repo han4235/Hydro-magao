@@ -2,33 +2,297 @@
 {% extends "layout/basic.html" %}
 {% block content %}
 {% include "dtoj_style.html" %}
+<style>
+  .dtoj-race-detail { display: flex; flex-direction: column; gap: 16px; }
+  .dtoj-race-back { margin: 0; }
+  .dtoj-race-back a { color: var(--muted); font-weight: 700; text-decoration: none; }
+  .dtoj-race-back a:hover { color: var(--brand-deep); }
+  .dtoj-race-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .dtoj-race-title h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-race-edit {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--brand-deep);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-race-hero { padding: 22px 24px 8px; }
+  .dtoj-race-phase {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    margin: 0 0 10px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .dtoj-race-phase.is-wait { background: #f8f1dc; color: #6a4b00; }
+  .dtoj-race-phase.is-done { background: #eef2f6; color: var(--muted); }
+  .dtoj-race-clock-note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .dtoj-race-clock {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 10px 0 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-race-clock b {
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--brand);
+  }
+  .dtoj-race-clock.is-done b { color: var(--muted); }
+  .dtoj-race-clock span,
+  .dtoj-race-clock i { color: var(--muted); font-size: 14px; font-weight: 700; font-style: normal; }
+  .dtoj-race-meta,
+  .dtoj-race-when { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .dtoj-race-meta b,
+  .dtoj-race-when b { color: var(--ink); font-weight: 800; }
+  .dtoj-race-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.7fr);
+    gap: 22px;
+    align-items: start;
+  }
+  .dtoj-race-main { padding: 0 0 8px; }
+  .dtoj-race-body { padding: 18px 22px 22px; }
+  .dtoj-race-body h2 {
+    margin: 22px 0 8px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+  .dtoj-race-body h2:first-child { margin-top: 0; }
+  .dtoj-race-prose { max-width: 68ch; line-height: 1.8; }
+  .dtoj-race-prose p { margin: 0 0 12px; }
+  .dtoj-race-plan { margin: 0; padding-left: 1.2em; }
+  .dtoj-race-plan li { margin: 6px 0; line-height: 1.7; }
+  .dtoj-race-quote {
+    margin: 10px 0 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f4f7fb;
+  }
+  .dtoj-race-quote p { margin: 0; line-height: 1.7; }
+  .dtoj-race-problems { margin: 0; padding: 0; list-style: none; }
+  .dtoj-race-problems li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 16px;
+  }
+  .dtoj-race-problems a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-race-problems a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+  .dtoj-race-side { position: sticky; top: 16px; padding: 20px; }
+  .dtoj-race-side h2 { margin: 0 0 14px; }
+  .dtoj-race-join {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 50px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--brand);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .dtoj-race-join:hover { transform: translateY(-1px); }
+  .dtoj-race-code {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-race-code input {
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .dtoj-race-attended { margin: 0 0 8px; font-weight: 700; }
+  .dtoj-race-side dl { display: grid; gap: 14px; margin: 18px 0 0; }
+  .dtoj-race-side dt { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-race-side dd { margin: 4px 0 0; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dtoj-race-help { display: inline-block; margin-top: 16px; color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-race-detail a:focus-visible,
+  .dtoj-race-detail button:focus-visible,
+  .dtoj-race-detail input:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  @media (max-width: 800px) {
+    .dtoj-race-layout { grid-template-columns: 1fr; }
+    .dtoj-race-side { position: static; }
+    .dtoj-race-clock b { font-size: 34px; }
+  }
+</style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
-    <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>{{ contest.title }}</h2>
-            <p>详情只有这些字段，没有题目，也不校验邀请码。</p>
-          </div>
-        </header>
-        <div class="dtoj-pad">
-          <dl class="dtoj-facts">
-            <div><dt>标签</dt><dd>—</dd></div>
-            <div><dt>组别</dt><dd>{{ contest.group }}</dd></div>
-            <div><dt>时长</dt><dd>{{ contest.hours }} 小时</dd></div>
-            <div><dt>题量</dt><dd>{{ contest.problems }}</dd></div>
-            <div><dt>人数</dt><dd>{{ contest.people }}</dd></div>
-            <div><dt>赛制</dt><dd>{{ contest.rule }}</dd></div>
-            <div><dt>公开或邀请码</dt><dd>{{ contest.access }}</dd></div>
-            <div><dt>开始</dt><dd>{% if contest.beginAt %}{{ datetimeSpan(contest.beginAt, false, 'YYYY-M-D H:mm')|safe }}{% else %}—{% endif %}</dd></div>
-            <div><dt>结束</dt><dd>{% if contest.endAt %}{{ datetimeSpan(contest.endAt, false, 'YYYY-M-D H:mm')|safe }}{% else %}—{% endif %}</dd></div>
-          </dl>
-          <p class="dtoj-back"><a href="{{ url('contest_main') }}">返回比赛</a></p>
+    <div class="dtoj-shell dtoj-race-detail">
+      <p class="dtoj-race-back"><a href="{{ url('contest_main') }}">返回比赛列表</a></p>
+      <header class="dtoj-race-title">
+        <h1>{{ contest.title }}</h1>
+        {% if canEdit %}<a class="dtoj-race-edit" href="{{ url('dtoj_contest_edit', tid=contest.id) }}">编辑</a>{% endif %}
+      </header>
+      <article class="dtoj-panel dtoj-race-hero">
+        <p class="dtoj-race-phase {% if contest.phase == '尚未开始' %}is-wait{% elif contest.phase == '已结束' %}is-done{% endif %}">{{ contest.phase }}</p>
+        <p class="dtoj-race-clock-note">{{ contest.clock.note }}</p>
+        <div class="dtoj-race-clock {% if contest.clock.mode == 'done' %}is-done{% endif %}" data-clock data-mode="{{ contest.clock.mode }}" data-until="{{ contest.clock.until }}" aria-live="polite">
+          <b data-h>00</b><span>时</span>
+          <i aria-hidden="true">:</i>
+          <b data-m>00</b><span>分</span>
+          <i aria-hidden="true">:</i>
+          <b data-s>00</b><span>秒</span>
         </div>
+        <p class="dtoj-race-meta"><b>{{ contest.rule }}</b> · 题目 {{ contest.problems }} · 持续时间 {{ contest.hours }} 小时</p>
+        <p class="dtoj-race-when">开始于 <b>{% if contest.beginAt %}{{ datetimeSpan(contest.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</b> · 结束于 <b>{% if contest.endAt %}{{ datetimeSpan(contest.endAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}</b></p>
       </article>
-      {% include "dtoj_library.html" %}
+      <div class="dtoj-race-layout">
+        <article class="dtoj-panel dtoj-race-main">
+          <nav class="dtoj-tabs" aria-label="比赛内容">
+            <a class="{% if part == 'overview' %}on{% endif %}" href="{{ url('dtoj_contest_detail', tid=contest.id, query={part: 'overview'}) }}" {% if part == 'overview' %}aria-current="page"{% endif %}>概览</a>
+            <a class="{% if part == 'problems' %}on{% endif %}" href="{{ url('dtoj_contest_detail', tid=contest.id, query={part: 'problems'}) }}" {% if part == 'problems' %}aria-current="page"{% endif %}>题目列表</a>
+            <a class="{% if part == 'board' %}on{% endif %}" href="{{ url('dtoj_contest_detail', tid=contest.id, query={part: 'board'}) }}" {% if part == 'board' %}aria-current="page"{% endif %}>成绩表</a>
+          </nav>
+          <div class="dtoj-race-body">
+            {% if part == 'problems' %}
+              {% if canSeeProblems %}
+              <h2>题目列表</h2>
+              <ol class="dtoj-race-problems">
+                {% for item in problems %}
+                <li>
+                  {% if item.missing %}
+                  {{ item.show }} 题库里没有这道题
+                  {% else %}
+                  <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.show }} {{ item.title }}</a>
+                  {% endif %}
+                </li>
+                {% else %}
+                <li>这场比赛还没有题目。</li>
+                {% endfor %}
+              </ol>
+              {% else %}
+              <p>参加比赛后可以看到题目。</p>
+              {% endif %}
+            {% elif part == 'board' %}
+              <h2>成绩表</h2>
+              {% if contest.phase == '尚未开始' %}
+              <p>比赛开始后可以看成绩表。</p>
+              {% else %}
+              <p>成绩表沿用评测站的榜单。</p>
+              <p><a class="dtoj-race-help" href="{{ url('contest_scoreboard', tid=contest.id) }}">打开成绩表</a></p>
+              {% endif %}
+            {% else %}
+              {% if contest.content %}
+              <div class="dtoj-race-prose typo">{{ contest.content|markdown|safe }}</div>
+              {% endif %}
+              <h2>比赛安排</h2>
+              <ul class="dtoj-race-plan">
+                <li>开放窗口：{% if contest.beginAt %}{{ datetimeSpan(contest.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %} 至 {% if contest.endAt %}{{ datetimeSpan(contest.endAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}。</li>
+                {% if contest.personal %}
+                <li>{{ contest.access }}参赛。参加后个人计时 {{ contest.hours }} 小时，最迟在窗口结束时截止。</li>
+                {% else %}
+                <li>{{ contest.access }}参赛。全场统一计时 {{ contest.hours }} 小时。</li>
+                {% endif %}
+                <li>分类 {{ contest.group }}{% if contest.featured %}，已标为精选{% endif %}。赛制 {{ contest.rule }}，共 {{ contest.problems }} 题{% if contest.rated %}，计入等级分{% endif %}。</li>
+              </ul>
+              {% if contest.phase == '正在进行' or contest.personal %}
+              <h2>注意事项</h2>
+              {% if contest.phase == '正在进行' %}
+              <blockquote class="dtoj-race-quote"><p>{{ _('We will check code similarity after this contest.') }}</p></blockquote>
+              {% endif %}
+              {% if contest.personal %}
+              <blockquote class="dtoj-race-quote"><p>{{ _('The contest is a flexible time contest. You need to complete the contest within a specified time after you attended.') }}</p></blockquote>
+              {% endif %}
+              {% endif %}
+            {% endif %}
+          </div>
+        </article>
+        <aside class="dtoj-panel dtoj-race-side">
+          <h2>比赛</h2>
+          {% if contest.attended %}
+          <p class="dtoj-race-attended">已参加</p>
+          <a class="dtoj-race-help" href="{{ url('dtoj_contest_detail', tid=contest.id, query={part: 'problems'}) }}">进入题目</a>
+          {% elif not loggedIn %}
+          <a class="dtoj-race-join" href="{{ url('user_login') }}">登录后参加比赛</a>
+          {% elif contest.phase != '已结束' %}
+          <form method="post" action="{{ url('dtoj_contest_detail', tid=contest.id) }}">
+            <input type="hidden" name="operation" value="attend">
+            {% if contest.invite %}
+            <label class="dtoj-race-code">邀请码
+              <input name="code" autocomplete="off" required>
+            </label>
+            {% endif %}
+            <button class="dtoj-race-join" type="submit">参加比赛</button>
+          </form>
+          {% else %}
+          <p class="dtoj-race-attended">这场比赛已经结束。</p>
+          {% endif %}
+          <dl>
+            <div><dt>主持人</dt><dd>{{ contest.owner }}</dd></div>
+            <div><dt>参赛人数</dt><dd>{{ contest.people }}</dd></div>
+          </dl>
+          <a class="dtoj-race-help" href="{{ url('wiki_help', anchor='contest') }}">帮助</a>
+        </aside>
+      </div>
     </div>
   </div>
 </div>
+<script>
+  (function () {
+    var clock = document.querySelector('[data-clock]');
+    if (!clock) return;
+    var mode = clock.getAttribute('data-mode');
+    var until = Number(clock.getAttribute('data-until') || 0);
+    var h = clock.querySelector('[data-h]');
+    var m = clock.querySelector('[data-m]');
+    var s = clock.querySelector('[data-s]');
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function paint() {
+      var left = 0;
+      if (mode === 'count' && until) left = Math.max(0, until - Date.now());
+      var sec = Math.floor(left / 1000);
+      h.textContent = pad(Math.floor(sec / 3600));
+      m.textContent = pad(Math.floor((sec % 3600) / 60));
+      s.textContent = pad(sec % 60);
+    }
+    paint();
+    if (mode === 'count') window.setInterval(paint, 1000);
+  }());
+</script>
 {% endblock %}

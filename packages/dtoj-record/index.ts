@@ -108,6 +108,6 @@ export async function apply(ctx: Context) {
     ctx.Route('record_main', '/record', DtojRecordHandler);
     dropEarlierRoutes(ctx, ['/record']);
     for (const lang of ['zh', 'zh_TW', 'en', 'kr']) {
-        ctx.i18n.load(lang, { dtoj_record: '评测队列' });
+        ctx.i18n.load(lang, { dtoj_record: '评测记录' });
     }
 }

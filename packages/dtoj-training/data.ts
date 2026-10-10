@@ -52,8 +52,22 @@ export function courseMark(id: string) {
     };
 }
 
-export function listed(id: string, direction: string, kind: string) {
-    const mark = courseMark(id);
+type MarkDoc = { docId: { toHexString(): string }, dtoj?: { direction?: string, kind?: string, notes?: Record<string, string> } };
+
+export function markOf(tdoc: MarkDoc) {
+    if (tdoc.dtoj) {
+        const direction = tdoc.dtoj.direction || '';
+        const kind = tdoc.dtoj.kind || '';
+        return {
+            direction: directions.includes(direction) ? direction : '',
+            kind: courseKinds.includes(kind) ? kind : '',
+        };
+    }
+    return courseMark(tdoc.docId.toHexString());
+}
+
+export function listed(tdoc: MarkDoc, direction: string, kind: string) {
+    const mark = markOf(tdoc);
     let byDirection = true;
     if (direction === '其他') byDirection = !mark.direction || mark.direction === '其他';
     else if (direction) byDirection = mark.direction === direction;
@@ -65,4 +79,14 @@ export function chapterNote(id: string, index: number) {
     const text = courseTable[id]?.notes?.[index];
     if (typeof text === 'string' && text.trim()) return text.trim();
     return missingNote;
+}
+
+export function noteOf(tdoc: MarkDoc, nodeId: number, index: number) {
+    if (tdoc.dtoj) {
+        const notes = tdoc.dtoj.notes || {};
+        const text = notes[String(nodeId)];
+        if (typeof text === 'string' && text.trim()) return text.trim();
+        return missingNote;
+    }
+    return chapterNote(tdoc.docId.toHexString(), index);
 }

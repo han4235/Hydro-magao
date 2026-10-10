@@ -6,37 +6,31 @@
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>等级分</h2>
-            <p>当前分是已经算好的 rp，打开页面时不重算。历史最高分没有对应字段。</p>
-          </div>
-          <span class="dtoj-count-pill">RANK</span>
-        </header>
-        <div class="dtoj-table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>用户</th>
-                <th>当前分</th>
-                <th>历史最高分</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in rows %}
-              <tr>
-                <td>{{ row.name }}</td>
-                <td>{{ row.now }}</td>
-                <td>{{ row.best }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <header class="dtoj-page-head">
+        <h1>等级分</h1>
+        <p>当前分是已经算好的分数，打开页面时不会重新计算。</p>
+      </header>
+      <section class="dtoj-sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>用户</th>
+              <th>当前分</th>
+              <th>历史最高分</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.now }}</td>
+              <td>{{ row.best }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {{ paginator.render(page, pages) }}
-      </article>
-      {% include "dtoj_library.html" %}
+      </section>
     </div>
   </div>
 </div>

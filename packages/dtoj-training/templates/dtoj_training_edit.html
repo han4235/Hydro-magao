@@ -1,0 +1,240 @@
+{% set page_name = pageName %}
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-plan-page { display: flex; flex-direction: column; gap: 28px; }
+  .dtoj-plan-page h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-plan-page .dtoj-plan-lead {
+    margin: 12px 0 0;
+    max-width: 65ch;
+    color: #3e4c63;
+    font-size: 14px;
+    line-height: 1.9;
+  }
+  .dtoj-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-plan h2 {
+    margin: 0 0 16px;
+    color: var(--ink);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+  }
+  .dtoj-plan-error {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8e6e6;
+    color: #8a1f1f;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .dtoj-plan label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #3e4c63;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .dtoj-plan input,
+  .dtoj-plan select,
+  .dtoj-plan textarea {
+    width: 100%;
+    margin: 0;
+    border: 1px solid rgba(30, 41, 59, 0.14);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    box-shadow: none;
+    accent-color: #4f46e5;
+    caret-color: #4338ca;
+  }
+  .dtoj-plan input,
+  .dtoj-plan select { min-height: 48px; padding: 0 14px; }
+  .dtoj-plan textarea { min-height: 120px; padding: 12px 14px; resize: vertical; }
+  .dtoj-plan input::placeholder,
+  .dtoj-plan textarea::placeholder { color: #5f6b7a; }
+  .dtoj-plan input::selection,
+  .dtoj-plan textarea::selection { background: #e0e7ff; color: var(--ink); }
+  .dtoj-plan input:focus-visible,
+  .dtoj-plan select:focus-visible,
+  .dtoj-plan textarea:focus-visible,
+  .dtoj-plan button:focus-visible,
+  .dtoj-plan a:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-plan-meta {
+    display: grid;
+    grid-template-columns: 1.4fr 1.4fr 0.8fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .dtoj-plan-note { margin: 0; color: #3e4c63; font-size: 14px; font-weight: 400; line-height: 1.5; }
+  .dtoj-plan-stack { display: flex; flex-direction: column; gap: 16px; }
+  .dtoj-chapter {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    padding: 16px;
+    border: 0;
+    border-radius: 16px;
+    background: #eef0fb;
+  }
+  .dtoj-chapter legend {
+    padding: 0;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .dtoj-plan-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+  .dtoj-plan-find label { flex: 1 1 240px; }
+  .dtoj-plan button {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .dtoj-plan-save { background: #4f46e5; color: #fff; }
+  .dtoj-plan-save:hover { transform: translateY(-1px); }
+  .dtoj-plan-quiet {
+    background: #fff;
+    color: #1e3a8a;
+    box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.14);
+  }
+  .dtoj-plan-quiet:hover { transform: translateY(-1px); }
+  .dtoj-plan a.dtoj-plan-quiet {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+  .dtoj-plan-hits { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .dtoj-plan-hit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .dtoj-plan-hit span {
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-plan-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  @media (max-width: 720px) {
+    .dtoj-plan { padding: 20px; }
+    .dtoj-plan-meta { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-plan-page">
+      <header>
+        <h1>{% if canDelete %}编辑训练{% else %}新建训练{% endif %}</h1>
+        <p class="dtoj-plan-lead">先写课程，再按章节填题号。题号要能在后台题库里找到，显示题号和内部编号都可以。</p>
+      </header>
+      <form method="post" class="dtoj-plan">
+        {% if error %}<p class="dtoj-plan-error">{{ error }}</p>{% endif %}
+        <section>
+          <h2>课程</h2>
+          <div class="dtoj-plan-stack">
+            <label>标题<input name="title" value="{{ title }}"></label>
+            <div class="dtoj-plan-meta">
+              <label>方向
+                <select name="direction">
+                  <option value="">未选</option>
+                  {% for d in directions %}
+                  <option value="{{ d }}" {% if direction == d %}selected{% endif %}>{{ d }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>类型
+                <select name="kind">
+                  <option value="">未选</option>
+                  {% for k in kinds %}
+                  <option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>置顶
+                <input name="pin" value="{{ pin }}" inputmode="numeric">
+              </label>
+            </div>
+            <p class="dtoj-plan-note">置顶写 0 就是不放进热门。改成大于 0 需要置顶权限。</p>
+            <label>简介<textarea name="content">{{ content }}</textarea></label>
+          </div>
+        </section>
+        <section>
+          <h2>章节</h2>
+          <div class="dtoj-plan-stack">
+            {% for ch in chapters %}
+            <fieldset class="dtoj-chapter">
+              <legend>第 {{ loop.index }} 章</legend>
+              <label>标题<input name="chapterTitle" value="{{ ch.title }}"></label>
+              <label>讲义<textarea name="chapterNote">{{ ch.note }}</textarea></label>
+              <label>题号<input name="chapterPids" value="{{ ch.pids }}" placeholder="用空格或逗号分开"></label>
+            </fieldset>
+            {% endfor %}
+            <div>
+              <button class="dtoj-plan-quiet" type="submit" name="operation" value="add">加一章</button>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>从题库找题号</h2>
+          <div class="dtoj-plan-find">
+            <label>题号或标题<input name="pq" value="{{ pq }}"></label>
+            <button class="dtoj-plan-quiet" type="submit" name="operation" value="search">搜索</button>
+          </div>
+          {% if hits.length %}
+          <div class="dtoj-plan-hits">
+            {% for hit in hits %}
+            <p class="dtoj-plan-hit"><span>{{ hit.pid }}</span> {{ hit.title }}</p>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </section>
+        <div class="dtoj-plan-actions">
+          <button class="dtoj-plan-save" type="submit" name="operation" value="save">保存</button>
+          <a class="dtoj-plan-quiet" href="{{ url('training_main') }}">返回训练</a>
+          {% if canDelete %}<button class="dtoj-plan-quiet" type="submit" name="operation" value="delete">删除</button>{% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

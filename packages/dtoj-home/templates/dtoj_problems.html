@@ -3,39 +3,190 @@
 {% import "components/paginator.html" as paginator with context %}
 {% block content %}
 {% include "dtoj_style.html" %}
+<style>
+  .dtoj-bank { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+  .dtoj-bank-main, .dtoj-bank-side { display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-bank-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+  .dtoj-bank-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-bank-bar b { margin-right: 4px; font-size: 16px; }
+  .dtoj-bank-bar select, .dtoj-bank-search input {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  .dtoj-bank-bar form { display: flex; gap: 8px; }
+  .dtoj-bank-toggle { margin-left: auto; color: var(--brand-deep); font-size: 14px; font-weight: 700; text-decoration: none; }
+  .dtoj-bank-table { width: 100%; min-width: 640px; border-collapse: collapse; }
+  .dtoj-bank-table th, .dtoj-bank-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: middle; }
+  .dtoj-bank-table th { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-bank-table tr:last-child td { border-bottom: 0; }
+  .dtoj-bank-id { width: 5.5rem; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dtoj-bank-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dtoj-bank-name a { color: var(--brand); font-weight: 700; text-decoration: none; }
+  .dtoj-bank-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dtoj-bank-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-bank-tag.is-on { background: var(--brand); color: #fff; }
+  .dtoj-bank-lv { font-size: 12px; font-weight: 700; }
+  .dtoj-bank-lv.is-入门 { color: #145c32; }
+  .dtoj-bank-lv.is-简单 { color: #1d4ed8; }
+  .dtoj-bank-lv.is-中等 { color: #8e7341; }
+  .dtoj-bank-lv.is-困难 { color: #9a3412; }
+  .dtoj-bank-lv.is-挑战 { color: #8a1f1f; }
+  .dtoj-bank-rate { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .dtoj-bank-rate i { flex: 1; height: 6px; border-radius: 999px; background: #e8eef5; overflow: hidden; }
+  .dtoj-bank-rate i b { display: block; height: 100%; background: var(--brand); }
+  .dtoj-bank-rate span { width: 2.5rem; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .dtoj-bank-side .dtoj-bank-card { padding: 14px; }
+  .dtoj-bank-side h2 { margin: 0 0 10px; font-size: 14px; font-weight: 760; }
+  .dtoj-bank-search { display: flex; gap: 8px; }
+  .dtoj-bank-search input { flex: 1; min-width: 0; }
+  .dtoj-bank-search button {
+    width: 36px;
+    height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: #111827;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-bank-count { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+  .dtoj-bank-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-bank-lucky {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-bank-empty { margin: 0; padding: 28px 16px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 960px) { .dtoj-bank { grid-template-columns: 1fr; } }
+</style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
-    <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
-          <div>
-            <h2>题库</h2>
-            <p>名称、标签、难度来自现有题库。原来的题库仍在 /p。</p>
+    <div class="dtoj-shell dtoj-bank">
+      <section class="dtoj-bank-main">
+        <div class="dtoj-bank-card">
+          <div class="dtoj-bank-bar">
+            <b>题库</b>
+            <form method="get" action="{{ url('dtoj_problems') }}">
+              <input type="hidden" name="q" value="{{ q }}">
+              {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+              <input type="hidden" name="tags" value="{{ '1' if showTags else '0' }}">
+              <select name="diff" aria-label="难度" onchange="this.form.submit()">
+                <option value="">全部难度</option>
+                {% for name in levels %}
+                <option value="{{ name }}" {% if diff == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+              <select name="sort" aria-label="排序" onchange="this.form.submit()">
+                <option value="new" {% if sort == 'new' %}selected{% endif %}>新题优先</option>
+                <option value="old" {% if sort == 'old' %}selected{% endif %}>旧题优先</option>
+                <option value="id" {% if sort == 'id' %}selected{% endif %}>题号</option>
+              </select>
+            </form>
+            <a class="dtoj-bank-toggle" href="{{ url('dtoj_problems') }}?{{ qs }}{% if qs %}&{% endif %}tags={{ '0' if showTags else '1' }}">{% if showTags %}收起标签{% else %}展开标签{% endif %}</a>
           </div>
-        </header>
-        <div class="dtoj-table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>标签</th>
-                <th>难度</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in problems %}
-              <tr>
-                <td><a href="{{ url('problem_detail', pid=p.link) }}">{{ p.title }}</a></td>
-                <td>{% for tag in p.tags %}<span class="dtoj-tag">{{ tag }}</span>{% endfor %}</td>
-                <td><span class="dtoj-level">{{ p.level }}</span></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          {% if problems.length %}
+          <div style="overflow-x:auto">
+            <table class="dtoj-bank-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>题目名称</th>
+                  <th>难度</th>
+                  <th>通过率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in problems %}
+                <tr>
+                  <td class="dtoj-bank-id">{{ p.pid }}</td>
+                  <td>
+                    <div class="dtoj-bank-name">
+                      <a href="{{ url('problem_detail', pid=p.link) }}">{{ p.title }}</a>
+                      {% if showTags %}
+                      <span class="dtoj-bank-tags">
+                        {% for name in p.tags %}
+                        <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}">{{ name }}</a>
+                        {% endfor %}
+                      </span>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>{% if p.level %}<span class="dtoj-bank-lv is-{{ p.level }}">{{ p.level }}</span>{% else %}—{% endif %}</td>
+                  <td>
+                    <div class="dtoj-bank-rate">
+                      <i>{% if p.rate is number %}<b style="width: {{ p.rate }}%"></b>{% endif %}</i>
+                      <span>{% if p.rate is number %}{{ p.rate }}%{% else %}—{% endif %}</span>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {{ paginator.render(page, pages, add_qs=qs) }}
+          {% else %}
+          <p class="dtoj-bank-empty">没有对得上的题目。</p>
+          {% endif %}
         </div>
-        {{ paginator.render(page, pages) }}
-      </article>
-      {% include "dtoj_library.html" %}
+      </section>
+      <aside class="dtoj-bank-side">
+        <section class="dtoj-bank-card">
+          <h2>搜索</h2>
+          <form class="dtoj-bank-search" method="get" action="{{ url('dtoj_problems') }}">
+            <input type="hidden" name="diff" value="{{ diff }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+            <input name="q" value="{{ q }}" placeholder="搜索题号、名称或标签" aria-label="搜索题号、名称或标签">
+            <button type="submit" aria-label="搜索">搜</button>
+          </form>
+          <p class="dtoj-bank-count">{{ total }} 道题</p>
+        </section>
+        <section class="dtoj-bank-card">
+          <h2>分类</h2>
+          {% if tags.length %}
+          <div class="dtoj-bank-cloud">
+            <a class="dtoj-bank-tag{% if not tag %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?diff={{ diff }}&sort={{ sort }}&q={{ q }}">全部</a>
+            {% for name in tags %}
+            <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}">{{ name }}</a>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="dtoj-bank-count">题目上还没有标签。</p>
+          {% endif %}
+        </section>
+        {% if lucky %}
+        <a class="dtoj-bank-lucky" href="{{ url('problem_detail', pid=lucky) }}">手气不错</a>
+        {% endif %}
+      </aside>
     </div>
   </div>
 </div>

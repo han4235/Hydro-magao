@@ -1,4 +1,4 @@
-import { Context, Handler } from 'hydrooj';
+import { Context, Handler, PERM } from 'hydrooj';
 
 export function queryOf(handler: Handler, key: string) {
     const raw = handler.args[key];
@@ -47,8 +47,8 @@ export function dropEarlierRoutes(ctx: Context, paths: string[]) {
 
 const nav: [string, string, string][] = [
     ['homepage', 'dtoj_home', '首页'],
+    ['dtoj_problems', 'dtoj_problems', '题库'],
     ['training_main', 'dtoj_training', '训练'],
-    ['dtoj_wiki', 'dtoj_wiki', 'WIKI'],
     ['contest_main', 'dtoj_contest', '比赛'],
     ['dtoj_rank', 'dtoj_rank', '等级分'],
     ['record_main', 'dtoj_record', '评测队列'],
@@ -63,4 +63,5 @@ export async function apply(ctx: Context) {
     for (const [name, prefix, displayName] of nav) {
         global.Hydro.ui.inject('Nav', name, { prefix, displayName });
     }
+    global.Hydro.ui.inject('Nav', 'domain_dashboard', { prefix: 'domain', displayName: '管理域' }, PERM.PERM_EDIT_DOMAIN);
 }
