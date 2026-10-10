@@ -6,11 +6,24 @@ if [ ! -f "$ROOT/addon.json" ]; then
     echo '["@hydrooj/ui-default"]' > "$ROOT/addon.json"
 fi
 
-# Keep dtoj-ui in the addon list on every start, including volumes that
-# already have addon.json from an earlier boot.
+# Keep the DTOJ plugins in the addon list on every start, including volumes
+# that already have addon.json from an earlier boot. dtoj-ui is the shared
+# shell; the rest each own one top-nav menu.
 node <<'EOF'
 const fs = require('fs');
 const p = '/root/.hydro/addon.json';
+const want = [
+    'dtoj-ui',
+    'dtoj-home',
+    'dtoj-training',
+    'dtoj-wiki',
+    'dtoj-contest',
+    'dtoj-rank',
+    'dtoj-record',
+    'dtoj-community',
+    'dtoj-discuss',
+    'dtoj-shop',
+];
 let list = [];
 try {
     list = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -19,8 +32,8 @@ try {
 }
 if (!Array.isArray(list)) list = [];
 if (!list.includes('@hydrooj/ui-default')) list.unshift('@hydrooj/ui-default');
-list = list.filter((name) => name !== 'dtoj-ui');
-list.push('dtoj-ui');
+list = list.filter((name) => !want.includes(name));
+list.push(...want);
 fs.writeFileSync(p, JSON.stringify(list));
 EOF
 
