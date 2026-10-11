@@ -15,8 +15,18 @@
   }
   .dtoj-race-edit .dtoj-pad { display: flex; flex-direction: column; gap: 14px; }
   .dtoj-race-edit .dtoj-fields { margin: 0; }
-  .dtoj-race-edit textarea.textbox { height: auto; min-height: 88px; padding: 10px 12px; }
-  .dtoj-race-edit button { border: 0; cursor: pointer; width: auto; padding: 0 18px; }
+  .dtoj-race-edit textarea[name="content"] { height: auto; min-height: 88px; padding: 10px 12px; }
+  .dtoj-race-edit .md-editor.textbox {
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .dtoj-race-edit .dtoj-join button,
+  .dtoj-race-edit .dtoj-actions button { border: 0; cursor: pointer; width: auto; padding: 0 18px; }
   .dtoj-race-error { margin: 0; color: #8a1f1f; font-size: 14px; font-weight: 700; }
   .dtoj-race-hit { margin: 0; font-size: 14px; }
   .dtoj-race-edit .dtoj-actions { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -72,6 +82,10 @@
             <label>邀请码<input class="textbox" name="code" value="{{ code }}" placeholder="留空则公开"></label>
           </div>
           <label class="dtoj-field">简介<textarea class="textbox" name="content">{{ content }}</textarea></label>
+          <div class="dtoj-field">
+            <p class="dtoj-count-tag">概览</p>
+            <textarea name="overview" class="textbox" data-markdown>{{ overview }}</textarea>
+          </div>
           <label class="dtoj-field">题号<input class="textbox" name="pids" value="{{ pids }}" placeholder="用空格或逗号分开，从下面的搜索结果里抄"></label>
           <p class="dtoj-count-tag">从题库找题号</p>
           <div class="dtoj-join">

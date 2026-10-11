@@ -2,43 +2,527 @@
 {% extends "layout/basic.html" %}
 {% block content %}
 {% include "dtoj_style.html" %}
+<style>
+  .dtoj-course-view { display: flex; flex-direction: column; gap: 16px; }
+  .dtoj-course-back { margin: 0; }
+  .dtoj-course-back a { color: var(--muted); font-weight: 700; text-decoration: none; }
+  .dtoj-course-back a:hover { color: var(--brand-deep); }
+  .dtoj-course-title {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .dtoj-course-title h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.16;
+  }
+  .dtoj-course-title p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .dtoj-course-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .dtoj-course-join { margin: 0; color: #145c32; font-weight: 700; white-space: nowrap; }
+  .dtoj-course-join button,
+  .dtoj-course-join a.dtoj-course-go {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .dtoj-course-join button:hover,
+  .dtoj-course-join a.dtoj-course-go:hover { background: var(--brand-deep); }
+  .dtoj-course-body { padding: 22px 24px 28px; }
+  .dtoj-course-view .dtoj-sheet {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .dtoj-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 22px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .dtoj-type button {
+    min-width: 36px;
+    min-height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-type button:hover { border-color: var(--brand); color: var(--brand-deep); }
+  .dtoj-type b { min-width: 42px; color: var(--ink); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+  .dtoj-lecture { color: var(--ink); font-size: 16px; line-height: 1.85; }
+  .dtoj-lecture-ch + .dtoj-lecture-ch { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--line); }
+  .dtoj-lecture h2 {
+    margin: 0 0 12px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 1.35em;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+  }
+  .dtoj-lecture p,
+  .dtoj-lecture li,
+  .dtoj-lecture blockquote { max-width: 68ch; }
+  .dtoj-lecture p { margin: 0 0 14px; }
+  .dtoj-lecture img { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 0 18px; border-radius: 16px; }
+  .dtoj-course-view a:focus-visible,
+  .dtoj-course-view button:focus-visible,
+  .dtoj-course-view input:focus-visible,
+  .dtoj-course-view select:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-practice {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 22px;
+    align-items: start;
+  }
+  .dtoj-stage { padding: 0 0 8px; }
+  .dtoj-stage + .dtoj-stage { margin-top: 22px; }
+  .dtoj-stage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+  .dtoj-stage-head h2 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .dtoj-state i { width: 8px; height: 8px; border-radius: 999px; background: #94a3b8; }
+  .dtoj-state.is-progress { color: #6a4b00; }
+  .dtoj-state.is-progress i { background: #d97706; }
+  .dtoj-state.is-done { color: #145c32; }
+  .dtoj-state.is-done i { background: #15803d; }
+  .dtoj-sheet { width: 100%; overflow-x: auto; }
+  .dtoj-sheet table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .dtoj-sheet th {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+  }
+  .dtoj-sheet td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .dtoj-sheet a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-sheet a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+  .dtoj-pass { color: #145c32; font-weight: 700; }
+  .dtoj-pass svg { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
+  .dtoj-try { color: #6a4b00; font-weight: 700; }
+  .dtoj-tags { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 8px; }
+  .dtoj-tags span,
+  .dtoj-diff {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-diff { background: #f4f7fb; color: var(--ink); }
+  .dtoj-rate { display: flex; align-items: center; gap: 8px; min-width: 110px; color: var(--muted); font-size: 12px; }
+  .dtoj-rate b { display: block; height: 6px; border-radius: 999px; background: #e8eef5; overflow: hidden; flex: 1; }
+  .dtoj-rate i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+  .dtoj-side {
+    position: sticky;
+    top: 16px;
+    padding: 2px 0 0;
+  }
+  .dtoj-side h2 { margin: 0 0 10px; font-size: 15px; font-weight: 800; }
+  .dtoj-side ol { margin: 0; padding: 0; list-style: none; }
+  .dtoj-side a {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+  }
+  .dtoj-side a:hover,
+  .dtoj-side a.on { background: #e7eefb; color: var(--brand-deep); }
+  .dtoj-rank-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 18px; }
+  .dtoj-rank-tools label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .dtoj-rank-tools select,
+  .dtoj-rank-tools input {
+    min-height: 40px;
+    min-width: 180px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .dtoj-rank-tools button {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-rank-note { margin-left: auto; }
+  .dtoj-rank-note summary { color: var(--brand-deep); font-weight: 700; cursor: pointer; }
+  .dtoj-rank-note p { max-width: 36ch; margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .dtoj-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-stats b {
+    display: block;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 32px;
+    font-weight: 760;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .dtoj-stats b span { margin-left: 4px; font-family: "Open Sans", "PingFang SC", sans-serif; font-size: 14px; font-weight: 700; }
+  .dtoj-stats p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .dtoj-rank-table td.is-on,
+  .dtoj-rank-table th.is-on { background: #f4f7fb; }
+  .dtoj-rank-table tr.is-self td { background: #e7eefb; }
+  .dtoj-cell { display: flex; flex-direction: column; gap: 2px; }
+  .dtoj-cell span { color: var(--muted); font-size: 12px; }
+  .dtoj-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 22px; }
+  .dtoj-facts p { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+  .dtoj-facts b { font-size: 18px; font-weight: 800; }
+  .dtoj-owner { display: inline-flex; align-items: center; gap: 8px; }
+  .dtoj-owner img,
+  .dtoj-member img { width: 28px; height: 28px; border-radius: 999px; object-fit: cover; }
+  .dtoj-about { margin: 0 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .dtoj-about h2,
+  .dtoj-roster h2 {
+    margin: 0 0 8px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-about p { margin: 0 0 10px; max-width: 72ch; line-height: 1.8; }
+  .dtoj-roster input {
+    width: min(420px, 100%);
+    min-height: 40px;
+    margin: 0 0 14px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+  }
+  .dtoj-members { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .dtoj-member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .dtoj-member.is-self { background: #e7eefb; border-color: transparent; }
+  .dtoj-empty { margin: 0; color: var(--muted); }
+  .dtoj-edit { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  @media (max-width: 900px) {
+    .dtoj-practice,
+    .dtoj-facts,
+    .dtoj-stats,
+    .dtoj-members { grid-template-columns: 1fr; }
+    .dtoj-side { position: static; }
+    .dtoj-course-body { padding: 16px; }
+    .dtoj-course-title { align-items: flex-start; flex-direction: column; }
+    .dtoj-course-title h1 { font-size: 32px; }
+  }
+</style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell">
-      <article class="dtoj-panel">
-        <header class="dtoj-panel-head">
+      <div class="dtoj-course-view">
+        <p class="dtoj-course-back"><a href="{{ url('training_main') }}">返回训练</a></p>
+        <header class="dtoj-course-title">
           <div>
-            <h2>{{ course.title }}</h2>
-            {% if course.direction or course.kind %}<p>{% if course.direction %}<span class="dtoj-tag">{{ course.direction }}</span>{% endif %}{% if course.kind %}<span class="dtoj-tag">{{ course.kind }}</span>{% endif %}</p>{% endif %}
-            <p>{{ course.chapters }} 章 · {{ course.problems }} 道练习</p>
+            <h1>{{ course.title }}</h1>
+            <p>{% if course.direction %}{{ course.direction }}{% endif %}{% if course.kind %}{% if course.direction %} · {% endif %}{{ course.kind }}{% endif %}{% if course.direction or course.kind %} · {% endif %}{{ course.chapters }} 章 · {{ course.problems }} 道练习</p>
           </div>
-          {% if canEdit %}<a class="dtoj-go" href="{{ url('dtoj_training_edit', tid=course.id) }}">编辑</a>{% endif %}
-        </header>
-        <div class="dtoj-pad">
-          <p>{{ course.brief }}</p>
-          <ol class="dtoj-chapters">
-            {% for ch in chapters %}
-            <li>
-              第 {{ ch.index }} 章 {{ ch.title }}
-              <p>{{ ch.note }}</p>
-              {% if ch.problems.length %}
-              <span class="dtoj-meta">题目
-                {% for item in ch.problems %}
-                {% if item.missing %}
-                <span>{{ item.show }} 题库里没有这道题</span>
-                {% else %}
-                <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.show }} {{ item.title }}</a>
-                {% endif %}
-                {% endfor %}
-              </span>
+          <div class="dtoj-course-actions">
+            <div class="dtoj-course-join">
+              {% if enrolled %}
+              已参加训练计划
+              {% elif loggedIn %}
+              <form method="post" action="">
+                <input type="hidden" name="operation" value="enroll">
+                <button type="submit">参加训练计划</button>
+              </form>
+              {% else %}
+              <a class="dtoj-course-go" href="{{ url('user_login') }}">登录后参加</a>
               {% endif %}
-            </li>
+            </div>
+            {% if canEdit %}<a class="dtoj-edit" href="{{ url('dtoj_training_edit', tid=course.id) }}">编辑</a>{% endif %}
+          </div>
+        </header>
+        <article class="dtoj-panel">
+          <nav class="dtoj-tabs" aria-label="课程内容">
+            {% for name in parts %}
+            <a class="{% if part == name %}on{% endif %}" href="{{ url('dtoj_training_detail', tid=course.id) }}?part={{ name }}" {% if part == name %}aria-current="page"{% endif %}>{{ name }}</a>
             {% endfor %}
-          </ol>
-          <p class="dtoj-back"><a href="{{ url('training_main') }}">返回训练</a></p>
-        </div>
-      </article>
+          </nav>
+          <div class="dtoj-course-body">
+        {% if part == '讲义' %}
+        <section>
+          <div class="dtoj-type">
+            <span>字号</span>
+            <button type="button" data-size="-1">A−</button>
+            <b data-size-label>14px</b>
+            <button type="button" data-size="1">A+</button>
+          </div>
+          <div class="dtoj-lecture" data-lecture>
+            {% for ch in chapters %}
+            <section class="dtoj-lecture-ch">
+              <h2>第 {{ ch.index }} 章 {{ ch.title }}</h2>
+              <div class="typo">{{ ch.note|markdown|safe }}</div>
+            </section>
+            {% else %}
+            <p class="dtoj-empty">这门课还没有讲义。</p>
+            {% endfor %}
+          </div>
+        </section>
+        {% elif part == '练习' %}
+        <section>
+          <div class="dtoj-practice">
+            <div>
+              {% for ch in chapters %}
+              <article class="dtoj-stage" id="chapter-{{ ch.index }}">
+                <div class="dtoj-stage-head">
+                  <h2>章节 {{ ch.index }}. {{ ch.title }}</h2>
+                  {% if ch.state %}<span class="dtoj-state is-{{ ch.stateKey }}"><i></i>{{ ch.state }}</span>{% endif %}
+                </div>
+                <div class="dtoj-sheet">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>状态</th>
+                        <th>ID</th>
+                        <th>题目名称</th>
+                        <th>难度</th>
+                        <th>通过率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in ch.problems %}
+                      <tr>
+                        <td>
+                          {% if item.mine == 'pass' %}
+                          <span class="dtoj-pass"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>已通过</span>
+                          {% elif item.mine == 'try' %}
+                          <span class="dtoj-try">{% if item.mineScore or item.mineScore == 0 %}得分 {{ item.mineScore }}{% else %}已提交{% endif %}</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ item.show }}</td>
+                        <td>
+                          {% if item.missing %}
+                          {{ item.show }} 题库里没有这道题
+                          {% else %}
+                          <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.title }}</a>
+                          {% if item.tags %}
+                          <span class="dtoj-tags">{% for tag in item.tags %}<span>{{ tag }}</span>{% endfor %}</span>
+                          {% endif %}
+                          {% endif %}
+                        </td>
+                        <td>{% if item.difficulty %}<span class="dtoj-diff">{{ item.difficulty }}</span>{% else %}—{% endif %}</td>
+                        <td>
+                          {% if item.rate or item.rate == 0 %}
+                          <span class="dtoj-rate"><b><i style="width: {{ item.rate }}%"></i></b>{{ item.rate }}%</span>
+                          {% else %}—{% endif %}
+                        </td>
+                      </tr>
+                      {% else %}
+                      <tr><td colspan="5">这一章还没有题目。</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+              {% else %}
+              <p class="dtoj-empty">这门课还没有练习。</p>
+              {% endfor %}
+            </div>
+            <aside class="dtoj-side">
+              <h2>训练阶段</h2>
+              <ol>
+                {% for ch in chapters %}
+                <li><a href="#chapter-{{ ch.index }}">章节 {{ ch.index }}. {{ ch.title }}</a></li>
+                {% endfor %}
+              </ol>
+            </aside>
+          </div>
+        </section>
+        {% elif part == '排行' %}
+        <section>
+          <h2 class="dtoj-stage-head" style="display:block">课程排行榜</h2>
+          <form class="dtoj-rank-tools" method="get">
+            <input type="hidden" name="part" value="排行">
+            <label>阶段
+              <select name="stage" onchange="this.form.submit()">
+                <option value="" {% if not stage %}selected{% endif %}>全部阶段</option>
+                {% for ch in chapters %}
+                <option value="{{ ch.index }}" {% if stage == ch.index|string %}selected{% endif %}>{{ ch.title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>查找学员
+              <input name="q" value="{{ q }}" placeholder="用户名或 UID">
+            </label>
+            <button type="submit">查找</button>
+            <details class="dtoj-rank-note">
+              <summary>统计说明</summary>
+              <p>名次按所选阶段的得分排序。已通过并且记录了分数的题用那个分数，已通过但没有分数的题按 100 分计。通过率是通过题数除以这一阶段的题数。</p>
+            </details>
+          </form>
+          <div class="dtoj-stats">
+            <div><b>{{ stats.people }}<span>人</span></b><p>学员人数<br>已提交 {{ stats.submitted }} 人</p></div>
+            <div><b>{{ stats.problems }}<span>题</span></b><p>统计题目<br>满分 {{ stats.full }}</p></div>
+            <div><b>{{ stats.avgScore }}<span>分</span></b><p>平均总分<br>平均得分率 {{ stats.rate }}%</p></div>
+            <div><b>{{ stats.avgPass }}<span>题</span></b><p>平均通过</p></div>
+          </div>
+          <div class="dtoj-sheet dtoj-rank-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>学员</th>
+                  <th>总分</th>
+                  <th>通过题数</th>
+                  {% for ch in chapters %}
+                  <th class="{% if stage == ch.index|string %}is-on{% endif %}">{{ ch.title }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in board %}
+                <tr class="{% if row.self %}is-self{% endif %}">
+                  <td>{{ loop.index }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.score }}</td>
+                  <td>{{ row.ac }} / {{ row.total }}</td>
+                  {% for cell in row.cells %}
+                  <td class="{% if stage == chapters[loop.index0].index|string %}is-on{% endif %}">
+                    <span class="dtoj-cell"><strong>{{ cell.score }}</strong><span>{{ cell.ac }} / {{ cell.total }} 题</span></span>
+                  </td>
+                  {% endfor %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 4 + chapters|length }}">还没有学员参加这门课。</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {% else %}
+        <section>
+          <div class="dtoj-facts">
+            <div><p>状态</p><b>{{ joined }}</b></div>
+            <div><p>进度</p><b>{% if progress or progress == 0 %}已完成 {{ progress }}%{% else %}未参加{% endif %}</b></div>
+            <div><p>参加人数</p><b>{{ attend }}</b></div>
+            <div><p>创建人</p><b class="dtoj-owner">{% if owner.avatar %}<img src="{{ avatarUrl(owner.avatar) }}" alt="">{% endif %}{{ owner.name }}</b></div>
+          </div>
+          <div class="dtoj-about">
+            <h2>课程说明</h2>
+            {% if brief %}<p>{{ brief }}</p>{% else %}<p class="dtoj-empty">还没有课程说明。</p>{% endif %}
+            {% if about %}<div class="typo">{{ about|markdown|safe }}</div>{% endif %}
+          </div>
+          <div class="dtoj-roster">
+            <h2>学员 {{ attend }} 人</h2>
+            <input data-member-filter placeholder="选择用户" aria-label="选择用户">
+            {% if members.length %}
+            <div class="dtoj-members">
+              {% for member in members %}
+              <div class="dtoj-member{% if member.self %} is-self{% endif %}" data-member="{{ member.name }} {{ member.uname }} {{ member.uid }}">
+                <img src="{{ avatarUrl(member.avatar) }}" alt="">
+                <span>{{ member.name }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="dtoj-empty">还没有学员参加。</p>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+          </div>
+        </article>
+      </div>
     </div>
   </div>
 </div>
+<script>
+(function () {
+  var root = document.querySelector('[data-lecture]');
+  if (root) {
+    var key = 'dtoj-lecture-size';
+    var sizes = [14, 16, 18, 20];
+    var saved = Number(localStorage.getItem(key));
+    var i = sizes.indexOf(saved);
+    if (i < 0) i = 0;
+    var label = document.querySelector('[data-size-label]');
+    function apply() {
+      root.style.fontSize = sizes[i] + 'px';
+      if (label) label.textContent = sizes[i] + 'px';
+      try { localStorage.setItem(key, String(sizes[i])); } catch (e) {}
+    }
+    apply();
+    document.querySelectorAll('[data-size]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        i = Math.min(sizes.length - 1, Math.max(0, i + Number(btn.getAttribute('data-size'))));
+        apply();
+      });
+    });
+  }
+  var box = document.querySelector('[data-member-filter]');
+  if (box) {
+    box.addEventListener('input', function () {
+      var q = box.value.trim().toLowerCase();
+      document.querySelectorAll('[data-member]').forEach(function (el) {
+        var name = (el.getAttribute('data-member') || '').toLowerCase();
+        el.hidden = !!(q && name.indexOf(q) < 0);
+      });
+    });
+  }
+})();
+</script>
 {% endblock %}

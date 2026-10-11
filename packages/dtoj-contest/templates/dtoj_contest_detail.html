@@ -221,6 +221,9 @@
               {% if contest.content %}
               <div class="dtoj-race-prose typo">{{ contest.content|markdown|safe }}</div>
               {% endif %}
+              {% if contest.overview %}
+              <div class="dtoj-race-prose typo">{{ contest.overview|markdown|safe }}</div>
+              {% endif %}
               <h2>比赛安排</h2>
               <ul class="dtoj-race-plan">
                 <li>开放窗口：{% if contest.beginAt %}{{ datetimeSpan(contest.beginAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %} 至 {% if contest.endAt %}{{ datetimeSpan(contest.endAt, false, 'YYYY-M-D HH:mm')|safe }}{% else %}—{% endif %}。</li>

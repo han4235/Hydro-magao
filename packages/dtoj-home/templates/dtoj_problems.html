@@ -4,41 +4,55 @@
 {% block content %}
 {% include "dtoj_style.html" %}
 <style>
-  .dtoj-bank { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
-  .dtoj-bank-main, .dtoj-bank-side { display: flex; flex-direction: column; gap: 12px; }
-  .dtoj-bank-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+  .dtoj-bank { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+  .dtoj-bank-main, .dtoj-bank-side { display: flex; flex-direction: column; gap: 16px; }
   .dtoj-bank-bar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
-    padding: 12px 14px;
+    padding: 16px 18px;
     border-bottom: 1px solid var(--line);
   }
-  .dtoj-bank-bar b { margin-right: 4px; font-size: 16px; }
+  .dtoj-bank-bar b {
+    margin-right: 6px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
   .dtoj-bank-bar select, .dtoj-bank-search input {
-    min-height: 34px;
-    padding: 0 10px;
+    min-height: 40px;
+    padding: 0 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 11px;
     background: #fff;
     color: var(--ink);
     font-size: 14px;
   }
-  .dtoj-bank-bar form { display: flex; gap: 8px; }
+  .dtoj-bank-bar select::selection,
+  .dtoj-bank-search input::selection { background: #dbe7ff; color: var(--ink); }
+  .dtoj-bank-search input::placeholder { color: #5f6b7a; }
+  .dtoj-bank-bar form { display: flex; flex-wrap: nowrap; gap: 8px; }
+  .dtoj-bank-bar select { width: auto; flex: 0 0 auto; }
   .dtoj-bank-toggle { margin-left: auto; color: var(--brand-deep); font-size: 14px; font-weight: 700; text-decoration: none; }
-  .dtoj-bank-table { width: 100%; min-width: 640px; border-collapse: collapse; }
-  .dtoj-bank-table th, .dtoj-bank-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: middle; }
-  .dtoj-bank-table th { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-bank-toggle:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+  .dtoj-bank-scroll { overflow-x: auto; }
+  .dtoj-bank-table { width: 100%; min-width: 640px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .dtoj-bank-table th, .dtoj-bank-table td { padding: 12px 16px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: middle; }
+  .dtoj-bank-table th { background: #f4f7fb; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-bank-table tbody tr:hover td { background: #f8fafc; }
   .dtoj-bank-table tr:last-child td { border-bottom: 0; }
-  .dtoj-bank-id { width: 5.5rem; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dtoj-bank-id { width: 5.5rem; color: var(--muted); font-weight: 700; }
   .dtoj-bank-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .dtoj-bank-name a { color: var(--brand); font-weight: 700; text-decoration: none; }
-  .dtoj-bank-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dtoj-bank-name > a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-bank-name > a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+  .dtoj-bank-tags, .dtoj-bank-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
   .dtoj-bank-tag {
     display: inline-flex;
     align-items: center;
-    min-height: 22px;
-    padding: 0 8px;
+    min-height: 26px;
+    padding: 0 10px;
     border-radius: 999px;
     background: #e7eefb;
     color: var(--brand-deep);
@@ -46,53 +60,150 @@
     font-weight: 700;
     text-decoration: none;
   }
-  .dtoj-bank-tag.is-on { background: var(--brand); color: #fff; }
-  .dtoj-bank-lv { font-size: 12px; font-weight: 700; }
-  .dtoj-bank-lv.is-入门 { color: #145c32; }
-  .dtoj-bank-lv.is-简单 { color: #1d4ed8; }
-  .dtoj-bank-lv.is-中等 { color: #8e7341; }
-  .dtoj-bank-lv.is-困难 { color: #9a3412; }
-  .dtoj-bank-lv.is-挑战 { color: #8a1f1f; }
+  .dtoj-bank-cloud .dtoj-bank-tag { min-height: 32px; background: #f4f7fb; color: var(--ink); }
+  .dtoj-bank-tag.is-on, .dtoj-bank-cloud .dtoj-bank-tag.is-on { background: var(--brand); color: #fff; }
+  .dtoj-bank-lv {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-bank-lv.is-入门 { background: #e5f2ea; color: #145c32; }
+  .dtoj-bank-lv.is-简单 { background: #e7eefb; color: #1e40af; }
+  .dtoj-bank-lv.is-中等 { background: #f8f1dc; color: #6a4b00; }
+  .dtoj-bank-lv.is-困难 { background: #f8e6e6; color: #8a1f1f; }
+  .dtoj-bank-lv.is-挑战 { background: #172237; color: #f6f8fd; }
   .dtoj-bank-rate { display: flex; align-items: center; gap: 8px; min-width: 120px; }
   .dtoj-bank-rate i { flex: 1; height: 6px; border-radius: 999px; background: #e8eef5; overflow: hidden; }
   .dtoj-bank-rate i b { display: block; height: 100%; background: var(--brand); }
-  .dtoj-bank-rate span { width: 2.5rem; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .dtoj-bank-side .dtoj-bank-card { padding: 14px; }
-  .dtoj-bank-side h2 { margin: 0 0 10px; font-size: 14px; font-weight: 760; }
+  .dtoj-bank-rate span { width: 2.6rem; color: var(--muted); font-size: 12px; text-align: right; }
+  .dtoj-bank-side .dtoj-panel { padding: 16px 18px 18px; }
+  .dtoj-bank-side h2 {
+    margin: 0 0 12px;
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.3;
+  }
   .dtoj-bank-search { display: flex; gap: 8px; }
   .dtoj-bank-search input { flex: 1; min-width: 0; }
   .dtoj-bank-search button {
-    width: 36px;
-    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
     border: 0;
-    border-radius: 10px;
-    background: #111827;
+    border-radius: 999px;
+    background: var(--brand);
     color: #fff;
-    font-weight: 700;
     cursor: pointer;
   }
-  .dtoj-bank-count { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
-  .dtoj-bank-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-bank-search button:hover { background: var(--brand-deep); }
+  .dtoj-bank-search svg { width: 16px; height: 16px; }
+  .dtoj-bank-count { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+  .dtoj-bank-manage button,
+  .dtoj-bank-imports a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    margin: 0 0 8px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .dtoj-bank-manage button:hover,
+  .dtoj-bank-imports a:hover { background: #f4f7fb; }
+  .dtoj-bank-manage svg,
+  .dtoj-bank-imports svg { width: 16px; height: 16px; flex: 0 0 auto; }
+  .dtoj-bank-manage [data-edit="leave"],
+  .dtoj-bank-manage [data-edit="copy"] { display: none; }
+  .dtoj-bank.is-editing [data-edit="enter"] { display: none; }
+  .dtoj-bank.is-editing [data-edit="leave"],
+  .dtoj-bank.is-editing [data-edit="copy"] { display: flex; }
+  .dtoj-bank-imports { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .dtoj-bank-manage-note { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+  .dtoj-bank-check { display: none; width: 40px; }
+  .dtoj-bank.is-editing .dtoj-bank-check { display: table-cell; }
+  .dtoj-bank-check input { width: 16px; height: 16px; accent-color: var(--brand); }
   .dtoj-bank-lucky {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
+    min-height: 44px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    color: var(--ink);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--brand-deep);
     font-size: 14px;
     font-weight: 700;
     text-decoration: none;
   }
-  .dtoj-bank-empty { margin: 0; padding: 28px 16px; color: var(--muted); font-size: 14px; }
-  @media (max-width: 960px) { .dtoj-bank { grid-template-columns: 1fr; } }
+  .dtoj-bank-lucky:hover { border-color: var(--brand); }
+  .dtoj-bank-empty { margin: 0; padding: 28px 18px; color: var(--muted); font-size: 14px; }
+  .dtoj-bank .pager {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0;
+    padding: 12px 16px 16px;
+    border: 0;
+    list-style: none;
+    text-align: right;
+  }
+  .dtoj-bank .pager.pager-bottom,
+  .dtoj-bank .pager.pager-bottom .pager__item,
+  .dtoj-bank .pager li { border: 0; margin: 0; }
+  .dtoj-bank .pager li { display: inline-flex; }
+  .dtoj-bank .pager__item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+  }
+  .dtoj-bank .pager__item.current { background: var(--brand); color: #fff !important; }
+  .dtoj-bank a:focus-visible,
+  .dtoj-bank button:focus-visible,
+  .dtoj-bank select:focus-visible,
+  .dtoj-bank input:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  @media (max-width: 960px) {
+    .dtoj-bank { grid-template-columns: 1fr; }
+    .dtoj-bank-bar form { flex-wrap: wrap; }
+    .dtoj-bank-toggle { margin-left: 0; }
+  }
 </style>
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell dtoj-bank">
       <section class="dtoj-bank-main">
-        <div class="dtoj-bank-card">
+        <div class="dtoj-panel">
           <div class="dtoj-bank-bar">
             <b>题库</b>
             <form method="get" action="{{ url('dtoj_problems') }}">
@@ -114,10 +225,11 @@
             <a class="dtoj-bank-toggle" href="{{ url('dtoj_problems') }}?{{ qs }}{% if qs %}&{% endif %}tags={{ '0' if showTags else '1' }}">{% if showTags %}收起标签{% else %}展开标签{% endif %}</a>
           </div>
           {% if problems.length %}
-          <div style="overflow-x:auto">
+          <div class="dtoj-bank-scroll">
             <table class="dtoj-bank-table">
               <thead>
                 <tr>
+                  {% if loggedIn %}<th class="dtoj-bank-check"><input type="checkbox" data-check-all aria-label="选择本页题目"></th>{% endif %}
                   <th>ID</th>
                   <th>题目名称</th>
                   <th>难度</th>
@@ -127,6 +239,7 @@
               <tbody>
                 {% for p in problems %}
                 <tr>
+                  {% if loggedIn %}<td class="dtoj-bank-check"><input type="checkbox" data-pid="{{ p.pid }}" aria-label="选择 {{ p.title }}"></td>{% endif %}
                   <td class="dtoj-bank-id">{{ p.pid }}</td>
                   <td>
                     <div class="dtoj-bank-name">
@@ -159,18 +272,44 @@
         </div>
       </section>
       <aside class="dtoj-bank-side">
-        <section class="dtoj-bank-card">
+        <section class="dtoj-panel">
           <h2>搜索</h2>
           <form class="dtoj-bank-search" method="get" action="{{ url('dtoj_problems') }}">
             <input type="hidden" name="diff" value="{{ diff }}">
             <input type="hidden" name="sort" value="{{ sort }}">
             {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
             <input name="q" value="{{ q }}" placeholder="搜索题号、名称或标签" aria-label="搜索题号、名称或标签">
-            <button type="submit" aria-label="搜索">搜</button>
+            <button type="submit" aria-label="搜索"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 10.2L13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
           </form>
           <p class="dtoj-bank-count">{{ total }} 道题</p>
         </section>
-        <section class="dtoj-bank-card">
+        {% if loggedIn or canCreate %}
+        <section class="dtoj-panel dtoj-bank-manage">
+          <h2>管理</h2>
+          {% if loggedIn %}
+          <button type="button" data-edit="enter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.8l4 4L6 14H2v-4l7.2-7.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>进入编辑模式</button>
+          <button type="button" data-edit="leave"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.8l4 4L6 14H2v-4l7.2-7.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>离开编辑模式</button>
+          <button type="button" data-edit="copy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>复制选中</button>
+          <p class="dtoj-bank-manage-note" data-copy-note hidden></p>
+          {% endif %}
+          {% if canCreate %}
+          <div class="dtoj-bank-imports">
+            {% for item in ui.getNodes('ProblemAdd') %}
+            <a href="{{ url(item.name, item.args) }}">
+              {% if item.args.icon == 'add' %}
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              {% else %}
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              {% endif %}
+              {{ _(item.args.text) }}
+            </a>
+            {% endfor %}
+          </div>
+          <p class="dtoj-bank-count">您有权限为此域创建题目。</p>
+          {% endif %}
+        </section>
+        {% endif %}
+        <section class="dtoj-panel">
           <h2>分类</h2>
           {% if tags.length %}
           <div class="dtoj-bank-cloud">
@@ -190,4 +329,44 @@
     </div>
   </div>
 </div>
+{% if loggedIn %}
+<script>
+(function () {
+  var root = document.querySelector('.dtoj-bank');
+  if (!root) return;
+  var note = root.querySelector('[data-copy-note]');
+  function say(text) {
+    if (!note) return;
+    note.hidden = !text;
+    note.textContent = text || '';
+  }
+  root.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-edit]');
+    if (!btn) return;
+    var kind = btn.getAttribute('data-edit');
+    if (kind === 'enter') root.classList.add('is-editing');
+    if (kind === 'leave') {
+      root.classList.remove('is-editing');
+      say('');
+    }
+    if (kind === 'copy') {
+      var ids = [].map.call(root.querySelectorAll('[data-pid]:checked'), function (box) { return box.getAttribute('data-pid'); });
+      if (!ids.length) { say('还没有选中题目。'); return; }
+      var text = ids.join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { say('已复制 ' + ids.length + ' 个题号。'); });
+      } else {
+        say(text);
+      }
+    }
+  });
+  var all = root.querySelector('[data-check-all]');
+  if (all) {
+    all.addEventListener('change', function () {
+      root.querySelectorAll('[data-pid]').forEach(function (box) { box.checked = all.checked; });
+    });
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}

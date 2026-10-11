@@ -3,24 +3,34 @@
 {% import "components/paginator.html" as paginator with context %}
 {% macro course_card(c) %}
 <a class="dtoj-course" href="{{ url('dtoj_training_detail', tid=c.id) }}">
-  <p class="dtoj-course-dir">{{ c.direction or '其他' }}</p>
-  <h3>{{ c.title }}</h3>
-  {% if c.brief %}<p class="dtoj-course-brief">{{ c.brief }}</p>{% endif %}
-  {% if c.kind %}<p><span class="dtoj-course-kind">{{ c.kind }}</span></p>{% endif %}
-  {% if c.preview.length %}
-  <p class="dtoj-course-catalog">课程目录</p>
-  <ol>
-    {% for ch in c.preview %}
-    <li><span>{{ ch.n }}</span> {{ ch.title }}</li>
-    {% endfor %}
-  </ol>
-  {% endif %}
-  <footer>
-    <span>{{ c.chapters }} 小节 · {{ c.problems }} 道题</span>
-    <span class="dtoj-course-go">查看课程
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </span>
-  </footer>
+  <div class="dtoj-course-hero">
+    <svg class="dtoj-course-lines" viewBox="0 0 320 180" aria-hidden="true">
+      <path d="M-10 40c70 36 120 8 190-28s90-20 150 8"/>
+      <path d="M40 -20c30 70 20 110-10 170"/>
+      <path d="M210 8c48 42 70 30 120-16"/>
+      <path d="M250 50c36 48 28 90 8 140"/>
+    </svg>
+    <div class="dtoj-course-hero-top">
+      <p>{{ c.direction or '其他' }}{% if c.kind %} · {{ c.kind }}{% endif %}</p>
+      <span class="dtoj-course-mark" aria-hidden="true">
+        <svg viewBox="0 0 16 16"><path d="M6.4 2.8c-1.7.8-2 2-2 3 0 1.1.5 1.6 1.4 2-0.9.4-1.4.9-1.4 2 0 1 .3 2.2 2 3M9.6 2.8c1.7.8 2 2 2 3 0 1.1-.5 1.6-1.4 2 .9.4 1.4.9 1.4 2 0 1-.3 2.2-2 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </span>
+    </div>
+    <h3>{{ c.title }}</h3>
+  </div>
+  <div class="dtoj-course-body">
+    {% if c.brief %}<p class="dtoj-course-brief">{{ c.brief }}</p>{% endif %}
+    <p class="dtoj-course-stat">
+      <span><strong>{{ c.chapters }}</strong> 小节</span>
+      <span><strong>{{ c.problems }}</strong> 道题</span>
+    </p>
+    <footer>
+      <span>讲义与练习</span>
+      <span class="dtoj-course-go">查看课程
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </footer>
+  </div>
 </a>
 {% endmacro %}
 {% block content %}
@@ -88,35 +98,96 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 22px;
     margin-top: 18px;
+    scroll-margin-top: 64px;
   }
   .dtoj-course {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     min-height: 100%;
-    padding: 20px;
-    border: 1px solid var(--line);
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.92);
+    overflow: hidden;
+    border: 1px solid rgba(30, 41, 59, 0.08);
+    border-radius: 22px;
+    background: #fff;
     color: inherit;
     text-decoration: none;
-    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    box-shadow: 0 18px 40px rgba(28, 39, 64, 0.1);
     transition: transform 0.18s ease-out;
   }
-  .dtoj-course:hover { transform: translateY(-1px); }
-  .dtoj-course-dir { margin: 0; color: var(--brand); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+  .dtoj-course:hover { transform: translateY(-2px); }
+  .dtoj-course-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 36px;
+    min-height: 156px;
+    padding: 16px 18px 20px;
+    color: #fff;
+    background: linear-gradient(160deg, #1e1b4b 0%, #312e81 46%, #1e40af 100%);
+  }
+  .dtoj-course:nth-child(3n+2) .dtoj-course-hero {
+    background: linear-gradient(160deg, #042f2e 0%, #115e59 50%, #0f766e 100%);
+  }
+  .dtoj-course:nth-child(3n) .dtoj-course-hero {
+    background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 54%, #1d4ed8 100%);
+  }
+  .dtoj-course-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .dtoj-course-lines path {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.35);
+    stroke-width: 1.2;
+  }
+  .dtoj-course-hero-top,
+  .dtoj-course h3 { position: relative; }
+  .dtoj-course-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .dtoj-course-hero-top p {
+    margin: 0;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .dtoj-course-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 10px;
+    color: #fff;
+  }
+  .dtoj-course-mark svg { width: 16px; height: 16px; }
   .dtoj-course h3 {
     margin: 0;
-    color: var(--ink);
+    color: #fff;
     font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 800;
     letter-spacing: -0.04em;
-    line-height: 1.3;
+    line-height: 1.25;
+  }
+  .dtoj-course-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1;
+    padding: 16px 18px 14px;
   }
   .dtoj-course-brief {
     margin: 0;
-    color: var(--muted);
+    color: #3e4c63;
     font-size: 14px;
     line-height: 1.7;
     display: -webkit-box;
@@ -124,21 +195,21 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .dtoj-course-kind {
-    display: inline-flex;
-    align-items: center;
-    min-height: 26px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #e7eefb;
-    color: var(--brand);
-    font-size: 12px;
-    font-weight: 700;
+  .dtoj-course-stat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
   }
-  .dtoj-course-catalog { margin: 8px 0 0; color: var(--muted); font-size: 13px; font-weight: 700; }
-  .dtoj-course ol { list-style: none; margin: 0; padding: 10px 12px; border-radius: 16px; background: #f4f7fb; }
-  .dtoj-course li { display: flex; gap: 10px; color: var(--ink); font-size: 14px; line-height: 1.8; }
-  .dtoj-course li span { color: var(--brand); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .dtoj-course-stat strong {
+    margin-right: 4px;
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
   .dtoj-course footer {
     display: flex;
     align-items: center;
@@ -147,23 +218,45 @@
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid var(--line);
-    color: var(--muted);
+    color: #3e4c63;
     font-size: 13px;
   }
-  .dtoj-course-go { display: inline-flex; align-items: center; gap: 2px; color: var(--brand-deep); font-weight: 700; }
+  .dtoj-course-go { display: inline-flex; align-items: center; gap: 4px; color: var(--brand-deep); font-weight: 700; }
   .dtoj-course-go svg { width: 16px; height: 16px; }
-  .dtoj-facet { margin-top: 16px; }
-  .dtoj-facet-label { margin: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
-  .dtoj-facet-row { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .dtoj-facet {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .dtoj-facet-label {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 34px;
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .dtoj-facet-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dtoj-facet a {
-    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 14px;
     font-weight: 700;
     text-decoration: none;
-    border-bottom: 2px solid transparent;
-    padding-bottom: 4px;
   }
-  .dtoj-facet a.on { color: var(--brand); border-bottom-color: var(--brand); }
-  .dtoj-facet a span { margin-left: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dtoj-facet a:hover { background: #e7eefb; }
+  .dtoj-facet a.on,
+  .dtoj-facet a.on:hover { background: var(--brand); color: #fff; }
+  .dtoj-facet a span { font-weight: 700; font-variant-numeric: tabular-nums; }
   .dtoj-train-search {
     display: flex;
     flex-wrap: wrap;
@@ -171,36 +264,94 @@
     gap: 12px;
     margin-top: 18px;
   }
+  .dtoj-train-search .dtoj-field { flex: 0 1 280px; width: min(280px, 100%); }
+  .dtoj-train-search .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .dtoj-train-search input {
-    flex: 1 1 240px;
-    min-height: 48px;
+    width: 100%;
+    min-height: 40px;
     margin: 0;
     padding: 0 14px;
     border: 1px solid rgba(30, 41, 59, 0.12);
-    border-radius: 12px;
+    border-radius: 10px;
     background: #fff;
     color: var(--ink);
   }
   .dtoj-train-search input::placeholder { color: #5f6b7a; }
+  .dtoj-train-search input::selection { background: #dbe7ff; color: var(--ink); }
   .dtoj-train-search button {
-    min-height: 48px;
-    padding: 0 28px;
+    min-height: 40px;
+    padding: 0 18px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 10px;
     background: var(--brand);
     color: #fff;
     font-weight: 800;
     cursor: pointer;
   }
-  .dtoj-train-search button:hover { transform: translateY(-1px); }
-  .dtoj-train-count { margin-left: auto; color: var(--muted); font-weight: 700; }
-  .dtoj-train .dtoj-home .pager, .dtoj-train .pager { margin-top: 8px; }
+  .dtoj-train-search button:hover { background: var(--brand-deep); }
+  .dtoj-train-count { margin: 0 0 0 auto; color: var(--muted); font-size: 14px; font-weight: 700; }
+  .dtoj-train-pages {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin-top: 8px;
+  }
+  .dtoj-train-pages > p { margin: 0; color: var(--muted); font-size: 14px; font-weight: 700; }
+  .dtoj-train .pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: 0;
+    list-style: none;
+    text-align: right;
+  }
+  .dtoj-train .pager.pager-bottom,
+  .dtoj-train .pager.pager-bottom .pager__item { border: 0; margin: 0; }
+  .dtoj-train .pager li { display: inline-flex; margin: 0; }
+  .dtoj-train .pager__item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+  }
+  .dtoj-train .pager__item.link:hover { background: #e7eefb; color: var(--ink); }
+  .dtoj-train .pager__item.current {
+    background: var(--brand);
+    color: #fff !important;
+  }
   @media (max-width: 980px) {
     .dtoj-course-grid { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 680px) {
     .dtoj-course-grid { grid-template-columns: 1fr; }
+    .dtoj-facet { flex-direction: column; gap: 8px; }
     .dtoj-train-count { margin-left: 0; }
+    .dtoj-train-pages { align-items: flex-start; }
+    .dtoj-train .pager { margin-left: 0; justify-content: flex-start; }
     .dtoj-train-head { align-items: flex-start; flex-direction: column; }
   }
 </style>
@@ -226,7 +377,7 @@
         </div>
       </section>
       {% endif %}
-      <section class="dtoj-train-block">
+      <section class="dtoj-train-block" id="dtoj-course-board">
         <h2>全部课程</h2>
         <p>按竞赛方向选择课程，用专题学习与阶段练习巩固。</p>
         <div class="dtoj-facet">
@@ -250,22 +401,84 @@
         <form method="get" class="dtoj-train-search">
           {% if direction %}<input type="hidden" name="direction" value="{{ direction }}">{% endif %}
           {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
-          <label class="dtoj-field" style="flex:1 1 240px">
-            <span class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">搜索</span>
+          <label class="dtoj-field">
+            <span class="sr-only">搜索</span>
             <input name="q" value="{{ q }}" placeholder="搜索课程名称或简介">
           </label>
           <button type="submit">搜索</button>
           <p class="dtoj-train-count">共 {{ shown }} 门课程</p>
         </form>
-        <div class="dtoj-course-grid">
+        <div class="dtoj-course-grid" id="dtoj-courses">
           {% for c in courses %}
           {{ course_card(c) }}
           {% else %}
           <p>没有课程。</p>
           {% endfor %}
         </div>
-        {{ paginator.render(page, pages, add_qs=qs) }}
+        {% if pages > 0 %}
+        <div class="dtoj-train-pages">
+          <p>第 {{ page }}/{{ pages }} 页</p>
+          {{ paginator.render(page, pages, add_qs=qs) }}
+        </div>
+        {% endif %}
       </section>
+      <script>
+        (function () {
+          var board = document.getElementById('dtoj-course-board');
+          if (!board) return;
+          var busy = false;
+          function glide(el) {
+            var nav = document.querySelector('.nav');
+            var gap = ((nav && nav.offsetHeight) || 45) + 16;
+            var target = el.getBoundingClientRect().top + window.pageYOffset - gap;
+            var start = window.pageYOffset;
+            var dist = target - start;
+            if (Math.abs(dist) < 12) return;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              window.scrollTo(0, target);
+              return;
+            }
+            var dur = Math.min(1100, Math.max(620, Math.abs(dist) * 0.55));
+            var t0 = 0;
+            function ease(t) { return 1 - Math.pow(1 - t, 3); }
+            function frame(now) {
+              if (!t0) t0 = now;
+              var p = Math.min(1, (now - t0) / dur);
+              window.scrollTo(0, start + dist * ease(p));
+              if (p < 1) requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+          }
+          function load(url, push) {
+            if (busy) return;
+            busy = true;
+            fetch(url, { credentials: 'same-origin' }).then(function (res) {
+              return res.text();
+            }).then(function (html) {
+              var doc = new DOMParser().parseFromString(html, 'text/html');
+              var next = doc.getElementById('dtoj-course-board');
+              if (!next) throw new Error('missing');
+              board.innerHTML = next.innerHTML;
+              if (push) history.pushState(null, '', url);
+              var cards = document.getElementById('dtoj-courses');
+              if (cards) glide(cards);
+            }).catch(function () {
+              window.location.href = url;
+            }).then(function () {
+              busy = false;
+            });
+          }
+          board.addEventListener('click', function (event) {
+            var link = event.target.closest('.dtoj-facet a');
+            if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            load(link.href.split('#')[0], true);
+          });
+          window.addEventListener('popstate', function () {
+            load(window.location.href.split('#')[0], false);
+          });
+        }());
+      </script>
     </div>
   </div>
 </div>

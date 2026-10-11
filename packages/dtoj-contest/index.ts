@@ -124,7 +124,7 @@ class DtojContestHandler extends DtojDataHandler {
     @param('q', Types.String, true)
     @param('sort', Types.String, true)
     async get(domainId: string, tab = '', track = '', level = '', q = '', sort = '') {
-        tab = pick(tab, contestTabs, '周赛');
+        tab = pick(tab, contestTabs, '精选');
         const groups = (await UserModel.listGroup(
             domainId,
             this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_CONTEST) ? undefined : this.user._id,
@@ -249,6 +249,7 @@ class DtojContestDetailHandler extends DtojDataHandler {
                 ...card,
                 hours: prettyHours(card.hours),
                 content: tdoc.content || '',
+                overview: tdoc.dtoj?.overview || '',
                 personal: !!tdoc.duration,
                 rated: !!tdoc.rated,
                 invite: !!tdoc._code,
@@ -360,6 +361,7 @@ class DtojContestEditHandler extends DtojDataHandler {
             level: body.level !== undefined ? body.level : (tdoc?.dtoj?.level || ''),
             featured: body.featured !== undefined ? body.featured === '1' || body.featured === true : contestFeatured(tdoc),
             content: body.content ?? tdoc?.content ?? '',
+            overview: body.overview ?? tdoc?.dtoj?.overview ?? '',
             rule: body.rule ?? tdoc?.rule ?? 'oi',
             beginDate: body.beginDate ?? begin.format('YYYY-MM-DD'),
             beginTime: body.beginTime ?? begin.format('HH:mm'),
@@ -390,6 +392,7 @@ class DtojContestEditHandler extends DtojDataHandler {
             level: body.level || '',
             featured: body.featured === '1' || body.featured === true ? '1' : '',
             content: body.content || '',
+            overview: body.overview || '',
             rule: body.rule || '',
             beginDate: body.beginDate || '',
             beginTime: body.beginTime || '',
@@ -406,6 +409,7 @@ class DtojContestEditHandler extends DtojDataHandler {
     @param('track', Types.String, true)
     @param('level', Types.String, true)
     @param('content', Types.String, true)
+    @param('overview', Types.String, true)
     @param('rule', Types.String, true)
     @param('beginDate', Types.String, true)
     @param('beginTime', Types.String, true)
@@ -413,8 +417,8 @@ class DtojContestEditHandler extends DtojDataHandler {
     @param('pids', Types.String, true)
     @param('code', Types.String, true)
     @param('pq', Types.String, true)
-    async postSearch(domainId: string, title = '', tab = '', featured = '', track = '', level = '', content = '', rule = '', beginDate = '', beginTime = '', duration = '', pids = '', code = '', pq = '') {
-        const draft = this.draft({ title, tab, featured, track, level, content, rule, beginDate, beginTime, duration, pids, code, pq });
+    async postSearch(domainId: string, title = '', tab = '', featured = '', track = '', level = '', content = '', overview = '', rule = '', beginDate = '', beginTime = '', duration = '', pids = '', code = '', pq = '') {
+        const draft = this.draft({ title, tab, featured, track, level, content, overview, rule, beginDate, beginTime, duration, pids, code, pq });
         this.form(domainId, { ...draft, hits: await searchProblems(domainId, pq) });
     }
 
@@ -437,6 +441,7 @@ class DtojContestEditHandler extends DtojDataHandler {
     @param('track', Types.String, true)
     @param('level', Types.String, true)
     @param('content', Types.String, true)
+    @param('overview', Types.String, true)
     @param('rule', Types.String, true)
     @param('beginDate', Types.String, true)
     @param('beginTime', Types.String, true)
@@ -452,6 +457,7 @@ class DtojContestEditHandler extends DtojDataHandler {
         track = '',
         level = '',
         content = '',
+        overview = '',
         rule = '',
         beginDate = '',
         beginTime = '',
@@ -460,7 +466,7 @@ class DtojContestEditHandler extends DtojDataHandler {
         code = '',
         pq = '',
     ) {
-        const draft = this.draft({ title, tab, featured, track, level, content, rule, beginDate, beginTime, duration, pids, code, pq });
+        const draft = this.draft({ title, tab, featured, track, level, content, overview, rule, beginDate, beginTime, duration, pids, code, pq });
         const nextTab = pick(tab, contestKinds, '其他');
         const nextTitle = title.trim();
         const nextContent = content.trim();
@@ -501,6 +507,7 @@ class DtojContestEditHandler extends DtojDataHandler {
             featured: featured === '1' || featured === 'on',
             track: nextTab === '模拟赛' ? pick(track, mockTracks, '其他') : '',
             level: nextTab === '模拟赛' && track === 'GESP' && mockLevels.includes(level) ? level : '',
+            overview: overview.trim(),
         };
         let tid = this.tdoc?.docId as ObjectId | undefined;
         if (!tid) {

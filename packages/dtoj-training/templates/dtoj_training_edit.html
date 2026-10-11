@@ -57,9 +57,11 @@
     font-weight: 700;
     line-height: 1.4;
   }
-  .dtoj-plan input,
-  .dtoj-plan select,
-  .dtoj-plan textarea {
+  .dtoj-plan label > input,
+  .dtoj-plan label > select,
+  .dtoj-plan label > textarea,
+  .dtoj-tag-add > input,
+  .dtoj-note-edit > textarea {
     width: 100%;
     margin: 0;
     border: 1px solid rgba(30, 41, 59, 0.14);
@@ -73,27 +75,58 @@
     accent-color: #4f46e5;
     caret-color: #4338ca;
   }
-  .dtoj-plan input,
-  .dtoj-plan select { min-height: 48px; padding: 0 14px; }
-  .dtoj-plan textarea { min-height: 120px; padding: 12px 14px; resize: vertical; }
-  .dtoj-plan input::placeholder,
-  .dtoj-plan textarea::placeholder { color: #5f6b7a; }
-  .dtoj-plan input::selection,
-  .dtoj-plan textarea::selection { background: #e0e7ff; color: var(--ink); }
-  .dtoj-plan input:focus-visible,
-  .dtoj-plan select:focus-visible,
-  .dtoj-plan textarea:focus-visible,
-  .dtoj-plan button:focus-visible,
+  .dtoj-plan label > input,
+  .dtoj-plan label > select,
+  .dtoj-tag-add > input { min-height: 48px; padding: 0 14px; }
+  .dtoj-plan label > textarea { min-height: 120px; padding: 12px 14px; resize: vertical; }
+  .dtoj-plan label > input::placeholder,
+  .dtoj-plan label > textarea::placeholder,
+  .dtoj-tag-add > input::placeholder { color: #5f6b7a; }
+  .dtoj-plan label > input::selection,
+  .dtoj-plan label > textarea::selection { background: #e0e7ff; color: var(--ink); }
+  .dtoj-plan label > input:focus-visible,
+  .dtoj-plan label > select:focus-visible,
+  .dtoj-plan label > textarea:focus-visible,
+  .dtoj-tag-add > input:focus-visible,
+  .dtoj-plan button[type="submit"]:focus-visible,
+  .dtoj-plan button[data-pick]:focus-visible,
+  .dtoj-plan button[data-op]:focus-visible,
   .dtoj-plan a:focus-visible {
     outline: 3px solid rgba(79, 70, 229, 0.45);
     outline-offset: 2px;
   }
   .dtoj-plan-meta {
-    display: grid;
-    grid-template-columns: 1.4fr 1.4fr 0.8fr;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
     margin-top: 16px;
   }
+  .dtoj-plan-meta > label { max-width: 160px; }
+  .dtoj-tag-field { display: flex; flex-direction: column; gap: 8px; }
+  .dtoj-tag-field > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
+  .dtoj-tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #eef0fb;
+  }
+  .dtoj-tag-chip.is-on { background: #4f46e5; }
+  .dtoj-tag-chip button {
+    min-height: 36px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #1e3a8a;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-tag-chip button[data-pick] { padding-left: 12px; }
+  .dtoj-tag-chip.is-on button { color: #fff; }
+  .dtoj-tag-add { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-tag-add input { flex: 1 1 180px; }
   .dtoj-plan-note { margin: 0; color: #3e4c63; font-size: 14px; font-weight: 400; line-height: 1.5; }
   .dtoj-plan-stack { display: flex; flex-direction: column; gap: 16px; }
   .dtoj-chapter {
@@ -106,16 +139,20 @@
     border-radius: 16px;
     background: #eef0fb;
   }
-  .dtoj-chapter legend {
-    padding: 0;
+  .dtoj-chapter-title {
+    margin: 0;
     color: var(--ink);
     font-size: 14px;
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+  .dtoj-note-edit { display: flex; flex-direction: column; gap: 8px; }
+  .dtoj-note-edit > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
   .dtoj-plan-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
   .dtoj-plan-find label { flex: 1 1 240px; }
-  .dtoj-plan button {
+  .dtoj-plan button[type="submit"],
+  .dtoj-plan button[data-pick],
+  .dtoj-plan button[data-op] {
     min-height: 48px;
     padding: 0 18px;
     border: 0;
@@ -157,7 +194,7 @@
   .dtoj-plan-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   @media (max-width: 720px) {
     .dtoj-plan { padding: 20px; }
-    .dtoj-plan-meta { grid-template-columns: 1fr; }
+    .dtoj-plan-meta > label { max-width: none; }
   }
 </style>
 <div class="row">
@@ -167,34 +204,51 @@
         <h1>{% if canDelete %}编辑训练{% else %}新建训练{% endif %}</h1>
         <p class="dtoj-plan-lead">先写课程，再按章节填题号。题号要能在后台题库里找到，显示题号和内部编号都可以。</p>
       </header>
-      <form method="post" class="dtoj-plan">
+      <form method="post" class="dtoj-plan" id="dtoj-plan">
+        <input type="hidden" name="tagName" value="">
         {% if error %}<p class="dtoj-plan-error">{{ error }}</p>{% endif %}
         <section>
           <h2>课程</h2>
           <div class="dtoj-plan-stack">
             <label>标题<input name="title" value="{{ title }}"></label>
             <div class="dtoj-plan-meta">
-              <label>方向
-                <select name="direction">
-                  <option value="">未选</option>
+              <div class="dtoj-tag-field" data-field="direction">
+                <span>学习方向</span>
+                <input type="hidden" name="direction" value="{{ direction }}">
+                <div class="dtoj-tag-row">
                   {% for d in directions %}
-                  <option value="{{ d }}" {% if direction == d %}selected{% endif %}>{{ d }}</option>
+                  <span class="dtoj-tag-chip{% if direction == d %} is-on{% endif %}">
+                    <button type="button" data-pick="{{ d }}">{{ d }}</button>
+                    <button type="button" data-op="dropDirection" data-drop="{{ d }}" aria-label="删除{{ d }}">×</button>
+                  </span>
                   {% endfor %}
-                </select>
-              </label>
-              <label>类型
-                <select name="kind">
-                  <option value="">未选</option>
+                </div>
+                <div class="dtoj-tag-add">
+                  <input name="newDirection" placeholder="新的学习方向" aria-label="新的学习方向">
+                  <button class="dtoj-plan-quiet" type="button" data-op="addDirection">添加</button>
+                </div>
+              </div>
+              <div class="dtoj-tag-field" data-field="kind">
+                <span>课程类型</span>
+                <input type="hidden" name="kind" value="{{ kind }}">
+                <div class="dtoj-tag-row">
                   {% for k in kinds %}
-                  <option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ k }}</option>
+                  <span class="dtoj-tag-chip{% if kind == k %} is-on{% endif %}">
+                    <button type="button" data-pick="{{ k }}">{{ k }}</button>
+                    <button type="button" data-op="dropKind" data-drop="{{ k }}" aria-label="删除{{ k }}">×</button>
+                  </span>
                   {% endfor %}
-                </select>
-              </label>
+                </div>
+                <div class="dtoj-tag-add">
+                  <input name="newKind" placeholder="新的课程类型" aria-label="新的课程类型">
+                  <button class="dtoj-plan-quiet" type="button" data-op="addKind">添加</button>
+                </div>
+              </div>
               <label>置顶
                 <input name="pin" value="{{ pin }}" inputmode="numeric">
               </label>
             </div>
-            <p class="dtoj-plan-note">置顶写 0 就是不放进热门。改成大于 0 需要置顶权限。</p>
+            <p class="dtoj-plan-note">点标签选用。添加和删除会改训练页上的筛选项，删掉后用过这个标签的课程不再带着它。置顶写 0 就是不放进热门。</p>
             <label>简介<textarea name="content">{{ content }}</textarea></label>
           </div>
         </section>
@@ -202,12 +256,15 @@
           <h2>章节</h2>
           <div class="dtoj-plan-stack">
             {% for ch in chapters %}
-            <fieldset class="dtoj-chapter">
-              <legend>第 {{ loop.index }} 章</legend>
+            <div class="dtoj-chapter">
+              <p class="dtoj-chapter-title">第 {{ loop.index }} 章</p>
               <label>标题<input name="chapterTitle" value="{{ ch.title }}"></label>
-              <label>讲义<textarea name="chapterNote">{{ ch.note }}</textarea></label>
+              <div class="dtoj-note-edit">
+                <span>讲义</span>
+                <textarea name="chapterNote" class="textbox" data-markdown>{{ ch.note }}</textarea>
+              </div>
               <label>题号<input name="chapterPids" value="{{ ch.pids }}" placeholder="用空格或逗号分开"></label>
-            </fieldset>
+            </div>
             {% endfor %}
             <div>
               <button class="dtoj-plan-quiet" type="submit" name="operation" value="add">加一章</button>
@@ -234,6 +291,34 @@
           {% if canDelete %}<button class="dtoj-plan-quiet" type="submit" name="operation" value="delete">删除</button>{% endif %}
         </div>
       </form>
+      <script>
+        (function () {
+          var form = document.getElementById('dtoj-plan');
+          if (!form) return;
+          form.querySelectorAll('[data-pick]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var box = btn.closest('[data-field]');
+              var hidden = box.querySelector('input[type="hidden"]');
+              var next = hidden.value === btn.getAttribute('data-pick') ? '' : btn.getAttribute('data-pick');
+              hidden.value = next;
+              box.querySelectorAll('[data-pick]').forEach(function (el) {
+                el.parentElement.classList.toggle('is-on', el.getAttribute('data-pick') === next && next !== '');
+              });
+            });
+          });
+          form.querySelectorAll('[data-op]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var op = document.createElement('input');
+              op.type = 'hidden';
+              op.name = 'operation';
+              op.value = btn.getAttribute('data-op');
+              form.appendChild(op);
+              if (btn.getAttribute('data-drop')) form.querySelector('[name="tagName"]').value = btn.getAttribute('data-drop');
+              form.submit();
+            });
+          });
+        }());
+      </script>
     </div>
   </div>
 </div>
