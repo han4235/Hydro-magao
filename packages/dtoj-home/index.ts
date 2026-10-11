@@ -1,5 +1,5 @@
 import {
-    Context, difficultyAlgorithm, PERM, ProblemModel, Types, param,
+    Context, difficultyAlgorithm, PERM, PRIV, ProblemModel, Types, param,
 } from 'hydrooj';
 import {
     DtojDataHandler, DtojPageHandler, dropEarlierRoutes, queryString,
@@ -135,6 +135,8 @@ class DtojProblemHandler extends DtojDataHandler {
             page: safePage,
             pages,
             qs: queryString({ q, tag, diff: wanted, sort: order, tags }),
+            canCreate: this.user.hasPerm(PERM.PERM_CREATE_PROBLEM),
+            loggedIn: this.user.hasPriv(PRIV.PRIV_USER_PROFILE),
         });
     }
 }

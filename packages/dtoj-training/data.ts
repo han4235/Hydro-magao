@@ -56,11 +56,9 @@ type MarkDoc = { docId: { toHexString(): string }, dtoj?: { direction?: string, 
 
 export function markOf(tdoc: MarkDoc) {
     if (tdoc.dtoj) {
-        const direction = tdoc.dtoj.direction || '';
-        const kind = tdoc.dtoj.kind || '';
         return {
-            direction: directions.includes(direction) ? direction : '',
-            kind: courseKinds.includes(kind) ? kind : '',
+            direction: (tdoc.dtoj.direction || '').trim(),
+            kind: (tdoc.dtoj.kind || '').trim(),
         };
     }
     return courseMark(tdoc.docId.toHexString());

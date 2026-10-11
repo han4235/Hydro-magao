@@ -13,6 +13,9 @@ node <<'EOF'
 const fs = require('fs');
 const p = '/root/.hydro/addon.json';
 const want = [
+    '@hydrooj/import-qduoj',
+    '@hydrooj/import-hoj',
+    '@hydrooj/fps-importer',
     'dtoj-ui',
     'dtoj-home',
     'dtoj-training',
