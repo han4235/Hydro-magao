@@ -1,5 +1,66 @@
 {% import "components/user.html" as user with context %}
 {% import "components/problem.html" as problem with context %}
+{% if page_name == 'problem_detail' %}
+{% set levelRaw = pdoc['difficulty'] or 0 %}
+{% set levelName = '入门' if levelRaw == 1 else ('普及−' if levelRaw == 2 else ('普及/提高−' if levelRaw == 3 else ('普及+/提高' if levelRaw == 4 else ('提高+/省选−' if levelRaw == 5 else ('省选/NOI−' if levelRaw == 6 else ('NOI/NOI+/CTSC' if levelRaw == 7 else '')))))) %}
+<section class="section side dtoj-side-card">
+  <h2>题目信息</h2>
+  <div class="dtoj-side-id">
+    <span>ID <b>{{ pdoc.pid|default(pdoc.docId) }}</b></span>
+    <span>类型 <b>{{ _('problem_type.' + pdoc.config.type).format(pdoc.config.subType or '') }}</b></span>
+  </div>
+  {% if pdoc.config.type != 'objective' and pdoc.config.type != 'submit_answer' and pdoc.config.timeMax %}
+  <div class="dtoj-side-stats">
+    <div>
+      <span>提交</span>
+      <a href="{{ url('record_main', query={pid:pdoc.docId}) }}">{{ pdoc.nSubmit }}</a>
+    </div>
+    <div>
+      <span>通过</span>
+      <a href="{{ url('record_main', query={pid:pdoc.docId, status:1}) }}">{{ pdoc.nAccept }}</a>
+    </div>
+    <div>
+      <span>时间限制</span>
+      <span>{{ pdoc.config.timeMax if pdoc.config.timeMax == pdoc.config.timeMin else pdoc.config.timeMin ~ '~' ~ pdoc.config.timeMax }}ms</span>
+    </div>
+    <div>
+      <span>内存限制</span>
+      <span>{{ pdoc.config.memoryMax if pdoc.config.memoryMax == pdoc.config.memoryMin else pdoc.config.memoryMin ~ '~' ~ pdoc.config.memoryMax }}MiB</span>
+    </div>
+  </div>
+  {% endif %}
+  <div class="dtoj-side-line">
+    <span>难度 {% if levelName %}<b class="dtoj-side-lv" data-diff="{{ levelRaw }}">{{ levelName }}</b>{% else %}<b>暂无</b>{% endif %}</span>
+    <span>通过率 <b>{% if pdoc.nSubmit %}{{ ((pdoc.nAccept / pdoc.nSubmit) * 100)|round(0, 'floor') }}%{% else %}0%{% endif %}</b></span>
+    <span>历史记录 {% if psdoc and (psdoc.status or psdoc.status == 0) %}<a href="{{ url('record_detail', rid=psdoc.rid) }}">{{ _(model.builtin.STATUS_TEXTS[psdoc.status]) }}</a>{% else %}<b>暂无</b>{% endif %}</span>
+  </div>
+  {% if udoc %}
+  <div class="dtoj-side-owner">上传者 {{ user.render_inline(udoc, badge=false) }}</div>
+  {% endif %}
+  <div class="dtoj-side-tags">
+    <span>标签 <b>{{ (pdoc.tag or [])|length }}</b></span>
+    {% if pdoc.tag and pdoc.tag.length %}
+    <button type="button" data-tags-toggle>展开</button>
+    {% endif %}
+  </div>
+  {% if pdoc.tag and pdoc.tag.length %}
+  <div class="dtoj-side-taglist" data-tags hidden>
+    {% for tag in pdoc.tag %}<span>{{ tag }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</section>
+<div class="dtoj-side-submit-card scratchpad--hide">
+{% if handler.user.hasPerm(perm.PERM_SUBMIT_PROBLEM) %}
+  <a class="dtoj-side-submit" href="{{ url('problem_submit', pid=pdoc.pid|default(pdoc.docId)) }}"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.2l8 4.8-8 4.8V2.2z" fill="currentColor"/></svg> {{ _('Submit') }}</a>
+{% elif not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+  <a class="dtoj-side-submit" href="javascript:showSignInDialog();"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.2l8 4.8-8 4.8V2.2z" fill="currentColor"/></svg> {{ _('Login to Submit') }}</a>
+{% elif not handler.user._dudoc.join %}
+  <a class="dtoj-side-submit" href="/domain/join?target={{ pdoc.domainId }}"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.2l8 4.8-8 4.8V2.2z" fill="currentColor"/></svg> {{ _('Join Domain to Submit') }}</a>
+{% else %}
+  <a class="dtoj-side-submit is-disabled" href="javascript:;"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.2l8 4.8-8 4.8V2.2z" fill="currentColor"/></svg> {{ _('No Permission to Submit') }}</a>
+{% endif %}
+</div>
+{% endif %}
 <div class="section side section--problem-sidebar">
 {% if page_name != 'problem_detail' and page_name != 'contest_detail_problem' %}
   <div class="section__header">
@@ -41,6 +102,7 @@
         <span class="icon icon-flag"></span> {{ _('View Problem') }}
       </a></li>
     {% endif %}
+    {% if page_name != 'problem_detail' %}
     {% if handler.user.hasPerm(perm.PERM_SUBMIT_PROBLEM) %}
       <li class="menu__item scratchpad--hide"><a class="menu__link{% if page_name == 'problem_submit' %} active{% endif %}" href="{{ url('problem_submit', pid=pdoc.pid|default(pdoc.docId)) }}">
         <span class="icon icon-send"></span> {{ _('Submit') }}
@@ -57,6 +119,7 @@
       <li class="menu__item scratchpad--hide"><a class="menu__link disabled{% if page_name == 'problem_submit' %} active{% endif %}" href="javascript:;">
         <span class="icon icon-send"></span> {{ _('No Permission to Submit') }}
       </a></li>
+    {% endif %}
     {% endif %}
     {% if handler.user.hasPerm(perm.PERM_REJUDGE_PROBLEM) %}
       <li class="menu__item">
@@ -123,30 +186,44 @@
   {% include "partials/problem-sidebar-information.html" %}
 </div>
 {% endif %}
-{% if page_name == 'problem_detail' and (tdocs.length or ctdocs.length or htdocs.length) %}
-<div class="section side">
-  <div class="section__header">
-    <h1 class="section__title">{{ _('Related') }}</h1>
+{% set contests = ctdocs or [] %}
+{% set homes = htdocs or [] %}
+{% set trains = tdocs or [] %}
+{% if page_name == 'problem_detail' and (contests.length or homes.length or trains.length) %}
+<section class="section side dtoj-side-related">
+  <div class="dtoj-side-related-head">
+    <h2>相关</h2>
+    <span>{{ contests.length + homes.length + trains.length }} 项</span>
   </div>
-  <div class="section__body typo">
-  {% if tdocs.length %}
-    <p>{{ _('In following training plans') }}: </p>
-    {%- for tdoc in tdocs -%}
-      <p><a href="{{ url('training_detail', tid=tdoc.docId) }}">{{ tdoc.title }}</a></p>
-    {%- endfor -%}
+  {% if trains.length %}
+    <p class="dtoj-side-relgroup">训练 <b>{{ trains.length }}</b></p>
+    {% for tdoc in trains %}
+      <a class="dtoj-side-rel" href="{{ url('dtoj_training_detail', tid=tdoc.docId) }}">
+        <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.5A2.5 2.5 0 0 0 8 9"/><path d="M16 6h2.5A2.5 2.5 0 0 1 16 9"/><path d="M12 14v3M9 20h6"/></svg></i>
+        <span>{{ tdoc.title }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
   {% endif %}
-  {% if ctdocs.length %}
-    <p>{{ _('In following contests') }}: </p>
-    {%- for tdoc in ctdocs -%}
-      <p><a href="{{ url('contest_detail', tid=tdoc.docId) }}">{{ tdoc.title }}</a></p>
-    {%- endfor -%}
+  {% if contests.length %}
+    <p class="dtoj-side-relgroup">比赛 <b>{{ contests.length }}</b></p>
+    {% for tdoc in contests %}
+      <a class="dtoj-side-rel" href="{{ url('dtoj_contest_detail', tid=tdoc.docId) }}">
+        <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.5A2.5 2.5 0 0 0 8 9"/><path d="M16 6h2.5A2.5 2.5 0 0 1 16 9"/><path d="M12 14v3M9 20h6"/></svg></i>
+        <span>{{ tdoc.title }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
   {% endif %}
-  {% if htdocs.length %}
-    <p>{{ _('In following homework') }}: </p>
-    {%- for tdoc in htdocs -%}
-      <p><a href="{{ url('homework_detail', tid=tdoc.docId) }}">{{ tdoc.title }}</a></p>
-    {%- endfor -%}
+  {% if homes.length %}
+    <p class="dtoj-side-relgroup">作业 <b>{{ homes.length }}</b></p>
+    {% for tdoc in homes %}
+      <a class="dtoj-side-rel" href="{{ url('homework_detail', tid=tdoc.docId) }}">
+        <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.5A2.5 2.5 0 0 0 8 9"/><path d="M16 6h2.5A2.5 2.5 0 0 1 16 9"/><path d="M12 14v3M9 20h6"/></svg></i>
+        <span>{{ tdoc.title }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
   {% endif %}
-  </div>
-</div>
+</section>
 {% endif %}

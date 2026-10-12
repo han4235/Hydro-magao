@@ -38,30 +38,75 @@
   .dtoj-bank-toggle { margin-left: auto; color: var(--brand-deep); font-size: 14px; font-weight: 700; text-decoration: none; }
   .dtoj-bank-toggle:hover { text-decoration: underline; text-underline-offset: 0.18em; }
   .dtoj-bank-scroll { overflow-x: auto; }
-  .dtoj-bank-table { width: 100%; min-width: 640px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .dtoj-bank-table { width: 100%; min-width: 860px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   .dtoj-bank-table th, .dtoj-bank-table td { padding: 12px 16px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: middle; }
   .dtoj-bank-table th { background: #f4f7fb; color: var(--muted); font-size: 12px; font-weight: 700; }
   .dtoj-bank-table tbody tr:hover td { background: #f8fafc; }
   .dtoj-bank-table tr:last-child td { border-bottom: 0; }
   .dtoj-bank-id { width: 5.5rem; color: var(--muted); font-weight: 700; }
-  .dtoj-bank-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dtoj-bank-name { text-align: left; }
   .dtoj-bank-name > a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-bank-name > a.is-hang { margin-left: -0.7em; }
   .dtoj-bank-name > a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
-  .dtoj-bank-tags, .dtoj-bank-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
-  .dtoj-bank-tag {
+  .dtoj-bank-tags-col { width: 34%; }
+  .dtoj-bank-tags, .dtoj-bank-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dtoj-bank-none { color: var(--muted); }
+  .dtoj-bank-diff { width: 11rem; white-space: nowrap; }
+  .dtoj-bank-diff a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: inherit;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-bank-diff a:hover { color: var(--brand-deep); }
+  .dtoj-bank-sort { display: inline-flex; flex-direction: column; gap: 2px; }
+  .dtoj-bank-sort i {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+  }
+  .dtoj-bank-sort .up { border-bottom: 5px solid #c5ced9; }
+  .dtoj-bank-sort .down { border-top: 5px solid #c5ced9; }
+  .dtoj-bank-sort .up.is-on { border-bottom-color: var(--brand); }
+  .dtoj-bank-sort .down.is-on { border-top-color: var(--brand); }
+  a.dtoj-bank-tag:link,
+  a.dtoj-bank-tag:visited,
+  a.dtoj-bank-tag:hover,
+  a.dtoj-bank-tag:active {
     display: inline-flex;
     align-items: center;
     min-height: 26px;
     padding: 0 10px;
     border-radius: 999px;
     background: #e7eefb;
-    color: var(--brand-deep);
+    color: #1e40af;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     text-decoration: none;
   }
-  .dtoj-bank-cloud .dtoj-bank-tag { min-height: 32px; background: #f4f7fb; color: var(--ink); }
-  .dtoj-bank-tag.is-on, .dtoj-bank-cloud .dtoj-bank-tag.is-on { background: var(--brand); color: #fff; }
+  .dtoj-bank-cloud a.dtoj-bank-tag:link,
+  .dtoj-bank-cloud a.dtoj-bank-tag:visited,
+  .dtoj-bank-cloud a.dtoj-bank-tag:hover,
+  .dtoj-bank-cloud a.dtoj-bank-tag:active {
+    min-height: 32px;
+    background: #f4f7fb;
+    color: #111827;
+    font-weight: 400;
+  }
+  a.dtoj-bank-tag.is-on:link,
+  a.dtoj-bank-tag.is-on:visited,
+  a.dtoj-bank-tag.is-on:hover,
+  a.dtoj-bank-tag.is-on:active,
+  .dtoj-bank-cloud a.dtoj-bank-tag.is-on:link,
+  .dtoj-bank-cloud a.dtoj-bank-tag.is-on:visited,
+  .dtoj-bank-cloud a.dtoj-bank-tag.is-on:hover,
+  .dtoj-bank-cloud a.dtoj-bank-tag.is-on:active {
+    background: #2563eb;
+    color: #fff;
+  }
   .dtoj-bank-lv {
     display: inline-flex;
     align-items: center;
@@ -73,11 +118,13 @@
     font-size: 12px;
     font-weight: 700;
   }
-  .dtoj-bank-lv.is-入门 { background: #e5f2ea; color: #145c32; }
-  .dtoj-bank-lv.is-简单 { background: #e7eefb; color: #1e40af; }
-  .dtoj-bank-lv.is-中等 { background: #f8f1dc; color: #6a4b00; }
-  .dtoj-bank-lv.is-困难 { background: #f8e6e6; color: #8a1f1f; }
-  .dtoj-bank-lv.is-挑战 { background: #172237; color: #f6f8fd; }
+  .dtoj-bank-lv[data-diff="1"] { background: #fe4c61; color: #1a1a1a; }
+  .dtoj-bank-lv[data-diff="2"] { background: #f39c11; color: #1a1a1a; }
+  .dtoj-bank-lv[data-diff="3"] { background: #ffc116; color: #1a1a1a; }
+  .dtoj-bank-lv[data-diff="4"] { background: #52c41a; color: #1a1a1a; }
+  .dtoj-bank-lv[data-diff="5"] { background: #3498db; color: #1a1a1a; }
+  .dtoj-bank-lv[data-diff="6"] { background: #9d3dcf; color: #fff; }
+  .dtoj-bank-lv[data-diff="7"] { background: #0e1d69; color: #fff; }
   .dtoj-bank-rate { display: flex; align-items: center; gap: 8px; min-width: 120px; }
   .dtoj-bank-rate i { flex: 1; height: 6px; border-radius: 999px; background: #e8eef5; overflow: hidden; }
   .dtoj-bank-rate i b { display: block; height: 100%; background: var(--brand); }
@@ -122,7 +169,7 @@
     background: #fff;
     color: var(--ink);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     text-align: left;
     text-decoration: none;
     cursor: pointer;
@@ -209,7 +256,7 @@
             <form method="get" action="{{ url('dtoj_problems') }}">
               <input type="hidden" name="q" value="{{ q }}">
               {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
-              <input type="hidden" name="tags" value="{{ '1' if showTags else '0' }}">
+              {% if not showTags %}<input type="hidden" name="tags" value="0">{% endif %}
               <select name="diff" aria-label="难度" onchange="this.form.submit()">
                 <option value="">全部难度</option>
                 {% for name in levels %}
@@ -220,9 +267,11 @@
                 <option value="new" {% if sort == 'new' %}selected{% endif %}>新题优先</option>
                 <option value="old" {% if sort == 'old' %}selected{% endif %}>旧题优先</option>
                 <option value="id" {% if sort == 'id' %}selected{% endif %}>题号</option>
+                <option value="easy" {% if sort == 'easy' %}selected{% endif %}>难度从低到高</option>
+                <option value="hard" {% if sort == 'hard' %}selected{% endif %}>难度从高到低</option>
               </select>
             </form>
-            <a class="dtoj-bank-toggle" href="{{ url('dtoj_problems') }}?{{ qs }}{% if qs %}&{% endif %}tags={{ '0' if showTags else '1' }}">{% if showTags %}收起标签{% else %}展开标签{% endif %}</a>
+            <a class="dtoj-bank-toggle" href="{{ url('dtoj_problems') }}{% if toggleQs %}?{{ toggleQs }}{% endif %}">{% if showTags %}收起标签{% else %}展开标签{% endif %}</a>
           </div>
           {% if problems.length %}
           <div class="dtoj-bank-scroll">
@@ -232,7 +281,10 @@
                   {% if loggedIn %}<th class="dtoj-bank-check"><input type="checkbox" data-check-all aria-label="选择本页题目"></th>{% endif %}
                   <th>ID</th>
                   <th>题目名称</th>
-                  <th>难度</th>
+                  {% if showTags %}<th>标签</th>{% endif %}
+                  <th class="dtoj-bank-diff"{% if sort == 'easy' %} aria-sort="ascending"{% elif sort == 'hard' %} aria-sort="descending"{% endif %}>
+                    <a href="{{ url('dtoj_problems') }}?q={{ q }}&diff={{ diff }}&sort={{ 'hard' if sort == 'easy' else 'easy' }}{% if tag %}&tag={{ tag }}{% endif %}{% if not showTags %}&tags=0{% endif %}">难度<span class="dtoj-bank-sort" aria-hidden="true"><i class="up{% if sort == 'easy' %} is-on{% endif %}"></i><i class="down{% if sort == 'hard' %} is-on{% endif %}"></i></span></a>
+                  </th>
                   <th>通过率</th>
                 </tr>
               </thead>
@@ -241,19 +293,19 @@
                 <tr>
                   {% if loggedIn %}<td class="dtoj-bank-check"><input type="checkbox" data-pid="{{ p.pid }}" aria-label="选择 {{ p.title }}"></td>{% endif %}
                   <td class="dtoj-bank-id">{{ p.pid }}</td>
-                  <td>
-                    <div class="dtoj-bank-name">
-                      <a href="{{ url('problem_detail', pid=p.link) }}">{{ p.title }}</a>
-                      {% if showTags %}
-                      <span class="dtoj-bank-tags">
-                        {% for name in p.tags %}
-                        <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}">{{ name }}</a>
-                        {% endfor %}
-                      </span>
-                      {% endif %}
-                    </div>
+                  <td class="dtoj-bank-name"><a class="{% if p.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=p.link) }}">{{ p.title }}</a></td>
+                  {% if showTags %}
+                  <td class="dtoj-bank-tags-col">
+                    {% if p.tags.length %}
+                    <span class="dtoj-bank-tags">
+                      {% for name in p.tags %}
+                      <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}{% if not showTags %}&tags=0{% endif %}">{{ name }}</a>
+                      {% endfor %}
+                    </span>
+                    {% else %}<span class="dtoj-bank-none">—</span>{% endif %}
                   </td>
-                  <td>{% if p.level %}<span class="dtoj-bank-lv is-{{ p.level }}">{{ p.level }}</span>{% else %}—{% endif %}</td>
+                  {% endif %}
+                  <td class="dtoj-bank-diff">{% if p.level %}<span class="dtoj-bank-lv" data-diff="{{ p.diff }}">{{ p.level }}</span>{% else %}<span class="dtoj-bank-none">—</span>{% endif %}</td>
                   <td>
                     <div class="dtoj-bank-rate">
                       <i>{% if p.rate is number %}<b style="width: {{ p.rate }}%"></b>{% endif %}</i>
@@ -277,6 +329,7 @@
           <form class="dtoj-bank-search" method="get" action="{{ url('dtoj_problems') }}">
             <input type="hidden" name="diff" value="{{ diff }}">
             <input type="hidden" name="sort" value="{{ sort }}">
+            {% if not showTags %}<input type="hidden" name="tags" value="0">{% endif %}
             {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
             <input name="q" value="{{ q }}" placeholder="搜索题号、名称或标签" aria-label="搜索题号、名称或标签">
             <button type="submit" aria-label="搜索"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 10.2L13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -313,9 +366,9 @@
           <h2>分类</h2>
           {% if tags.length %}
           <div class="dtoj-bank-cloud">
-            <a class="dtoj-bank-tag{% if not tag %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?diff={{ diff }}&sort={{ sort }}&q={{ q }}">全部</a>
+            <a class="dtoj-bank-tag{% if not tag %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?diff={{ diff }}&sort={{ sort }}&q={{ q }}{% if not showTags %}&tags=0{% endif %}">全部</a>
             {% for name in tags %}
-            <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}">{{ name }}</a>
+            <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}{% if not showTags %}&tags=0{% endif %}">{{ name }}</a>
             {% endfor %}
           </div>
           {% else %}

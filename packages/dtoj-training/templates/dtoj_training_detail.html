@@ -151,6 +151,13 @@
     font-weight: 700;
   }
   .dtoj-diff { background: #f4f7fb; color: var(--ink); }
+  .dtoj-diff[data-diff="1"] { background: #fe4c61; color: #1a1a1a; }
+  .dtoj-diff[data-diff="2"] { background: #f39c11; color: #1a1a1a; }
+  .dtoj-diff[data-diff="3"] { background: #ffc116; color: #1a1a1a; }
+  .dtoj-diff[data-diff="4"] { background: #52c41a; color: #1a1a1a; }
+  .dtoj-diff[data-diff="5"] { background: #3498db; color: #1a1a1a; }
+  .dtoj-diff[data-diff="6"] { background: #9d3dcf; color: #fff; }
+  .dtoj-diff[data-diff="7"] { background: #0e1d69; color: #fff; }
   .dtoj-rate { display: flex; align-items: center; gap: 8px; min-width: 110px; color: var(--muted); font-size: 12px; }
   .dtoj-rate b { display: block; height: 6px; border-radius: 999px; background: #e8eef5; overflow: hidden; flex: 1; }
   .dtoj-rate i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
@@ -364,7 +371,7 @@
                           {% endif %}
                           {% endif %}
                         </td>
-                        <td>{% if item.difficulty %}<span class="dtoj-diff">{{ item.difficulty }}</span>{% else %}—{% endif %}</td>
+                        <td>{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>
                         <td>
                           {% if item.rate or item.rate == 0 %}
                           <span class="dtoj-rate"><b><i style="width: {{ item.rate }}%"></i></b>{{ item.rate }}%</span>
