@@ -144,6 +144,7 @@ class DtojProblemHandler extends DtojDataHandler {
             qs: queryString({ ...listQuery, tags: collapsed ? '0' : undefined }),
             toggleQs: queryString({ ...listQuery, tags: collapsed ? undefined : '0' }),
             canCreate: this.user.hasPerm(PERM.PERM_CREATE_PROBLEM),
+            canDelete: this.user.hasPerm(PERM.PERM_EDIT_PROBLEM),
             loggedIn: this.user.hasPriv(PRIV.PRIV_USER_PROFILE),
         });
     }

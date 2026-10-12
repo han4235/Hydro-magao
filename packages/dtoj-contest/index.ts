@@ -1,6 +1,6 @@
 import { escapeRegExp } from 'lodash';
 import {
-    ContestModel, ContestNotFoundError, ContestNotLiveError, Context, InvalidTokenError, NotAssignedError,
+    ContestModel, ContestNotFoundError, ContestNotLiveError, Context, DomainModel, InvalidTokenError, NotAssignedError,
     ObjectId, PERM, PRIV, ProblemModel, StorageModel, Types, UserModel, moment, param,
 } from 'hydrooj';
 import { DtojDataHandler, dropEarlierRoutes, pick, queryOf } from 'dtoj-ui';
@@ -42,6 +42,49 @@ function clock(ms: number) {
     return `${hours >= 100 ? String(hours) : pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
+function sortCards(cards: any[], order: string[]) {
+    const rank = new Map<string, number>();
+    order.forEach((id, index) => {
+        if (!rank.has(id)) rank.set(id, index);
+    });
+    return cards.slice().sort((a, b) => {
+        const ia = rank.get(a.id);
+        const ib = rank.get(b.id);
+        const aKnown = ia != null;
+        const bKnown = ib != null;
+        if (aKnown && bKnown) return ia - ib;
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        return new Date(a.beginAt).getTime() - new Date(b.beginAt).getTime();
+    });
+}
+
+async function contestSettings(domainId: string) {
+    const ddoc = await DomainModel.get(domainId);
+    const saved = (ddoc as any)?.dtojContest || {};
+    const order = Array.isArray(saved.order)
+        ? saved.order.map((id: unknown) => String(id || '')).filter((id: string) => /^[a-f0-9]{24}$/.test(id))
+        : [];
+    const keep = (raw: unknown, fallback: string[]) => {
+        const allow = new Set(fallback);
+        const out: string[] = [];
+        if (Array.isArray(raw)) {
+            for (const item of raw) {
+                const name = String(item || '').trim();
+                if (!allow.has(name) || out.includes(name)) continue;
+                out.push(name);
+            }
+        }
+        for (const name of fallback) if (!out.includes(name)) out.push(name);
+        return out;
+    };
+    return {
+        tabs: keep(saved.tabs, contestTabs),
+        tracks: keep(saved.tracks, mockTracks),
+        levels: keep(saved.levels, mockLevels),
+        order,
+    };
+}
+
 function contestCard(tdoc: any) {
     const rule = ContestModel.RULES[tdoc.rule];
     return {
@@ -73,15 +116,18 @@ function contestState(tdoc: any, now: number) {
     return 'soon';
 }
 
-function mockBoard(cards: any[], track: string, level: string, q: string, sort: string) {
+function mockBoard(
+    cards: any[], track: string, level: string, q: string, sort: string,
+    tracks: string[] = mockTracks, levels: string[] = mockLevels,
+) {
     const counts = new Map<string, number>();
     for (const card of cards) counts.set(card.track, (counts.get(card.track) || 0) + 1);
-    let chosen = mockTracks.includes(track) ? track : '';
+    let chosen = tracks.includes(track) ? track : '';
     if (!chosen) {
-        chosen = mockTracks.reduce((best, name) => ((counts.get(name) || 0) > (counts.get(best) || 0) ? name : best), 'GESP');
-        if (!counts.get(chosen)) chosen = 'GESP';
+        chosen = tracks.reduce((best, name) => ((counts.get(name) || 0) > (counts.get(best) || 0) ? name : best), tracks[0] || 'GESP');
+        if (!counts.get(chosen)) chosen = tracks.includes('GESP') ? 'GESP' : (tracks[0] || 'GESP');
     }
-    const chosenLevel = chosen === 'GESP' && mockLevels.includes(level) ? level : '';
+    const chosenLevel = chosen === 'GESP' && levels.includes(level) ? level : '';
     const keyword = q.trim().toLowerCase();
     const matched = cards.filter((card) => {
         if (card.track !== chosen) return false;
@@ -94,7 +140,7 @@ function mockBoard(cards: any[], track: string, level: string, q: string, sort: 
     const preview = 4;
     const groups = chosenLevel
         ? [{ title: '', level: chosenLevel, total: ordered.length, more: false, rows: ordered }]
-        : [...mockLevels, ''].map((name) => {
+        : [...levels, ''].map((name) => {
             const rows = ordered.filter((card) => (card.level || '') === name);
             return {
                 title: name ? `${chosen} ${name}` : `${chosen} 未分级`,
@@ -105,8 +151,8 @@ function mockBoard(cards: any[], track: string, level: string, q: string, sort: 
             };
         }).filter((group) => group.total);
     return {
-        tracks: mockTracks,
-        levels: mockLevels,
+        tracks,
+        levels,
         track: chosen,
         level: chosenLevel,
         q,
@@ -124,7 +170,8 @@ class DtojContestHandler extends DtojDataHandler {
     @param('q', Types.String, true)
     @param('sort', Types.String, true)
     async get(domainId: string, tab = '', track = '', level = '', q = '', sort = '') {
-        tab = pick(tab, contestTabs, '精选');
+        const settings = await contestSettings(domainId);
+        tab = pick(tab, settings.tabs, '精选');
         const groups = (await UserModel.listGroup(
             domainId,
             this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_CONTEST) ? undefined : this.user._id,
@@ -173,16 +220,106 @@ class DtojContestHandler extends DtojDataHandler {
         };
         const cards = inTab.map(viewOf);
         const byBegin = (a: any, b: any) => new Date(a.beginAt).getTime() - new Date(b.beginAt).getTime();
-        const mock = tab === '模拟赛' ? mockBoard(cards, track, level, q, sort) : null;
+        const mock = tab === '模拟赛' ? mockBoard(cards, track, level, q, sort, settings.tracks, settings.levels) : null;
+        const picks = sortCards(mock ? mock.picks : cards.filter((card) => card.featured), settings.order);
+        if (mock) mock.picks = picks;
         this.view('dtoj_contest', {
-            tabs: contestTabs,
+            tabs: settings.tabs,
             tab,
             mock,
-            picks: mock ? mock.picks : cards.filter((card) => card.featured).sort(byBegin),
+            picks,
             recent: cards.filter((card) => card.state !== 'ended').sort(byBegin),
             history: cards.filter((card) => card.state === 'ended').sort((a, b) => byBegin(b, a)),
             canCreate: this.user.hasPerm(PERM.PERM_CREATE_CONTEST),
+            canSort: this.user.hasPerm(PERM.PERM_EDIT_CONTEST),
         });
+    }
+
+    @param('ids', Types.ArrayOf(Types.String))
+    @param('tab', Types.String, true)
+    @param('track', Types.String, true)
+    @param('level', Types.String, true)
+    @param('q', Types.String, true)
+    @param('sort', Types.String, true)
+    async postReorder(domainId: string, ids: string[] = [], tab = '', track = '', level = '', q = '', sort = '') {
+        this.checkPerm(PERM.PERM_EDIT_CONTEST);
+        const settings = await contestSettings(domainId);
+        tab = pick(tab, settings.tabs, '精选');
+        const groups = (await UserModel.listGroup(
+            domainId,
+            this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_CONTEST) ? undefined : this.user._id,
+        )).map((group) => group.name);
+        const rules = Object.keys(ContestModel.RULES).filter((rule) => !ContestModel.RULES[rule].hidden);
+        const filter: any = {
+            ...(this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_CONTEST)
+                ? {}
+                : {
+                    $or: [
+                        { maintainer: this.user._id },
+                        { owner: this.user._id },
+                        { assign: { $in: groups } },
+                        { assign: { $size: 0 } },
+                    ],
+                }),
+            rule: { $in: rules },
+        };
+        await this.ctx.parallel('contest/list', filter, this);
+        const docs = await ContestModel.getMulti(domainId, filter).sort({ beginAt: -1 }).toArray();
+        const order = settings.order;
+        const featured = sortCards(docs.filter((tdoc) => contestFeatured(tdoc)).map((tdoc) => contestCard(tdoc)), order);
+        const inTab = docs.filter((tdoc) => (tab === '精选' ? contestFeatured(tdoc) : contestKind(tdoc) === tab)).map((tdoc) => contestCard(tdoc));
+        const picks = sortCards(tab === '模拟赛' ? mockBoard(inTab, track, level, q, sort, settings.tracks, settings.levels).picks : inTab.filter((card) => card.featured), order);
+        const posted = ids.map((id) => String(id || ''));
+        const windowIds = picks.map((card) => card.id);
+        const same = posted.length === windowIds.length
+            && posted.length > 1
+            && new Set(posted).size === posted.length
+            && posted.every((id) => windowIds.includes(id));
+        if (!same) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        const visible = new Set(windowIds);
+        const queue = posted.slice();
+        const next = featured.map((card) => (visible.has(card.id) ? queue.shift() : card.id));
+        while (queue.length) next.push(queue.shift());
+        const ddoc = await DomainModel.get(domainId);
+        const saved = (ddoc as any)?.dtojContest || {};
+        await DomainModel.edit(domainId, { dtojContest: { ...saved, order: next } } as any);
+        this.response.body = { ok: true };
+        this.response.template = '';
+    }
+
+    @param('names', Types.ArrayOf(Types.String))
+    @param('field', Types.String)
+    async postReorderTags(domainId: string, names: string[] = [], field = '') {
+        this.checkPerm(PERM.PERM_EDIT_CONTEST);
+        const key = field === 'tracks' || field === 'levels' || field === 'tabs' ? field : '';
+        if (!key) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        const settings = await contestSettings(domainId);
+        const current = settings[key];
+        const posted = names.map((name) => String(name || '').trim());
+        const same = posted.length === current.length
+            && new Set(posted).size === posted.length
+            && posted.every((name) => current.includes(name));
+        if (!same) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        const ddoc = await DomainModel.get(domainId);
+        const saved = (ddoc as any)?.dtojContest || {};
+        await DomainModel.edit(domainId, { dtojContest: { ...saved, [key]: posted } } as any);
+        this.response.body = { ok: true };
+        this.response.template = '';
     }
 }
 
@@ -377,6 +514,11 @@ class DtojContestEditHandler extends DtojDataHandler {
 
     @param('pq', Types.String, true)
     async get(domainId: string, pq = '') {
+        if (String(this.args.suggest || '') === '1') {
+            this.response.body = { hits: await searchProblems(domainId, pq) };
+            this.response.template = '';
+            return;
+        }
         this.form(domainId, {
             pq,
             pids: await this.shownPids(domainId),

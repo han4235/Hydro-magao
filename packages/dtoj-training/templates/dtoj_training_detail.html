@@ -100,6 +100,25 @@
   .dtoj-stage { padding: 0 0 8px; }
   .dtoj-stage + .dtoj-stage { margin-top: 22px; }
   .dtoj-stage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+  .dtoj-practice .dtoj-stage-head {
+    margin: 0 0 8px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: #e7eefb;
+  }
+  .dtoj-practice .dtoj-sheet {
+    overflow: hidden;
+    border-radius: 14px;
+    background: #fff;
+  }
+  .dtoj-practice .dtoj-sheet th { background: #f4f7fb; }
+  .dtoj-practice .dtoj-side {
+    padding: 16px 12px 8px;
+    border-radius: 16px;
+    background: #e7f3f1;
+  }
+  .dtoj-practice .dtoj-side a:hover,
+  .dtoj-practice .dtoj-side a.on { background: #fff; }
   .dtoj-stage-head h2 {
     margin: 0;
     font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
@@ -122,7 +141,11 @@
   .dtoj-state.is-done { color: #145c32; }
   .dtoj-state.is-done i { background: #15803d; }
   .dtoj-sheet { width: 100%; overflow-x: auto; }
-  .dtoj-sheet table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .dtoj-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+  .dtoj-col-state { width: 96px; }
+  .dtoj-col-id { width: 120px; }
+  .dtoj-col-diff { width: 160px; }
+  .dtoj-col-rate { width: 132px; }
   .dtoj-sheet th {
     padding: 10px 12px;
     border-bottom: 1px solid var(--line);
@@ -131,14 +154,14 @@
     font-weight: 700;
     text-align: left;
   }
-  .dtoj-sheet td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .dtoj-sheet td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; text-align: left; }
+  .dtoj-sheet .dtoj-name { text-align: left; }
+  .dtoj-sheet .dtoj-name > a.is-hang { margin-left: -0.7em; }
   .dtoj-sheet a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
   .dtoj-sheet a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
   .dtoj-pass { color: #145c32; font-weight: 700; }
   .dtoj-pass svg { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
   .dtoj-try { color: #6a4b00; font-weight: 700; }
-  .dtoj-tags { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 8px; }
-  .dtoj-tags span,
   .dtoj-diff {
     display: inline-flex;
     align-items: center;
@@ -149,6 +172,7 @@
     color: var(--brand-deep);
     font-size: 12px;
     font-weight: 700;
+    white-space: nowrap;
   }
   .dtoj-diff { background: #f4f7fb; color: var(--ink); }
   .dtoj-diff[data-diff="1"] { background: #fe4c61; color: #1a1a1a; }
@@ -168,13 +192,16 @@
   }
   .dtoj-side h2 { margin: 0 0 10px; font-size: 15px; font-weight: 800; }
   .dtoj-side ol { margin: 0; padding: 0; list-style: none; }
-  .dtoj-side a {
+  .dtoj-side a:link,
+  .dtoj-side a:visited,
+  .dtoj-side a:hover,
+  .dtoj-side a:active {
     display: block;
     padding: 8px 10px;
     border-radius: 10px;
     color: var(--ink);
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 400;
     text-decoration: none;
   }
   .dtoj-side a:hover,
@@ -341,11 +368,18 @@
                 </div>
                 <div class="dtoj-sheet">
                   <table>
+                    <colgroup>
+                      <col class="dtoj-col-state">
+                      <col class="dtoj-col-id">
+                      <col>
+                      <col class="dtoj-col-diff">
+                      <col class="dtoj-col-rate">
+                    </colgroup>
                     <thead>
                       <tr>
                         <th>状态</th>
                         <th>ID</th>
-                        <th>题目名称</th>
+                        <th class="dtoj-name">题目名称</th>
                         <th>难度</th>
                         <th>通过率</th>
                       </tr>
@@ -355,20 +389,17 @@
                       <tr>
                         <td>
                           {% if item.mine == 'pass' %}
-                          <span class="dtoj-pass"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>已通过</span>
+                          <span class="dtoj-pass"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>AC</span>
                           {% elif item.mine == 'try' %}
                           <span class="dtoj-try">{% if item.mineScore or item.mineScore == 0 %}得分 {{ item.mineScore }}{% else %}已提交{% endif %}</span>
                           {% endif %}
                         </td>
                         <td>{{ item.show }}</td>
-                        <td>
+                        <td class="dtoj-name">
                           {% if item.missing %}
                           {{ item.show }} 题库里没有这道题
                           {% else %}
-                          <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.title }}</a>
-                          {% if item.tags %}
-                          <span class="dtoj-tags">{% for tag in item.tags %}<span>{{ tag }}</span>{% endfor %}</span>
-                          {% endif %}
+                          <a class="{% if item.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=item.pid) }}">{{ item.title }}</a>
                           {% endif %}
                         </td>
                         <td>{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>

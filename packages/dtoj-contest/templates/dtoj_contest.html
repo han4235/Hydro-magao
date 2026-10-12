@@ -15,7 +15,11 @@
     line-height: 1.16;
   }
   .dtoj-race-lead { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
-  .dtoj-race-new {
+  a.dtoj-race-new,
+  a.dtoj-race-new:link,
+  a.dtoj-race-new:visited,
+  a.dtoj-race-new:hover,
+  a.dtoj-race-new:active {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
@@ -51,6 +55,21 @@
   .dtoj-race-tabs a:hover { background: #e7eefb; }
   .dtoj-race-tabs a.is-on,
   .dtoj-race-tabs a.is-on:hover { background: var(--brand); color: #fff; }
+  .dtoj-race-tabs.is-sortable a,
+  .dtoj-mock-tracks.is-sortable a[data-name],
+  .dtoj-mock-levels.is-sortable a[data-name] { cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+  .dtoj-race-tabs a.is-arming,
+  .dtoj-race-tabs a.is-lifting,
+  .dtoj-mock-tracks a.is-arming,
+  .dtoj-mock-tracks a.is-lifting,
+  .dtoj-mock-levels a.is-arming,
+  .dtoj-mock-levels a.is-lifting {
+    position: relative;
+    z-index: 2;
+    cursor: grabbing;
+    transform: scale(1.06);
+    transition: none;
+  }
   .dtoj-race-block { display: flex; flex-direction: column; gap: 14px; }
   .dtoj-race-block h2 {
     margin: 0;
@@ -61,6 +80,19 @@
     letter-spacing: -0.03em;
   }
   .dtoj-race-block > p { margin: 0; color: var(--muted); font-size: 14px; }
+  .dtoj-race-headline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+  }
+  .dtoj-race-headline .dtoj-race-head-ico {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    color: var(--brand);
+  }
+  .dtoj-race-headline h2 { margin: 0; }
   .dtoj-race-picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: stretch; }
   .dtoj-race-picks.is-scroll {
     display: flex;
@@ -89,19 +121,34 @@
     transition: transform 0.18s ease-out;
   }
   .dtoj-race-card:hover { transform: translateY(-2px); }
+  .dtoj-race-picks.is-sortable .dtoj-race-card { cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+  .dtoj-race-card.is-arming,
+  .dtoj-race-card.is-lifting {
+    position: relative;
+    z-index: 3;
+    cursor: grabbing;
+    transform: scale(1.04);
+    box-shadow: 0 22px 48px rgba(28, 39, 64, 0.22);
+    transition: none;
+  }
+  .dtoj-sort-note { margin: 0; color: var(--muted); font-size: 13px; }
   .dtoj-race-cap {
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 28px;
-    min-height: 148px;
-    padding: 16px 18px 20px;
+    gap: 18px;
+    min-height: 122px;
+    padding: 14px 16px 16px;
     color: #fff;
     background: linear-gradient(160deg, #1e1b4b 0%, #312e81 46%, #1e40af 100%);
   }
-  .dtoj-race-card.is-live .dtoj-race-cap { background: linear-gradient(160deg, #042f2e 0%, #115e59 50%, #0f766e 100%); }
-  .dtoj-race-card.is-ended .dtoj-race-cap { background: linear-gradient(160deg, #0f172a 0%, #1e293b 54%, #334155 100%); }
+  .dtoj-race-card:nth-child(3n+2) .dtoj-race-cap {
+    background: linear-gradient(160deg, #042f2e 0%, #115e59 50%, #0f766e 100%);
+  }
+  .dtoj-race-card:nth-child(3n) .dtoj-race-cap {
+    background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 54%, #1d4ed8 100%);
+  }
   .dtoj-race-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .dtoj-race-lines path { fill: none; stroke: rgba(255, 255, 255, 0.35); stroke-width: 1.2; }
   .dtoj-race-cap header, .dtoj-race-cap h3, .dtoj-race-body footer { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -124,7 +171,7 @@
     margin: 0;
     color: #fff;
     font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1.25;
@@ -133,7 +180,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .dtoj-race-body { display: flex; flex: 1; flex-direction: column; gap: 12px; padding: 16px 18px 14px; }
+  .dtoj-race-body { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 14px 16px 12px; }
   .dtoj-race-brief {
     margin: 0;
     color: #3e4c63;
@@ -167,7 +214,7 @@
   .dtoj-race-sheet { overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
   .dtoj-race-sheet table { width: 100%; border-collapse: collapse; min-width: 720px; }
   .dtoj-race-sheet th, .dtoj-race-sheet td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
-  .dtoj-race-sheet th { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-race-sheet th { color: var(--muted); font-size: 12px; font-weight: 700; background: #f4f7fb; }
   .dtoj-race-sheet tr:last-child td { border-bottom: 0; }
   .dtoj-race-sheet a { color: var(--ink); font-weight: 700; text-decoration: none; }
   .dtoj-race-live { color: #145c32; font-weight: 700; }
@@ -200,7 +247,16 @@
     border-radius: 16px;
     background: #fff;
   }
-  .dtoj-mock-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .dtoj-mock-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #e7f3f1;
+  }
   .dtoj-mock-head h2 { margin: 0; }
   .dtoj-mock-find { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .dtoj-mock-find label {
@@ -237,7 +293,15 @@
   }
   .dtoj-mock-find button:hover { background: var(--brand-deep); }
   .dtoj-mock-group { display: flex; flex-direction: column; gap: 8px; }
-  .dtoj-mock-group header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dtoj-mock-group header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: #e7eefb;
+  }
   .dtoj-mock-group header b { font-size: 16px; }
   .dtoj-mock-group header a { color: var(--brand); font-size: 14px; font-weight: 700; text-decoration: none; }
   .dtoj-mock-count { margin: 0; color: var(--muted); font-size: 12px; }
@@ -264,9 +328,9 @@
         </div>
         {% if canCreate %}<a class="dtoj-race-new" href="{{ url('dtoj_contest_create') }}">新建比赛</a>{% endif %}
       </div>
-      <nav class="dtoj-race-tabs" aria-label="比赛分类">
+      <nav class="dtoj-race-tabs{% if canSort %} is-sortable{% endif %}" data-sort="tabs" aria-label="比赛分类">
         {% for t in tabs %}
-        <a class="{% if tab == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab={{ t }}">
+        <a data-name="{{ t }}" draggable="false" class="{% if tab == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab={{ t }}">
           {% if t == '精选' %}
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.2 9.8 4.9l4.1.6-3 2.9.7 4.1L8 10.6 4.4 12.5l.7-4.1-3-2.9 4.1-.6z"/></svg>
           {% endif %}
@@ -276,29 +340,32 @@
       </nav>
 
       {% if mock %}
-      <nav class="dtoj-mock-tracks" aria-label="模拟赛方向">
+      <nav class="dtoj-mock-tracks{% if canSort %} is-sortable{% endif %}" data-sort="tracks" aria-label="模拟赛方向">
         {% for t in mock.tracks %}
-        <a class="{% if mock.track == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ t }}">{{ t }}</a>
+        <a data-name="{{ t }}" draggable="false" class="{% if mock.track == t %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ t }}">{{ t }}</a>
         {% endfor %}
       </nav>
       <p class="dtoj-mock-note">定向比赛只给获授权的选手看。带邀请码的比赛要凭码参加。</p>
       {% if mock.track == 'GESP' %}
-      <nav class="dtoj-mock-levels" aria-label="模拟赛级别">
+      <nav class="dtoj-mock-levels{% if canSort %} is-sortable{% endif %}" data-sort="levels" aria-label="模拟赛级别">
         <a class="{% if not mock.level %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}">全部级别</a>
         {% for lv in mock.levels %}
-        <a class="{% if mock.level == lv %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}&level={{ lv }}">{{ lv }}</a>
+        <a data-name="{{ lv }}" draggable="false" class="{% if mock.level == lv %}is-on{% endif %}" href="{{ url('contest_main') }}?tab=模拟赛&track={{ mock.track }}&level={{ lv }}">{{ lv }}</a>
         {% endfor %}
       </nav>
       {% endif %}
       {% endif %}
 
       <section class="dtoj-race-block">
-        <h2>精选比赛</h2>
+        <div class="dtoj-race-headline">
+          <svg class="dtoj-race-head-ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.2 9.8 4.9l4.1.6-3 2.9.7 4.1L8 10.6 4.4 12.5l.7-4.1-3-2.9 4.1-.6z"/></svg>
+          <h2>精选比赛</h2>
+        </div>
         <p>{% if mock %}适合完整限时训练的模拟赛。{% elif tab == '精选' %}所有标了精选的比赛，不限周赛或月赛。{% else %}这一类里另外标成精选的场次。{% endif %}</p>
         {% if picks.length %}
-        <div class="dtoj-race-picks{% if tab != '精选' and picks.length > 3 %} is-scroll{% endif %}">
+        <div class="dtoj-race-picks{% if tab != '精选' and picks.length > 3 %} is-scroll{% endif %}{% if canSort %} is-sortable{% endif %}" id="dtoj-race-picks">
           {% for c in picks %}
-          <a class="dtoj-race-card is-{{ c.state }}" href="{{ url('dtoj_contest_detail', tid=c.id) }}">
+          <a class="dtoj-race-card is-{{ c.state }}" draggable="false" data-id="{{ c.id }}" href="{{ url('dtoj_contest_detail', tid=c.id) }}">
             <div class="dtoj-race-cap">
               <svg class="dtoj-race-lines" viewBox="0 0 320 180" aria-hidden="true">
                 <path d="M-10 40c70 36 120 8 190-28s90-20 150 8"/>
@@ -328,6 +395,7 @@
           </a>
           {% endfor %}
         </div>
+        {% if canSort and picks.length > 1 %}<p class="dtoj-sort-note">长按卡片拖动，可以调整精选比赛的顺序。</p>{% endif %}
         {% else %}
         <p>{% if mock %}这个方向还没有标成精选的模拟赛。{% else %}还没有标成精选的比赛。新建或编辑比赛时勾选精选即可。{% endif %}</p>
         {% endif %}
@@ -447,6 +515,228 @@
         {% endif %}
       </section>
       {% endif %}
+      <script>
+        (function () {
+          var root = document.querySelector('.dtoj-race');
+          if (!root) return;
+          var pressTimer = 0;
+          var hold = null;
+          var dragging = null;
+          function clearHold() {
+            window.clearTimeout(pressTimer);
+            pressTimer = 0;
+            hold = null;
+          }
+          function gridOf() { return document.getElementById('dtoj-race-picks'); }
+          function saveOrder() {
+            var grid = gridOf();
+            if (!grid) return;
+            var ids = [];
+            grid.querySelectorAll(':scope > .dtoj-race-card').forEach(function (el) {
+              ids.push(el.getAttribute('data-id'));
+            });
+            var url = new URL(window.location.href);
+            fetch(url.pathname + url.search, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                operation: 'reorder',
+                ids: ids,
+                tab: url.searchParams.get('tab') || '精选',
+                track: url.searchParams.get('track') || '',
+                level: url.searchParams.get('level') || '',
+                q: url.searchParams.get('q') || '',
+                sort: url.searchParams.get('sort') || '',
+              }),
+            }).catch(function () {});
+          }
+          function cardAt(x, y) {
+            var grid = gridOf();
+            if (!grid) return null;
+            var found = null;
+            grid.querySelectorAll(':scope > .dtoj-race-card').forEach(function (el) {
+              if (el === dragging) return;
+              var box = el.getBoundingClientRect();
+              if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) found = el;
+            });
+            return found;
+          }
+          function placeCard(x, y) {
+            var target = cardAt(x, y);
+            var grid = gridOf();
+            if (!target || !grid || !dragging) return;
+            var cards = Array.prototype.slice.call(grid.querySelectorAll(':scope > .dtoj-race-card'));
+            var from = cards.indexOf(dragging);
+            var to = cards.indexOf(target);
+            if (from < 0 || to < 0 || from === to) return;
+            if (from < to) grid.insertBefore(dragging, target.nextSibling);
+            else grid.insertBefore(dragging, target);
+          }
+          function beginDrag(card) {
+            if (dragging || !hold || hold.card !== card) return;
+            dragging = card;
+            card.classList.add('is-lifting');
+            try { card.setPointerCapture(hold.id); } catch (err) {}
+            placeCard(hold.x, hold.y);
+          }
+          function finishDrag(save) {
+            var card = hold && hold.card;
+            var did = !!dragging;
+            if (card) card.classList.remove('is-arming', 'is-lifting');
+            dragging = null;
+            clearHold();
+            if (!did || !save) return;
+            root.dataset.dragged = '1';
+            saveOrder();
+          }
+          root.addEventListener('click', function (event) {
+            if (root.dataset.dragged !== '1') return;
+            root.dataset.dragged = '';
+            if (event.target.closest('#dtoj-race-picks .dtoj-race-card, .dtoj-race-tabs a, .dtoj-mock-tracks a[data-name], .dtoj-mock-levels a[data-name]')) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }, true);
+          root.addEventListener('contextmenu', function (event) {
+            if (event.target.closest('#dtoj-race-picks.is-sortable .dtoj-race-card')) event.preventDefault();
+          });
+          root.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            var grid = gridOf();
+            if (!grid || !grid.classList.contains('is-sortable')) return;
+            var card = event.target.closest('#dtoj-race-picks > .dtoj-race-card');
+            if (!card) return;
+            if (hold && hold.card) hold.card.classList.remove('is-arming', 'is-lifting');
+            clearHold();
+            hold = { card: card, x: event.clientX, y: event.clientY, ox: event.clientX, oy: event.clientY, id: event.pointerId };
+            card.classList.add('is-arming');
+            pressTimer = window.setTimeout(function () { beginDrag(card); }, 280);
+          });
+          window.addEventListener('pointermove', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            hold.x = event.clientX;
+            hold.y = event.clientY;
+            if (!dragging) {
+              if (Math.hypot(event.clientX - hold.ox, event.clientY - hold.oy) > 48) {
+                hold.card.classList.remove('is-arming');
+                clearHold();
+              }
+              return;
+            }
+            event.preventDefault();
+            placeCard(event.clientX, event.clientY);
+          }, { passive: false });
+          window.addEventListener('pointerup', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(true);
+          });
+          window.addEventListener('pointercancel', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(!!dragging);
+          });
+        }());
+        (function () {
+          var root = document.querySelector('.dtoj-race');
+          if (!root) return;
+          var pressTimer = 0;
+          var hold = null;
+          var dragging = null;
+          function clearHold() {
+            window.clearTimeout(pressTimer);
+            pressTimer = 0;
+            hold = null;
+          }
+          function chips() {
+            return hold ? hold.row.querySelectorAll(':scope > a[data-name]') : [];
+          }
+          function chipAt(x, y) {
+            var found = null;
+            Array.prototype.forEach.call(chips(), function (el) {
+              if (el === dragging) return;
+              var box = el.getBoundingClientRect();
+              if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) found = el;
+            });
+            return found;
+          }
+          function saveTags() {
+            var names = [];
+            var field = hold.row.getAttribute('data-sort');
+            hold.row.querySelectorAll(':scope > a[data-name]').forEach(function (el) {
+              names.push(el.getAttribute('data-name'));
+            });
+            fetch(window.location.pathname + window.location.search, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({ operation: 'reorderTags', field: field, names: names }),
+            }).catch(function () {});
+          }
+          function placeChip(x, y) {
+            var target = chipAt(x, y);
+            if (!target || !dragging) return;
+            var list = Array.prototype.slice.call(chips());
+            var from = list.indexOf(dragging);
+            var to = list.indexOf(target);
+            if (from < 0 || to < 0 || from === to) return;
+            if (from < to) hold.row.insertBefore(dragging, target.nextSibling);
+            else hold.row.insertBefore(dragging, target);
+          }
+          function beginDrag(chip) {
+            if (dragging || !hold || hold.chip !== chip) return;
+            dragging = chip;
+            chip.classList.add('is-lifting');
+            try { chip.setPointerCapture(hold.id); } catch (err) {}
+            placeChip(hold.x, hold.y);
+          }
+          function finishDrag(save) {
+            var chip = hold && hold.chip;
+            var did = !!dragging;
+            if (chip) chip.classList.remove('is-arming', 'is-lifting');
+            if (did && save) {
+              root.dataset.dragged = '1';
+              saveTags();
+            }
+            dragging = null;
+            clearHold();
+          }
+          root.addEventListener('contextmenu', function (event) {
+            if (event.target.closest('.is-sortable > a[data-name]')) event.preventDefault();
+          });
+          root.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            var chip = event.target.closest('.dtoj-race-tabs.is-sortable > a[data-name], .dtoj-mock-tracks.is-sortable > a[data-name], .dtoj-mock-levels.is-sortable > a[data-name]');
+            if (!chip || !root.contains(chip)) return;
+            if (hold && hold.chip) hold.chip.classList.remove('is-arming', 'is-lifting');
+            clearHold();
+            hold = { chip: chip, row: chip.parentElement, x: event.clientX, y: event.clientY, ox: event.clientX, oy: event.clientY, id: event.pointerId };
+            chip.classList.add('is-arming');
+            pressTimer = window.setTimeout(function () { beginDrag(chip); }, 280);
+          });
+          window.addEventListener('pointermove', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            hold.x = event.clientX;
+            hold.y = event.clientY;
+            if (!dragging) {
+              if (Math.hypot(event.clientX - hold.ox, event.clientY - hold.oy) > 48) {
+                hold.chip.classList.remove('is-arming');
+                clearHold();
+              }
+              return;
+            }
+            event.preventDefault();
+            placeChip(event.clientX, event.clientY);
+          }, { passive: false });
+          window.addEventListener('pointerup', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(true);
+          });
+          window.addEventListener('pointercancel', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(!!dragging);
+          });
+        }());
+      </script>
     </div>
   </div>
 </div>

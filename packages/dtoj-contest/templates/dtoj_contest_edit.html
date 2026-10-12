@@ -25,12 +25,65 @@
     background: transparent;
     box-shadow: none;
   }
-  .dtoj-race-edit .dtoj-join button,
-  .dtoj-race-edit .dtoj-actions button { border: 0; cursor: pointer; width: auto; padding: 0 18px; }
+  .dtoj-race-find-title {
+    margin: 8px 0 0;
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-race-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+  .dtoj-race-find label { display: flex; flex: 1 1 240px; flex-direction: column; gap: 8px; color: #3e4c63; font-size: 12px; font-weight: 700; }
+  .dtoj-race-find input { width: 100%; }
+  .dtoj-race-search,
+  .dtoj-race-save,
+  .dtoj-race-dialog-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .dtoj-race-search {
+    background: #fff;
+    color: #1e3a8a;
+    box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.14);
+  }
+  .dtoj-race-save { background: #4f46e5; color: #fff; box-shadow: none; }
+  .dtoj-race-search:hover, .dtoj-race-save:hover, .dtoj-race-dialog-actions button:hover { transform: translateY(-1px); }
+  .dtoj-race-hits { display: flex; flex-direction: column; gap: 8px; }
+  .dtoj-race-hit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+    cursor: pointer;
+  }
+  .dtoj-race-hit span { color: #4338ca; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dtoj-race-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   .dtoj-race-error { margin: 0; color: #8a1f1f; font-size: 14px; font-weight: 700; }
-  .dtoj-race-hit { margin: 0; font-size: 14px; }
-  .dtoj-race-edit .dtoj-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-  .dtoj-race-edit .dtoj-actions a, .dtoj-race-edit .dtoj-actions button { min-height: 44px; }
+  .dtoj-race-dialog {
+    width: min(420px, calc(100vw - 32px));
+    padding: 22px;
+    border: 0;
+    border-radius: 16px;
+    color: var(--ink);
+  }
+  .dtoj-race-dialog::backdrop { background: rgba(17, 24, 39, 0.45); }
+  .dtoj-race-dialog p { margin: 0 0 18px; font-size: 16px; line-height: 1.6; }
+  .dtoj-race-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; }
+  .dtoj-race-dialog-actions .dtoj-race-quiet { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.14); }
+  .dtoj-race-dialog-actions .dtoj-race-danger { background: #8a1f1f; color: #fff; }
   .dtoj-race-feature span { display: flex; align-items: center; gap: 8px; min-height: 42px; font-size: 14px; font-weight: 650; }
   .dtoj-race-feature input { width: 18px; height: 18px; margin: 0; }
 </style>
@@ -87,19 +140,30 @@
             <textarea name="overview" class="textbox" data-markdown>{{ overview }}</textarea>
           </div>
           <label class="dtoj-field">题号<input class="textbox" name="pids" value="{{ pids }}" placeholder="用空格或逗号分开，从下面的搜索结果里抄"></label>
-          <p class="dtoj-count-tag">从题库找题号</p>
-          <div class="dtoj-join">
-            <label class="dtoj-field">题号或标题<input class="textbox" name="pq" value="{{ pq }}"></label>
-            <button class="dtoj-alt" type="submit" name="operation" value="search">搜索</button>
+          <h2 class="dtoj-race-find-title">从题库找题号</h2>
+          <div class="dtoj-race-find">
+            <label>题号或标题<input class="textbox" name="pq" value="{{ pq }}" autocomplete="off" placeholder="输入题号或标题"></label>
+            <button class="dtoj-race-search" type="button" data-search>搜索</button>
           </div>
-          {% for hit in hits %}
-          <p class="dtoj-race-hit"><span class="dtoj-tag">{{ hit.pid }}</span> {{ hit.title }}</p>
-          {% endfor %}
-          <div class="dtoj-actions">
-            <button class="dtoj-go" type="submit" name="operation" value="save">保存</button>
-            {% if canDelete %}<button class="dtoj-alt" type="submit" name="operation" value="delete">删除</button>{% endif %}
-            <a class="dtoj-alt" href="{{ url('contest_main') }}">返回比赛</a>
+          <div class="dtoj-race-hits" id="dtoj-race-hits">
+            {% for hit in hits %}
+            <p class="dtoj-race-hit"><span>{{ hit.pid }}</span> {{ hit.title }}</p>
+            {% endfor %}
           </div>
+          <div class="dtoj-race-actions">
+            <button class="dtoj-race-save" type="submit" name="operation" value="save">保存</button>
+            <button class="dtoj-race-save" type="button" data-back="{{ url('contest_main') }}">返回比赛</button>
+            {% if canDelete %}<button class="dtoj-race-save" type="button" id="dtoj-race-ask-delete">删除</button>{% endif %}
+          </div>
+          {% if canDelete %}
+          <dialog class="dtoj-race-dialog" id="dtoj-race-dialog">
+            <p>确定删除这场比赛？题目和参加记录会一起去掉。</p>
+            <div class="dtoj-race-dialog-actions">
+              <button class="dtoj-race-quiet" type="button" data-abandon>放弃</button>
+              <button class="dtoj-race-danger" type="submit" name="operation" value="delete">确认删除</button>
+            </div>
+          </dialog>
+          {% endif %}
         </div>
       </form>
       <script>
@@ -125,6 +189,73 @@
           tab.addEventListener('change', sync);
           track.addEventListener('change', sync);
           sync();
+          var back = form.querySelector('[data-back]');
+          if (back) back.addEventListener('click', function () { location.assign(back.getAttribute('data-back')); });
+          var find = form.querySelector('[name="pq"]');
+          var pids = form.querySelector('[name="pids"]');
+          var hits = document.getElementById('dtoj-race-hits');
+          var searchTimer = 0;
+          var searchSeq = 0;
+          function showHits(list) {
+            if (!hits) return;
+            hits.textContent = '';
+            (list || []).forEach(function (hit) {
+              var row = document.createElement('p');
+              row.className = 'dtoj-race-hit';
+              var pid = document.createElement('span');
+              pid.textContent = hit.pid || '';
+              row.appendChild(pid);
+              row.appendChild(document.createTextNode(' ' + (hit.title || '')));
+              row.addEventListener('click', function () {
+                if (!pids) return;
+                var parts = pids.value.split(/[\s,，]+/).filter(Boolean);
+                if (hit.pid && parts.indexOf(hit.pid) < 0) parts.push(hit.pid);
+                pids.value = parts.join(' ');
+                pids.focus();
+              });
+              hits.appendChild(row);
+            });
+          }
+          function searchProblems() {
+            if (!find) return;
+            var q = find.value.trim();
+            var seq = ++searchSeq;
+            if (!q) { showHits([]); return; }
+            var url = new URL(window.location.href);
+            url.searchParams.set('suggest', '1');
+            url.searchParams.set('pq', q);
+            fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (res) {
+              return res.json();
+            }).then(function (data) {
+              if (seq !== searchSeq) return;
+              showHits(data && data.hits);
+            }).catch(function () {
+              if (seq === searchSeq) showHits([]);
+            });
+          }
+          if (find) {
+            find.addEventListener('input', function () {
+              window.clearTimeout(searchTimer);
+              searchTimer = window.setTimeout(searchProblems, 200);
+            });
+            find.addEventListener('keydown', function (event) {
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              window.clearTimeout(searchTimer);
+              searchProblems();
+            });
+          }
+          var search = form.querySelector('[data-search]');
+          if (search) search.addEventListener('click', function () {
+            window.clearTimeout(searchTimer);
+            searchProblems();
+          });
+          var ask = document.getElementById('dtoj-race-ask-delete');
+          var dialog = document.getElementById('dtoj-race-dialog');
+          if (ask && dialog) {
+            ask.addEventListener('click', function () { dialog.showModal(); });
+            dialog.querySelector('[data-abandon]').addEventListener('click', function () { dialog.close(); });
+          }
         }());
       </script>
     </div>
