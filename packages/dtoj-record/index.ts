@@ -1,5 +1,5 @@
 import {
-    Context, PERM, ProblemModel, RecordModel, STATUS, STATUS_CODES, STATUS_TEXTS,
+    Context, PERM, ProblemModel, RecordModel, STATUS, STATUS_CODES, STATUS_SHORT_TEXTS, STATUS_TEXTS,
     SettingModel, Types, UserModel, param,
 } from 'hydrooj';
 import { DtojDataHandler, dropEarlierRoutes, queryString } from 'dtoj-ui';
@@ -13,6 +13,12 @@ function memoryText(kb: number) {
         s /= unit;
     }
     return `${Math.round(s * unit)} ${names[names.length - 1]}`;
+}
+
+function recordStatusLabel(status: number) {
+    const short = STATUS_SHORT_TEXTS[status as STATUS];
+    if (short) return short;
+    return STATUS_TEXTS[status as STATUS] || '';
 }
 
 function langChoices() {
@@ -77,7 +83,7 @@ class DtojRecordHandler extends DtojDataHandler {
             const visible = pdoc && pdoc.title && pdoc.title !== '*';
             return {
                 id: rdoc._id,
-                statusKey: STATUS_TEXTS[rdoc.status] || '',
+                statusKey: recordStatusLabel(rdoc.status),
                 code: STATUS_CODES[rdoc.status] || '',
                 progress: running.has(rdoc.status) && typeof rdoc.progress === 'number' ? rdoc.progress : null,
                 score: typeof rdoc.score === 'number' ? rdoc.score : '—',
@@ -92,7 +98,10 @@ class DtojRecordHandler extends DtojDataHandler {
         this.view('dtoj_record', {
             records,
             langs: langChoices(),
-            statuses: Object.entries(STATUS_TEXTS).map(([id, text]) => ({ id, text })),
+            statuses: Object.entries(STATUS_TEXTS).map(([id]) => ({
+                id,
+                text: recordStatusLabel(Number(id)),
+            })),
             uidOrName: uidOrName || '',
             pid: pid || '',
             lang: lang || '',

@@ -100,17 +100,47 @@ function namesOf(raw: unknown, fallback: string[]) {
     return out;
 }
 
+function courseId(tdoc: any) {
+    return tdoc.docId.toHexString();
+}
+
+function sortCourses(docs: any[], order: string[]) {
+    const rank = new Map<string, number>();
+    order.forEach((id, index) => {
+        if (!rank.has(id)) rank.set(id, index);
+    });
+    return docs.slice().sort((a, b) => {
+        const ia = rank.get(courseId(a));
+        const ib = rank.get(courseId(b));
+        const aKnown = ia != null;
+        const bKnown = ib != null;
+        if (aKnown && bKnown) return ia - ib;
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        const pin = (b.pin || 0) - (a.pin || 0);
+        if (pin) return pin;
+        return courseId(b).localeCompare(courseId(a));
+    });
+}
+
 async function loadVocab(domainId: string) {
     const ddoc = await DomainModel.get(domainId);
     const saved = (ddoc as any)?.dtojTraining;
+    const order = Array.isArray(saved?.order)
+        ? saved.order.map((id: unknown) => String(id || '')).filter((id: string) => /^[a-f0-9]{24}$/.test(id))
+        : [];
     return {
         directions: namesOf(saved?.directions, directions),
         kinds: namesOf(saved?.kinds, courseKinds),
+        order,
     };
 }
 
 async function saveVocab(domainId: string, nextDirections: string[], nextKinds: string[]) {
-    await DomainModel.edit(domainId, { dtojTraining: { directions: nextDirections, kinds: nextKinds } } as any);
+    const ddoc = await DomainModel.get(domainId);
+    const saved = (ddoc as any)?.dtojTraining || {};
+    await DomainModel.edit(domainId, {
+        dtojTraining: { ...saved, directions: nextDirections, kinds: nextKinds },
+    } as any);
 }
 
 async function clearMark(domainId: string, field: 'direction' | 'kind', name: string) {
@@ -177,6 +207,27 @@ async function buildPlan(domainId: string, rows: { title: string, note: string, 
     return { dag, notes };
 }
 
+async function learningOf(domainId: string, user: any) {
+    if (!user.hasPriv(PRIV.PRIV_USER_PROFILE)) return [];
+    const statuses = await TrainingModel.getMultiStatus(domainId, { uid: user._id, enroll: 1 }).limit(40).toArray();
+    if (!statuses.length) return [];
+    statuses.sort((a, b) => b._id.toString().localeCompare(a._id.toString()));
+    const docs = await TrainingModel.getMulti(domainId, { docId: { $in: statuses.map((item) => item.docId) } }).toArray();
+    const byId = new Map(docs.map((tdoc) => [tdoc.docId.toHexString(), tdoc]));
+    const rows = [];
+    for (const status of statuses) {
+        const tdoc = byId.get(status.docId.toHexString());
+        if (!tdoc) continue;
+        const pids = TrainingModel.getPids(tdoc.dag || []);
+        const doneSet = new Set((status.donePids || []).map((pid: number) => +pid));
+        const done = pids.filter((pid) => doneSet.has(+pid)).length;
+        if (pids.length && done >= pids.length) continue;
+        const progress = pids.length ? Math.round((100 * done) / pids.length) : 0;
+        rows.push({ ...courseOf(tdoc), learning: true, progress });
+    }
+    return rows;
+}
+
 class DtojTrainingHandler extends DtojDataHandler {
     @param('page', Types.PositiveInt, true)
     @param('q', Types.String, true)
@@ -187,12 +238,12 @@ class DtojTrainingHandler extends DtojDataHandler {
         const query: any = {};
         if (q) query.title = { $regex: new RegExp(escapeRegExp(q), 'i') };
         await this.ctx.parallel('training/list', query, this);
-        const searched = await TrainingModel.getMulti(domainId, query).toArray();
+        const searched = sortCourses(await TrainingModel.getMulti(domainId, query).toArray(), vocab.order);
         const hotDocs = searched.filter((tdoc) => tdoc.pin > 0);
-        const pool = searched.filter((tdoc) => !(tdoc.pin > 0));
-        const counts = tally(pool, vocab.directions, vocab.kinds);
-        const matched = pool.filter((tdoc) => listed(tdoc, direction, kind));
-        const pageSize = Number(this.ctx.setting.get('pagination.training')) || 20;
+        const learning = await learningOf(domainId, this.user);
+        const counts = tally(searched, vocab.directions, vocab.kinds);
+        const matched = searched.filter((tdoc) => listed(tdoc, direction, kind));
+        const pageSize = 12;
         const pages = matched.length ? Math.floor((matched.length + pageSize - 1) / pageSize) : 0;
         const tdocs = matched.slice((page - 1) * pageSize, page * pageSize);
         this.view('dtoj_training', {
@@ -202,6 +253,7 @@ class DtojTrainingHandler extends DtojDataHandler {
             kind,
             q,
             hot: hotDocs.map(courseOf),
+            learning,
             courses: tdocs.map(courseOf),
             page,
             pages,
@@ -209,7 +261,81 @@ class DtojTrainingHandler extends DtojDataHandler {
             counts,
             shown: matched.length,
             canCreate: this.user.hasPerm(PERM.PERM_CREATE_TRAINING),
+            canSort: this.user.hasPerm(PERM.PERM_EDIT_TRAINING),
         });
+    }
+
+    @param('ids', Types.ArrayOf(Types.String))
+    @param('page', Types.PositiveInt, true)
+    @param('q', Types.String, true)
+    @param('direction', Types.String, true)
+    @param('kind', Types.String, true)
+    async postReorder(domainId: string, ids: string[] = [], page = 1, q = '', direction = '', kind = '') {
+        this.checkPerm(PERM.PERM_EDIT_TRAINING);
+        const vocab = await loadVocab(domainId);
+        direction = pick(direction, vocab.directions, '');
+        kind = pick(kind, vocab.kinds, '');
+        const query: any = {};
+        if (q) query.title = { $regex: new RegExp(escapeRegExp(q), 'i') };
+        await this.ctx.parallel('training/list', query, this);
+        const catalog = sortCourses(await TrainingModel.getMulti(domainId, query).toArray(), vocab.order);
+        const matched = catalog.filter((tdoc) => listed(tdoc, direction, kind));
+        const pageSize = 12;
+        const start = (page - 1) * pageSize;
+        const windowIds = matched.slice(start, start + pageSize).map(courseId);
+        const posted = ids.map((id) => String(id || ''));
+        const same = posted.length === windowIds.length
+            && new Set(posted).size === posted.length
+            && posted.every((id) => windowIds.includes(id));
+        if (!same) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        const visible = new Set(matched.map(courseId));
+        const nextVisible = matched.map(courseId);
+        posted.forEach((id, index) => { nextVisible[start + index] = id; });
+        const queue = nextVisible.slice();
+        const next = catalog.map((tdoc) => (visible.has(courseId(tdoc)) ? queue.shift() : courseId(tdoc)));
+        while (queue.length) next.push(queue.shift());
+        const ddoc = await DomainModel.get(domainId);
+        const saved = (ddoc as any)?.dtojTraining || {};
+        await DomainModel.edit(domainId, { dtojTraining: { ...saved, order: next } } as any);
+        this.response.body = { ok: true };
+        this.response.template = '';
+    }
+
+    @param('names', Types.ArrayOf(Types.String))
+    @param('field', Types.String)
+    async postReorderTags(domainId: string, names: string[] = [], field = '') {
+        this.checkPerm(PERM.PERM_EDIT_TRAINING);
+        const key = field === 'direction' || field === 'kind' ? field : '';
+        if (!key) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        const vocab = await loadVocab(domainId);
+        const current = key === 'kind' ? vocab.kinds : vocab.directions;
+        const posted = names.map((name) => String(name || '').trim());
+        const same = posted.length === current.length
+            && new Set(posted).size === posted.length
+            && posted.every((name) => current.includes(name));
+        if (!same) {
+            this.response.status = 400;
+            this.response.body = { error: '顺序不对' };
+            this.response.template = '';
+            return;
+        }
+        await saveVocab(
+            domainId,
+            key === 'direction' ? posted : vocab.directions,
+            key === 'kind' ? posted : vocab.kinds,
+        );
+        this.response.body = { ok: true };
+        this.response.template = '';
     }
 }
 
@@ -218,13 +344,6 @@ const courseParts = ['讲义', '练习', '排行', '详情'];
 function personName(udoc: any, uid: number) {
     const name = String(udoc?.displayName || udoc?.uname || '').trim();
     return name || `用户 ${uid}`;
-}
-
-function tagsOf(pdoc: any) {
-    const raw = pdoc?.tag;
-    if (!raw) return [] as string[];
-    const list = Array.isArray(raw) ? raw : [raw];
-    return list.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3);
 }
 
 function markOfStatus(psdoc: any) {
@@ -247,7 +366,7 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
     @param('stage', Types.String, true)
     async get(domainId: string, tid: ObjectId, part = '', q = '', stage = '') {
         const tdoc = await TrainingModel.get(domainId, tid);
-        const chosen = pick(part, courseParts, '讲义');
+        const chosen = pick(part, courseParts, '练习');
         const dag = tdoc.dag || [];
         const pids = TrainingModel.getPids(dag);
         const loggedIn = this.user.hasPriv(PRIV.PRIV_USER_PROFILE);
@@ -306,8 +425,8 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
                         pid,
                         show: missing ? String(pid) : (pdoc.pid || pid),
                         title: missing ? '' : (pdoc.title || ''),
+                        hang: !missing && String(pdoc.title || '').startsWith('【'),
                         missing,
-                        tags: missing ? [] : tagsOf(pdoc),
                         difficulty: !missing && typeof pdoc.difficulty === 'number' && pdoc.difficulty > 0 ? pdoc.difficulty : null,
                         level: !missing ? luoguLevel(pdoc.difficulty) : '',
                         rate: tried ? Math.round((100 * accepted) / tried) : null,
@@ -485,6 +604,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
 
     @param('pq', Types.String, true)
     async get(domainId: string, pq = '') {
+        if (String(this.args.suggest || '') === '1') {
+            this.response.body = { hits: await searchProblems(domainId, pq) };
+            this.response.template = '';
+            return;
+        }
         await this.form({
             pq,
             chapters: await chaptersFromDoc(domainId, this.tdoc),
@@ -521,6 +645,28 @@ class DtojTrainingEditHandler extends DtojDataHandler {
         await this.form({
             ...draft,
             chapters: draft.chapters.concat([{ ...blankChapter }]),
+            hits: await searchProblems(domainId, pq),
+        });
+    }
+
+    @param('title', Types.String, true)
+    @param('content', Types.String, true)
+    @param('direction', Types.String, true)
+    @param('kind', Types.String, true)
+    @param('pin', Types.String, true)
+    @param('pq', Types.String, true)
+    @param('chapterIndex', Types.String, true)
+    async postDropChapter(
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', chapterIndex = '',
+    ) {
+        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const index = Number(chapterIndex);
+        const chapters = Number.isInteger(index) && index >= 0
+            ? draft.chapters.filter((_, i) => i !== index)
+            : draft.chapters;
+        await this.form({
+            ...draft,
+            chapters,
             hits: await searchProblems(domainId, pq),
         });
     }

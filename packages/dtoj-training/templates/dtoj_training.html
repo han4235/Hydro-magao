@@ -2,7 +2,7 @@
 {% extends "layout/basic.html" %}
 {% import "components/paginator.html" as paginator with context %}
 {% macro course_card(c) %}
-<a class="dtoj-course" href="{{ url('dtoj_training_detail', tid=c.id) }}">
+<a class="dtoj-course" draggable="false" data-id="{{ c.id }}" href="{{ url('dtoj_training_detail', tid=c.id) }}?part=练习">
   <div class="dtoj-course-hero">
     <svg class="dtoj-course-lines" viewBox="0 0 320 180" aria-hidden="true">
       <path d="M-10 40c70 36 120 8 190-28s90-20 150 8"/>
@@ -20,13 +20,16 @@
   </div>
   <div class="dtoj-course-body">
     {% if c.brief %}<p class="dtoj-course-brief">{{ c.brief }}</p>{% endif %}
+    {% if c.learning %}
+    <p class="dtoj-learn-meter"><b><i style="width: {{ c.progress }}%"></i></b><span>已完成 {{ c.progress }}%</span></p>
+    {% endif %}
     <p class="dtoj-course-stat">
       <span><strong>{{ c.chapters }}</strong> 小节</span>
       <span><strong>{{ c.problems }}</strong> 道题</span>
     </p>
     <footer>
-      <span>讲义与练习</span>
-      <span class="dtoj-course-go">查看课程
+      <span>{% if c.learning %}正在学习{% else %}讲义与练习{% endif %}</span>
+      <span class="dtoj-course-go">{% if c.learning %}继续练习{% else %}查看课程{% endif %}
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
     </footer>
@@ -48,7 +51,11 @@
     line-height: 1.16;
   }
   .dtoj-train-head p { margin: 8px 0 0; max-width: 42rem; color: var(--muted); font-size: 14px; line-height: 1.7; }
-  .dtoj-train-head .dtoj-train-new {
+  .dtoj-train-head a.dtoj-train-new,
+  .dtoj-train-head a.dtoj-train-new:link,
+  .dtoj-train-head a.dtoj-train-new:visited,
+  .dtoj-train-head a.dtoj-train-new:hover,
+  .dtoj-train-head a.dtoj-train-new:active {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
@@ -93,13 +100,44 @@
     font-weight: 700;
   }
   .dtoj-train-block > p { margin: 6px 0 0; color: var(--muted); }
-  .dtoj-course-grid {
+  .dtoj-course-grid,
+  .dtoj-learn {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 22px;
     margin-top: 18px;
     scroll-margin-top: 64px;
   }
+  .dtoj-learn.is-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: scroll;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+    scrollbar-color: rgba(30, 41, 59, 0.35) rgba(30, 41, 59, 0.08);
+    scrollbar-width: thin;
+  }
+  .dtoj-learn.is-scroll::-webkit-scrollbar { height: 8px; }
+  .dtoj-learn.is-scroll::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.08); border-radius: 999px; }
+  .dtoj-learn.is-scroll::-webkit-scrollbar-thumb { background: rgba(30, 41, 59, 0.32); border-radius: 999px; }
+  .dtoj-learn.is-scroll .dtoj-course { flex: 0 0 calc((100% - 24px) / 3.18); scroll-snap-align: start; }
+  .dtoj-learn-meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .dtoj-learn-meter b {
+    display: block;
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: #e8eef5;
+    overflow: hidden;
+  }
+  .dtoj-learn-meter i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
   .dtoj-course {
     display: flex;
     flex-direction: column;
@@ -114,14 +152,25 @@
     transition: transform 0.18s ease-out;
   }
   .dtoj-course:hover { transform: translateY(-2px); }
+  .dtoj-course-grid.is-sortable .dtoj-course { cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+  .dtoj-course.is-arming,
+  .dtoj-course.is-lifting {
+    position: relative;
+    z-index: 3;
+    cursor: grabbing;
+    transform: scale(1.04);
+    box-shadow: 0 22px 48px rgba(28, 39, 64, 0.22);
+    transition: none;
+  }
+  .dtoj-sort-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
   .dtoj-course-hero {
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 36px;
-    min-height: 156px;
-    padding: 16px 18px 20px;
+    gap: 22px;
+    min-height: 124px;
+    padding: 14px 16px 16px;
     color: #fff;
     background: linear-gradient(160deg, #1e1b4b 0%, #312e81 46%, #1e40af 100%);
   }
@@ -173,7 +222,7 @@
     margin: 0;
     color: #fff;
     font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1.25;
@@ -181,9 +230,9 @@
   .dtoj-course-body {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
     flex: 1;
-    padding: 16px 18px 14px;
+    padding: 14px 16px 12px;
   }
   .dtoj-course-brief {
     margin: 0;
@@ -205,7 +254,7 @@
   }
   .dtoj-course-stat strong {
     margin-right: 4px;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
@@ -237,10 +286,22 @@
     margin: 0;
     color: var(--ink);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
   }
   .dtoj-facet-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .dtoj-facet a {
+  .dtoj-facet-row.is-sortable a[data-name] { cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+  .dtoj-facet-row a.is-arming,
+  .dtoj-facet-row a.is-lifting {
+    position: relative;
+    z-index: 2;
+    cursor: grabbing;
+    transform: scale(1.06);
+    transition: none;
+  }
+  .dtoj-facet a:link,
+  .dtoj-facet a:visited,
+  .dtoj-facet a:hover,
+  .dtoj-facet a:active {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -250,13 +311,13 @@
     background: #fff;
     color: var(--ink);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     text-decoration: none;
   }
   .dtoj-facet a:hover { background: #e7eefb; }
   .dtoj-facet a.on,
   .dtoj-facet a.on:hover { background: var(--brand); color: #fff; }
-  .dtoj-facet a span { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dtoj-facet a span { font-weight: 400; font-variant-numeric: tabular-nums; }
   .dtoj-train-search {
     display: flex;
     flex-wrap: wrap;
@@ -344,10 +405,14 @@
     color: #fff !important;
   }
   @media (max-width: 980px) {
-    .dtoj-course-grid { grid-template-columns: 1fr 1fr; }
+    .dtoj-course-grid, .dtoj-learn { grid-template-columns: 1fr 1fr; }
+    .dtoj-learn.is-scroll { display: flex; }
+    .dtoj-learn.is-scroll .dtoj-course { flex-basis: calc((100% - 12px) / 2.15); }
   }
   @media (max-width: 680px) {
-    .dtoj-course-grid { grid-template-columns: 1fr; }
+    .dtoj-course-grid, .dtoj-learn { grid-template-columns: 1fr; }
+    .dtoj-learn.is-scroll { display: flex; }
+    .dtoj-learn.is-scroll .dtoj-course { flex-basis: 86%; }
     .dtoj-facet { flex-direction: column; gap: 8px; }
     .dtoj-train-count { margin-left: 0; }
     .dtoj-train-pages { align-items: flex-start; }
@@ -365,6 +430,15 @@
         </div>
         {% if canCreate %}<a class="dtoj-train-new" href="{{ url('dtoj_training_create') }}">新建训练</a>{% endif %}
       </header>
+      {% if learning.length %}
+      <section class="dtoj-train-block">
+        <h2>继续学习</h2>
+        <p>接着上次的进度完成练习。</p>
+        <div class="dtoj-learn{% if learning.length > 3 %} is-scroll{% endif %}">
+          {% for c in learning %}{{ course_card(c) }}{% endfor %}
+        </div>
+      </section>
+      {% endif %}
       {% if hot.length %}
       <section class="dtoj-train-block">
         <div class="dtoj-train-kicker">
@@ -382,19 +456,19 @@
         <p>按竞赛方向选择课程，用专题学习与阶段练习巩固。</p>
         <div class="dtoj-facet">
           <p class="dtoj-facet-label">学习方向</p>
-          <div class="dtoj-facet-row">
+          <div class="dtoj-facet-row{% if canSort %} is-sortable{% endif %}" data-sort="direction">
             <a class="{% if not direction %}on{% endif %}" href="{{ url('training_main', query={kind: kind, q: q}) }}" {% if not direction %}aria-current="true"{% endif %}>全部课程 <span>{{ counts.total }}</span></a>
             {% for d in directions %}
-            <a class="{% if direction == d %}on{% endif %}" href="{{ url('training_main', query={direction: d, kind: kind, q: q}) }}" {% if direction == d %}aria-current="true"{% endif %}>{% if d == '其他' %}其他课程{% else %}{{ d }}{% endif %} <span>{{ counts.direction[d] }}</span></a>
+            <a data-name="{{ d }}" draggable="false" class="{% if direction == d %}on{% endif %}" href="{{ url('training_main', query={direction: d, kind: kind, q: q}) }}" {% if direction == d %}aria-current="true"{% endif %}>{% if d == '其他' %}其他课程{% else %}{{ d }}{% endif %} <span>{{ counts.direction[d] }}</span></a>
             {% endfor %}
           </div>
         </div>
         <div class="dtoj-facet">
           <p class="dtoj-facet-label">课程类型</p>
-          <div class="dtoj-facet-row">
+          <div class="dtoj-facet-row{% if canSort %} is-sortable{% endif %}" data-sort="kind">
             <a class="{% if not kind %}on{% endif %}" href="{{ url('training_main', query={direction: direction, q: q}) }}" {% if not kind %}aria-current="true"{% endif %}>全部类型 <span>{{ counts.total }}</span></a>
             {% for k in kinds %}
-            <a class="{% if kind == k %}on{% endif %}" href="{{ url('training_main', query={direction: direction, kind: k, q: q}) }}" {% if kind == k %}aria-current="true"{% endif %}>{{ k }} <span>{{ counts.kind[k] }}</span></a>
+            <a data-name="{{ k }}" draggable="false" class="{% if kind == k %}on{% endif %}" href="{{ url('training_main', query={direction: direction, kind: k, q: q}) }}" {% if kind == k %}aria-current="true"{% endif %}>{{ k }} <span>{{ counts.kind[k] }}</span></a>
             {% endfor %}
           </div>
         </div>
@@ -408,13 +482,14 @@
           <button type="submit">搜索</button>
           <p class="dtoj-train-count">共 {{ shown }} 门课程</p>
         </form>
-        <div class="dtoj-course-grid" id="dtoj-courses">
+        <div class="dtoj-course-grid{% if canSort %} is-sortable{% endif %}" id="dtoj-courses">
           {% for c in courses %}
           {{ course_card(c) }}
           {% else %}
           <p>没有课程。</p>
           {% endfor %}
         </div>
+        {% if canSort and courses.length > 1 %}<p class="dtoj-sort-note">长按卡片拖动，可以调整这一页的顺序。</p>{% endif %}
         {% if pages > 0 %}
         <div class="dtoj-train-pages">
           <p>第 {{ page }}/{{ pages }} 页</p>
@@ -463,19 +538,236 @@
               var cards = document.getElementById('dtoj-courses');
               if (cards) glide(cards);
             }).catch(function () {
-              window.location.href = url;
+              var fallback = url.split('#')[0] + '#dtoj-course-board';
+              window.location.href = fallback;
             }).then(function () {
               busy = false;
             });
           }
           board.addEventListener('click', function (event) {
-            var link = event.target.closest('.dtoj-facet a');
+            if (board.dataset.dragged === '1') {
+              board.dataset.dragged = '';
+              if (event.target.closest('#dtoj-courses .dtoj-course, .dtoj-facet-row a[data-name]')) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+            var link = event.target.closest('.dtoj-facet a, .pager a');
             if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             load(link.href.split('#')[0], true);
           });
           window.addEventListener('popstate', function () {
             load(window.location.href.split('#')[0], false);
+          });
+          var pressTimer = 0;
+          var hold = null;
+          var dragging = null;
+          function clearHold() {
+            window.clearTimeout(pressTimer);
+            pressTimer = 0;
+            hold = null;
+          }
+          function saveOrder() {
+            var grid = document.getElementById('dtoj-courses');
+            if (!grid) return;
+            var ids = [];
+            grid.querySelectorAll(':scope > .dtoj-course').forEach(function (el) {
+              ids.push(el.getAttribute('data-id'));
+            });
+            var url = new URL(window.location.href);
+            fetch(url.pathname + url.search, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                operation: 'reorder',
+                ids: ids,
+                page: url.searchParams.get('page') || '1',
+                q: url.searchParams.get('q') || '',
+                direction: url.searchParams.get('direction') || '',
+                kind: url.searchParams.get('kind') || '',
+              }),
+            }).catch(function () {});
+          }
+          function cardAt(x, y) {
+            var grid = document.getElementById('dtoj-courses');
+            if (!grid) return null;
+            var found = null;
+            grid.querySelectorAll(':scope > .dtoj-course').forEach(function (el) {
+              if (el === dragging) return;
+              var box = el.getBoundingClientRect();
+              if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) found = el;
+            });
+            return found;
+          }
+          function placeCard(x, y) {
+            var target = cardAt(x, y);
+            var grid = document.getElementById('dtoj-courses');
+            if (!target || !grid || !dragging) return;
+            var cards = Array.prototype.slice.call(grid.querySelectorAll(':scope > .dtoj-course'));
+            var from = cards.indexOf(dragging);
+            var to = cards.indexOf(target);
+            if (from < 0 || to < 0 || from === to) return;
+            if (from < to) grid.insertBefore(dragging, target.nextSibling);
+            else grid.insertBefore(dragging, target);
+          }
+          function beginDrag(card) {
+            if (dragging || !hold || hold.card !== card) return;
+            dragging = card;
+            card.classList.add('is-lifting');
+            try { card.setPointerCapture(hold.id); } catch (err) {}
+            placeCard(hold.x, hold.y);
+          }
+          function finishDrag(save) {
+            var card = hold && hold.card;
+            var did = !!dragging;
+            if (card) card.classList.remove('is-arming', 'is-lifting');
+            dragging = null;
+            clearHold();
+            if (!did || !save) return;
+            board.dataset.dragged = '1';
+            saveOrder();
+          }
+          board.addEventListener('contextmenu', function (event) {
+            if (event.target.closest('#dtoj-courses.is-sortable .dtoj-course')) event.preventDefault();
+          });
+          board.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            var grid = document.getElementById('dtoj-courses');
+            if (!grid || !grid.classList.contains('is-sortable')) return;
+            var card = event.target.closest('#dtoj-courses > .dtoj-course');
+            if (!card) return;
+            if (hold && hold.card) hold.card.classList.remove('is-arming', 'is-lifting');
+            clearHold();
+            hold = { card: card, x: event.clientX, y: event.clientY, ox: event.clientX, oy: event.clientY, id: event.pointerId };
+            card.classList.add('is-arming');
+            pressTimer = window.setTimeout(function () { beginDrag(card); }, 280);
+          });
+          window.addEventListener('pointermove', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            hold.x = event.clientX;
+            hold.y = event.clientY;
+            if (!dragging) {
+              if (Math.hypot(event.clientX - hold.ox, event.clientY - hold.oy) > 48) {
+                hold.card.classList.remove('is-arming');
+                clearHold();
+              }
+              return;
+            }
+            event.preventDefault();
+            placeCard(event.clientX, event.clientY);
+          }, { passive: false });
+          window.addEventListener('pointerup', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(true);
+          });
+          window.addEventListener('pointercancel', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(!!dragging);
+          });
+        }());
+        (function () {
+          var board = document.getElementById('dtoj-course-board');
+          if (!board) return;
+          var pressTimer = 0;
+          var hold = null;
+          var dragging = null;
+          function clearHold() {
+            window.clearTimeout(pressTimer);
+            pressTimer = 0;
+            hold = null;
+          }
+          function chips() {
+            return hold ? hold.row.querySelectorAll(':scope > a[data-name]') : [];
+          }
+          function chipAt(x, y) {
+            var found = null;
+            Array.prototype.forEach.call(chips(), function (el) {
+              if (el === dragging) return;
+              var box = el.getBoundingClientRect();
+              if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) found = el;
+            });
+            return found;
+          }
+          function saveTags() {
+            var names = [];
+            hold.row.querySelectorAll(':scope > a[data-name]').forEach(function (el) {
+              names.push(el.getAttribute('data-name'));
+            });
+            var field = hold.row.getAttribute('data-sort');
+            fetch(window.location.pathname + window.location.search, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({ operation: 'reorderTags', field: field, names: names }),
+            }).catch(function () {});
+          }
+          function placeChip(x, y) {
+            var target = chipAt(x, y);
+            if (!target || !dragging) return;
+            var list = Array.prototype.slice.call(chips());
+            var from = list.indexOf(dragging);
+            var to = list.indexOf(target);
+            if (from < 0 || to < 0 || from === to) return;
+            if (from < to) hold.row.insertBefore(dragging, target.nextSibling);
+            else hold.row.insertBefore(dragging, target);
+          }
+          function beginDrag(chip) {
+            if (dragging || !hold || hold.chip !== chip) return;
+            dragging = chip;
+            chip.classList.add('is-lifting');
+            try { chip.setPointerCapture(hold.id); } catch (err) {}
+            placeChip(hold.x, hold.y);
+          }
+          function finishDrag(save) {
+            var chip = hold && hold.chip;
+            var did = !!dragging;
+            var row = hold && hold.row;
+            if (chip) chip.classList.remove('is-arming', 'is-lifting');
+            dragging = null;
+            if (did && save && row) {
+              board.dataset.dragged = '1';
+              saveTags();
+            }
+            clearHold();
+          }
+          board.addEventListener('contextmenu', function (event) {
+            if (event.target.closest('.dtoj-facet-row.is-sortable a[data-name]')) event.preventDefault();
+          });
+          board.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            var chip = event.target.closest('.dtoj-facet-row.is-sortable > a[data-name]');
+            if (!chip || !board.contains(chip)) return;
+            var row = chip.parentElement;
+            if (hold && hold.chip) hold.chip.classList.remove('is-arming', 'is-lifting');
+            clearHold();
+            hold = { chip: chip, row: row, x: event.clientX, y: event.clientY, ox: event.clientX, oy: event.clientY, id: event.pointerId };
+            chip.classList.add('is-arming');
+            pressTimer = window.setTimeout(function () { beginDrag(chip); }, 280);
+          });
+          window.addEventListener('pointermove', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            hold.x = event.clientX;
+            hold.y = event.clientY;
+            if (!dragging) {
+              if (Math.hypot(event.clientX - hold.ox, event.clientY - hold.oy) > 48) {
+                hold.chip.classList.remove('is-arming');
+                clearHold();
+              }
+              return;
+            }
+            event.preventDefault();
+            placeChip(event.clientX, event.clientY);
+          }, { passive: false });
+          window.addEventListener('pointerup', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(true);
+          });
+          window.addEventListener('pointercancel', function (event) {
+            if (!hold || event.pointerId !== hold.id) return;
+            finishDrag(!!dragging);
           });
         }());
       </script>

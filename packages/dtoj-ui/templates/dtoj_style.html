@@ -227,6 +227,59 @@
   .dtoj-sheet a { color: var(--ink); font-weight: 700; text-decoration: none; }
   .dtoj-sheet-pad { padding: 16px 18px; }
   .dtoj-sheet .dtoj-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions {
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions .dtoj-go,
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions .dtoj-alt {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 104px;
+    height: 44px;
+    padding: 0 24px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+  }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions button.dtoj-go {
+    margin: 0;
+    border: 0;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    color: var(--brand-deep);
+    background: #fff;
+    box-shadow: none;
+  }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions button.dtoj-go:hover {
+    background: #f4f7fb;
+    transform: translateY(-1px);
+  }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions .dtoj-alt {
+    color: var(--brand-deep);
+    background: #fff;
+    border: 1px solid #c5d4e8;
+    box-shadow: none;
+  }
+  .dtoj-home form.dtoj-sheet-pad .dtoj-actions .dtoj-alt:hover {
+    background: #f4f7fb;
+    border-color: #a8bdd4;
+    transform: translateY(-1px);
+  }
   .dtoj-entry {
     display: flex;
     flex-direction: column;

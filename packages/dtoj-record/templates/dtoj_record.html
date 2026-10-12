@@ -26,7 +26,7 @@
             <select class="select" name="status">
               <option value="">全部</option>
               {% for item in statuses %}
-              <option value="{{ item.id }}" {% if status == item.id %}selected{% endif %}>{{ _(item.text) }}</option>
+              <option value="{{ item.id }}" {% if status == item.id %}selected{% endif %}>{{ item.text }}</option>
               {% endfor %}
             </select>
           </label>
@@ -54,7 +54,7 @@
             <tr>
               <td>
                 <span class="dtoj-status" data-status="{{ row.code }}">
-                  <a href="{{ url('record_detail', rid=row.id) }}">{{ _(row.statusKey) }}</a>
+                  <a href="{{ url('record_detail', rid=row.id) }}">{{ row.statusKey }}</a>
                   {% if row.progress is number %} {{ row.progress }}%{% endif %}
                 </span>
               </td>

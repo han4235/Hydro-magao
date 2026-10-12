@@ -138,6 +138,13 @@
     border: 0;
     border-radius: 16px;
     background: #eef0fb;
+    scroll-margin-top: 72px;
+  }
+  .dtoj-chapter-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   .dtoj-chapter-title {
     margin: 0;
@@ -146,22 +153,28 @@
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+  .dtoj-chapter-drop { min-height: 36px; padding: 0 12px; }
   .dtoj-note-edit { display: flex; flex-direction: column; gap: 8px; }
   .dtoj-note-edit > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
   .dtoj-plan-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
   .dtoj-plan-find label { flex: 1 1 240px; }
   .dtoj-plan button[type="submit"],
   .dtoj-plan button[data-pick],
-  .dtoj-plan button[data-op] {
+  .dtoj-plan button[data-op],
+  .dtoj-plan .dtoj-plan-save {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 48px;
     padding: 0 18px;
     border: 0;
     border-radius: 12px;
     font-size: 14px;
     font-weight: 800;
+    line-height: 1;
     cursor: pointer;
   }
-  .dtoj-plan-save { background: #4f46e5; color: #fff; }
+  .dtoj-plan-save { background: #4f46e5; color: #fff; box-shadow: none; text-decoration: none; }
   .dtoj-plan-save:hover { transform: translateY(-1px); }
   .dtoj-plan-quiet {
     background: #fff;
@@ -184,6 +197,7 @@
     color: var(--ink);
     font-size: 14px;
     line-height: 1.6;
+    cursor: pointer;
   }
   .dtoj-plan-hit span {
     color: #4338ca;
@@ -192,6 +206,44 @@
     font-variant-numeric: tabular-nums;
   }
   .dtoj-plan-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .dtoj-plan-danger {
+    background: #fff;
+    color: #8a1f1f;
+    box-shadow: inset 0 0 0 1px rgba(138, 31, 31, 0.35);
+  }
+  .dtoj-plan-danger:hover { transform: translateY(-1px); }
+  .dtoj-plan-danger-fill { background: #8a1f1f; color: #fff; }
+  .dtoj-plan-danger-fill:hover { transform: translateY(-1px); }
+  .dtoj-plan-dialog {
+    width: min(420px, calc(100vw - 32px));
+    padding: 22px;
+    border: 0;
+    border-radius: 16px;
+    color: var(--ink);
+  }
+  .dtoj-plan-dialog::backdrop { background: rgba(17, 24, 39, 0.45); }
+  .dtoj-plan-dialog p { margin: 0 0 16px; font-size: 16px; line-height: 1.6; }
+  .dtoj-plan-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; }
+  .dtoj-plan-dialog-actions button {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.14);
+    cursor: pointer;
+    appearance: none;
+  }
+  .dtoj-plan-dialog-actions .dtoj-plan-danger-fill {
+    background: #8a1f1f;
+    color: #fff;
+    box-shadow: none;
+  }
   @media (max-width: 720px) {
     .dtoj-plan { padding: 20px; }
     .dtoj-plan-meta > label { max-width: none; }
@@ -206,6 +258,7 @@
       </header>
       <form method="post" class="dtoj-plan" id="dtoj-plan">
         <input type="hidden" name="tagName" value="">
+        <input type="hidden" name="chapterIndex" value="">
         {% if error %}<p class="dtoj-plan-error">{{ error }}</p>{% endif %}
         <section>
           <h2>课程</h2>
@@ -254,10 +307,27 @@
         </section>
         <section>
           <h2>章节</h2>
-          <div class="dtoj-plan-stack">
+          <div class="dtoj-plan-stack" id="dtoj-chapters">
+            <template id="dtoj-chapter-blank">
+              <div class="dtoj-chapter">
+                <div class="dtoj-chapter-head">
+                  <p class="dtoj-chapter-title">第 1 章</p>
+                  <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+                </div>
+                <label>标题<input name="chapterTitle" value=""></label>
+                <div class="dtoj-note-edit">
+                  <span>讲义</span>
+                  <textarea name="chapterNote" class="textbox" data-markdown></textarea>
+                </div>
+                <label>题号<input name="chapterPids" value="" placeholder="用空格或逗号分开"></label>
+              </div>
+            </template>
             {% for ch in chapters %}
             <div class="dtoj-chapter">
-              <p class="dtoj-chapter-title">第 {{ loop.index }} 章</p>
+              <div class="dtoj-chapter-head">
+                <p class="dtoj-chapter-title">第 {{ loop.index }} 章</p>
+                <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+              </div>
               <label>标题<input name="chapterTitle" value="{{ ch.title }}"></label>
               <div class="dtoj-note-edit">
                 <span>讲义</span>
@@ -267,34 +337,43 @@
             </div>
             {% endfor %}
             <div>
-              <button class="dtoj-plan-quiet" type="submit" name="operation" value="add">加一章</button>
+              <button class="dtoj-plan-save" type="button" data-add-chapter>加一章</button>
             </div>
           </div>
         </section>
         <section>
           <h2>从题库找题号</h2>
           <div class="dtoj-plan-find">
-            <label>题号或标题<input name="pq" value="{{ pq }}"></label>
-            <button class="dtoj-plan-quiet" type="submit" name="operation" value="search">搜索</button>
+            <label>题号或标题<input name="pq" value="{{ pq }}" autocomplete="off" placeholder="输入题号或标题"></label>
+            <button class="dtoj-plan-quiet" type="button" data-search>搜索</button>
           </div>
-          {% if hits.length %}
-          <div class="dtoj-plan-hits">
+          <div class="dtoj-plan-hits" id="dtoj-plan-hits">
             {% for hit in hits %}
             <p class="dtoj-plan-hit"><span>{{ hit.pid }}</span> {{ hit.title }}</p>
             {% endfor %}
           </div>
-          {% endif %}
         </section>
         <div class="dtoj-plan-actions">
           <button class="dtoj-plan-save" type="submit" name="operation" value="save">保存</button>
-          <a class="dtoj-plan-quiet" href="{{ url('training_main') }}">返回训练</a>
-          {% if canDelete %}<button class="dtoj-plan-quiet" type="submit" name="operation" value="delete">删除</button>{% endif %}
+          <button class="dtoj-plan-save" type="button" data-back="{{ url('training_main') }}">返回训练</button>
+          {% if canDelete %}<button class="dtoj-plan-save" type="button" id="dtoj-plan-ask-delete">删除本训练</button>{% endif %}
         </div>
+        {% if canDelete %}
+        <dialog class="dtoj-plan-dialog" id="dtoj-plan-dialog">
+          <p>确定删除这门训练？章节和参加记录会一起去掉。</p>
+          <div class="dtoj-plan-dialog-actions">
+            <button class="dtoj-plan-quiet" type="button" data-abandon>放弃</button>
+            <button class="dtoj-plan-danger-fill" type="submit" name="operation" value="delete">确认删除</button>
+          </div>
+        </dialog>
+        {% endif %}
       </form>
       <script>
         (function () {
           var form = document.getElementById('dtoj-plan');
           if (!form) return;
+          var back = form.querySelector('[data-back]');
+          if (back) back.addEventListener('click', function () { location.assign(back.getAttribute('data-back')); });
           form.querySelectorAll('[data-pick]').forEach(function (btn) {
             btn.addEventListener('click', function () {
               var box = btn.closest('[data-field]');
@@ -317,6 +396,96 @@
               form.submit();
             });
           });
+          form.addEventListener('click', function (event) {
+            var btn = event.target.closest('[data-drop-chapter]');
+            if (!btn) return;
+            var chapter = btn.closest('.dtoj-chapter');
+            var stack = document.getElementById('dtoj-chapters');
+            if (!chapter || !stack) return;
+            var y = window.pageYOffset;
+            chapter.remove();
+            stack.querySelectorAll(':scope > .dtoj-chapter').forEach(function (node, i) {
+              var title = node.querySelector('.dtoj-chapter-title');
+              if (title) title.textContent = '第 ' + (i + 1) + ' 章';
+            });
+            window.scrollTo(0, y);
+          });
+          var add = form.querySelector('[data-add-chapter]');
+          if (add) {
+            add.addEventListener('click', function () {
+              var blank = document.getElementById('dtoj-chapter-blank');
+              var stack = document.getElementById('dtoj-chapters');
+              if (!blank || !stack) return;
+              var node = blank.content.firstElementChild.cloneNode(true);
+              var count = stack.querySelectorAll('.dtoj-chapter').length;
+              node.querySelector('.dtoj-chapter-title').textContent = '第 ' + (count + 1) + ' 章';
+              stack.insertBefore(node, add.parentElement);
+              if (window.jQuery) window.jQuery(node).trigger('vjContentNew');
+              node.scrollIntoView({ block: 'nearest' });
+            });
+          }
+          var find = form.querySelector('[name="pq"]');
+          var hits = document.getElementById('dtoj-plan-hits');
+          var searchTimer = 0;
+          var searchSeq = 0;
+          function showHits(list) {
+            if (!hits) return;
+            hits.textContent = '';
+            (list || []).forEach(function (hit) {
+              var row = document.createElement('p');
+              row.className = 'dtoj-plan-hit';
+              var pid = document.createElement('span');
+              pid.textContent = hit.pid || '';
+              row.appendChild(pid);
+              row.appendChild(document.createTextNode(' ' + (hit.title || '')));
+              row.addEventListener('click', function () {
+                if (!find) return;
+                find.value = hit.pid || '';
+                find.focus();
+              });
+              hits.appendChild(row);
+            });
+          }
+          function searchProblems() {
+            if (!find) return;
+            var q = find.value.trim();
+            var seq = ++searchSeq;
+            if (!q) { showHits([]); return; }
+            var url = new URL(window.location.href);
+            url.searchParams.set('suggest', '1');
+            url.searchParams.set('pq', q);
+            fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (res) {
+              return res.json();
+            }).then(function (data) {
+              if (seq !== searchSeq) return;
+              showHits(data && data.hits);
+            }).catch(function () {
+              if (seq === searchSeq) showHits([]);
+            });
+          }
+          if (find) {
+            find.addEventListener('input', function () {
+              window.clearTimeout(searchTimer);
+              searchTimer = window.setTimeout(searchProblems, 200);
+            });
+            find.addEventListener('keydown', function (event) {
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              window.clearTimeout(searchTimer);
+              searchProblems();
+            });
+          }
+          var search = form.querySelector('[data-search]');
+          if (search) search.addEventListener('click', function () {
+            window.clearTimeout(searchTimer);
+            searchProblems();
+          });
+          var ask = document.getElementById('dtoj-plan-ask-delete');
+          var dialog = document.getElementById('dtoj-plan-dialog');
+          if (ask && dialog) {
+            ask.addEventListener('click', function () { dialog.showModal(); });
+            dialog.querySelector('[data-abandon]').addEventListener('click', function () { dialog.close(); });
+          }
         }());
       </script>
     </div>

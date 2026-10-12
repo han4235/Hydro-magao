@@ -179,10 +179,13 @@
   .dtoj-bank-manage svg,
   .dtoj-bank-imports svg { width: 16px; height: 16px; flex: 0 0 auto; }
   .dtoj-bank-manage [data-edit="leave"],
-  .dtoj-bank-manage [data-edit="copy"] { display: none; }
+  .dtoj-bank-manage [data-edit="copy"],
+  .dtoj-bank-manage [data-edit="delete"] { display: none; }
   .dtoj-bank.is-editing [data-edit="enter"] { display: none; }
   .dtoj-bank.is-editing [data-edit="leave"],
-  .dtoj-bank.is-editing [data-edit="copy"] { display: flex; }
+  .dtoj-bank.is-editing [data-edit="copy"],
+  .dtoj-bank.is-editing [data-edit="delete"] { display: flex; }
+  .dtoj-bank-manage [data-edit="delete"] { color: #8a1f1f; }
   .dtoj-bank-imports { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
   .dtoj-bank-manage-note { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
   .dtoj-bank-check { display: none; width: 40px; }
@@ -291,7 +294,7 @@
               <tbody>
                 {% for p in problems %}
                 <tr>
-                  {% if loggedIn %}<td class="dtoj-bank-check"><input type="checkbox" data-pid="{{ p.pid }}" aria-label="选择 {{ p.title }}"></td>{% endif %}
+                  {% if loggedIn %}<td class="dtoj-bank-check"><input type="checkbox" data-pid="{{ p.pid }}" data-doc="{{ p.docId }}" aria-label="选择 {{ p.title }}"></td>{% endif %}
                   <td class="dtoj-bank-id">{{ p.pid }}</td>
                   <td class="dtoj-bank-name"><a class="{% if p.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=p.link) }}">{{ p.title }}</a></td>
                   {% if showTags %}
@@ -343,6 +346,9 @@
           <button type="button" data-edit="enter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.8l4 4L6 14H2v-4l7.2-7.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>进入编辑模式</button>
           <button type="button" data-edit="leave"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.2 2.8l4 4L6 14H2v-4l7.2-7.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>离开编辑模式</button>
           <button type="button" data-edit="copy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>复制选中</button>
+          {% if canDelete %}
+          <button type="button" data-edit="delete" data-delete-url="{{ url('problem_main') }}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.5 4.5l.6 8.2h5.8l.6-8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>删除选中</button>
+          {% endif %}
           <p class="dtoj-bank-manage-note" data-copy-note hidden></p>
           {% endif %}
           {% if canCreate %}
@@ -411,6 +417,24 @@
       } else {
         say(text);
       }
+    }
+    if (kind === 'delete') {
+      var picked = [].map.call(root.querySelectorAll('[data-doc]:checked'), function (box) { return Number(box.getAttribute('data-doc')); });
+      if (!picked.length) { say('还没有选中题目。'); return; }
+      if (!window.confirm('确定删除选中的 ' + picked.length + ' 道题？题目和提交记录会一起去掉。')) return;
+      btn.disabled = true;
+      fetch(btn.getAttribute('data-delete-url'), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ operation: 'delete', pids: picked })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('fail');
+        window.location.reload();
+      }).catch(function () {
+        btn.disabled = false;
+        say('删除没有完成。');
+      });
     }
   });
   var all = root.querySelector('[data-check-all]');
