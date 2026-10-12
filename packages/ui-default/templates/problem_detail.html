@@ -42,10 +42,781 @@
     <meta property="og:description" content="{{ renderredContent|problemPreview|truncate(100, true) }}" />
   {% endblock %}
 {% endif %}
-<div class="row" data-sticky-parent>
-  <div class="medium-9 columns">
-    <div class="section">
-      <div class="section__header">
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-problem { display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-problem-back { margin: 0; }
+  .dtoj-problem-back a { color: var(--muted); font-weight: 700; text-decoration: none; }
+  .dtoj-problem-back a:hover { color: var(--brand-deep); }
+  .dtoj-problem-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 332px;
+    gap: 22px;
+    align-items: start;
+  }
+  .dtoj-problem aside { position: static; display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-page .dtoj-problem .dtoj-panel { background: rgba(255, 255, 255, 0.92); }
+  .dtoj-problem-main { padding: 24px 24px 32px; }
+  .dtoj-problem-main > .section__header,
+  .dtoj-problem .problem-content .section__header,
+  .dtoj-problem .problem-content .section__body { padding: 0; }
+  .dtoj-problem-head { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+  .dtoj-problem-titleline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dtoj-problem-modes { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
+  .dtoj-problem-modes button,
+  .dtoj-problem-modes a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.1);
+    border-radius: 999px;
+    background: #f4f7fb;
+    color: #243044;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .dtoj-problem-modes [hidden] { display: none; }
+  .dtoj-problem.is-focus [data-problem-focus] {
+    background: #172237;
+    border-color: #172237;
+    color: #f6f8fd;
+  }
+  .dtoj-problem-modes [data-problem-submit] {
+    background: #eef3ff;
+    border-color: #d5e2fb;
+    color: var(--brand-deep);
+  }
+  .dtoj-problem.is-focus aside { display: none; }
+  .dtoj-problem.is-focus .dtoj-problem-layout { grid-template-columns: minmax(0, 1fr); }
+  .row:has(.dtoj-problem.is-wide) { max-width: 1440px; }
+  .dtoj-problem.is-wide { max-width: 1400px; }
+  .dtoj-problem.is-focus .typo p,
+  .dtoj-problem.is-focus .typo li,
+  .dtoj-problem.is-wide .typo p,
+  .dtoj-problem.is-wide .typo li { max-width: none; }
+  .dtoj-problem .section__tools { position: static; }
+  .dtoj-problem-main .section__title {
+    flex: 1;
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 28px;
+    font-weight: 760;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+  }
+  .dtoj-problem-main .star {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 11px;
+    background: #f4f7fb;
+    color: var(--gold-deep);
+    cursor: pointer;
+  }
+  .dtoj-problem .problem-content { margin-top: 20px; }
+  .dtoj-problem .typo { color: var(--ink); font-size: 16px; line-height: 1.85; }
+  .dtoj-problem .typo h1,
+  .dtoj-problem .typo h2,
+  .dtoj-problem .typo h3,
+  .dtoj-problem .typo h4 {
+    margin: 32px 0 8px;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.35;
+  }
+  .dtoj-problem .typo > h1:first-child,
+  .dtoj-problem .typo > h2:first-child,
+  .dtoj-problem .typo > h3:first-child,
+  .dtoj-problem .typo > h4:first-child { margin-top: 20px; }
+  .dtoj-problem .typo p,
+  .dtoj-problem .typo li { max-width: 68ch; }
+  .dtoj-problem .typo pre {
+    max-width: none;
+    margin: 8px 0 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f4f7fb;
+    overflow: auto;
+    scrollbar-color: #8aa0b3 transparent;
+  }
+  .dtoj-problem .typo pre,
+  .dtoj-problem .typo pre code,
+  .dtoj-problem .typo code[class*="language-"],
+  .dtoj-problem .typo .token {
+    color: var(--ink);
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    font-style: normal;
+    letter-spacing: normal;
+    line-height: 1.85;
+  }
+  .dtoj-problem .typo table { max-width: 100%; }
+  .dtoj-samples { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 8px 0 8px; }
+  .dtoj-sample h4 { margin: 0 0 8px; }
+  .dtoj-problem .section.side {
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 12px 28px rgba(28, 39, 64, 0.06);
+  }
+  .dtoj-side-card h2,
+  .dtoj-side-related h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.3;
+  }
+  .dtoj-side-id {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .dtoj-side-id b { color: var(--ink); font-weight: 800; }
+  .dtoj-side-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 14px 0 0;
+  }
+  .dtoj-side-stats div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .dtoj-side-stats span:first-child { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-side-stats span:last-child,
+  .dtoj-side-stats a { color: var(--ink); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .dtoj-side-stats a:hover { color: var(--brand-deep); }
+  .dtoj-side-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .dtoj-side-line b,
+  .dtoj-side-line a { color: var(--ink); font-weight: 800; text-decoration: none; }
+  .dtoj-side-lv {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: #f8f1dc;
+    color: #6a4b00;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .dtoj-side-lv[data-diff="1"] { background: #fe4c61; color: #1a1a1a; }
+  .dtoj-side-lv[data-diff="2"] { background: #f39c11; color: #1a1a1a; }
+  .dtoj-side-lv[data-diff="3"] { background: #ffc116; color: #1a1a1a; }
+  .dtoj-side-lv[data-diff="4"] { background: #52c41a; color: #1a1a1a; }
+  .dtoj-side-lv[data-diff="5"] { background: #3498db; color: #1a1a1a; }
+  .dtoj-side-lv[data-diff="6"] { background: #9d3dcf; color: #fff; }
+  .dtoj-side-lv[data-diff="7"] { background: #0e1d69; color: #fff; }
+  .dtoj-side-owner { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+  .dtoj-side-owner img { width: 22px; height: 22px; border-radius: 50%; }
+  .dtoj-side-tags {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .dtoj-side-tags b { color: var(--ink); }
+  .dtoj-side-tags button {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-side-taglist { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .dtoj-side-taglist[hidden] { display: none; }
+  .dtoj-side-taglist span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #f4f7fb;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .dtoj-side-submit-card {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(28, 39, 64, 0.06);
+  }
+  .dtoj-side-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    border-radius: 10px;
+    background: var(--brand);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+  a.dtoj-side-submit,
+  a.dtoj-side-submit:visited,
+  a.dtoj-side-submit:hover,
+  a.dtoj-side-submit:active {
+    color: #fff;
+  }
+  a.dtoj-side-submit:hover { background: var(--brand-deep); }
+  .dtoj-side-submit.is-disabled { background: #d5dde4; color: #3e4c59; pointer-events: none; }
+  .dtoj-problem .section.side { background: #fff; }
+  .dtoj-problem .section--problem-sidebar { padding: 10px 8px; }
+  .dtoj-problem .section--problem-sidebar .menu__link,
+  .dtoj-problem .section--problem-sidebar a.menu__link.highlight,
+  .dtoj-problem .section--problem-sidebar button.menu__link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #3c4b5e;
+    font-size: 16px;
+    font-weight: 650;
+  }
+  .dtoj-problem .section--problem-sidebar a.menu__link:not(.disabled):hover,
+  .dtoj-problem .section--problem-sidebar button.menu__link:not(.disabled):hover {
+    border: 0;
+    background: #f4f7fb;
+    color: #243044;
+  }
+  .dtoj-problem .section--problem-sidebar a.menu__link.active,
+  .dtoj-problem .section--problem-sidebar a.menu__link.active:hover {
+    background: #e7eefc;
+    color: var(--brand);
+  }
+  .dtoj-problem .section--problem-sidebar .icon {
+    width: 18px;
+    margin: 0;
+    color: #7b8798;
+    font-size: 18px;
+    line-height: 1;
+    text-align: center;
+  }
+  .dtoj-problem .section--problem-sidebar [name="problem-sidebar__open-scratchpad"] .icon,
+  .dtoj-problem .section--problem-sidebar [name="problem-sidebar__quit-scratchpad"] .icon,
+  .dtoj-problem .section--problem-sidebar a.menu__link.active .icon { color: var(--brand); }
+  .dtoj-problem .section--problem-sidebar .menu__seperator {
+    height: 0;
+    margin: 6px 12px;
+    border: 0;
+    border-top: 1px solid rgba(30, 41, 59, 0.08);
+  }
+  .dtoj-side-related-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .dtoj-side-related-head span { color: var(--muted); font-size: 13px; font-weight: 650; }
+  .dtoj-side-relgroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .dtoj-side-relgroup b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 7px;
+    background: #e8eef5;
+    color: #526070;
+    font-size: 12px;
+    font-weight: 750;
+  }
+  .dtoj-side-rel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    margin-top: 8px;
+    padding: 0 12px 0 8px;
+    border: 0;
+    border-radius: 12px;
+    background: #f3f6fa;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-side-rel > span { flex: 1; min-width: 0; }
+  .dtoj-side-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: #fff;
+    flex: none;
+    font-style: normal;
+  }
+  .dtoj-side-rel:hover { color: var(--brand-deep); }
+  .dtoj-problem ::selection { background: #d5e4f0; color: var(--ink); }
+  .dtoj-problem a:focus-visible,
+  .dtoj-problem button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  @media (max-width: 900px) {
+    .dtoj-problem-layout,
+    .dtoj-samples { grid-template-columns: 1fr; }
+    .dtoj-problem-main { padding: 16px; }
+    .dtoj-side-stats { grid-template-columns: 1fr 1fr; }
+  }
+  body.mode--scratchpad .scratchpad-container {
+    position: fixed !important;
+    left: 0 !important;
+    top: 45px !important;
+    width: 100% !important;
+    height: calc(100% - 45px) !important;
+    z-index: 400;
+    display: flex !important;
+    flex-direction: column;
+    background: #e8eef5;
+  }
+  body.mode--scratchpad #scratchpad {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    flex: 1;
+    min-height: 0;
+    width: auto !important;
+    height: auto !important;
+    padding: 12px 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: #e8eef5;
+  }
+  body.mode--scratchpad #scratchpad > .split-view {
+    width: 100% !important;
+    height: 100% !important;
+    transform: none;
+    background: #e8eef5;
+  }
+  body.mode--scratchpad .scratchpad__tablist { height: 100%; background: transparent; }
+  body.mode--scratchpad .scratchpad__tablist > div {
+    width: 44px;
+    height: 44px;
+    margin: 8px 3px;
+    border-left: 0;
+    border-radius: 12px;
+    fill: #5f6b7a;
+    color: #5f6b7a;
+  }
+  body.mode--scratchpad .scratchpad__tablist > div.scratchpad__tab-active {
+    border-left: 0;
+    background: #fff;
+    fill: #2563eb;
+    color: #2563eb;
+  }
+  body.mode--scratchpad #scratchpad .split-view-view { background: #e8eef5; }
+  .dtoj-ide-bar, .dtoj-ide-foot { display: none; }
+  body.mode--scratchpad .dtoj-ide-bar,
+  body.mode--scratchpad .dtoj-ide-foot { display: flex; }
+  .dtoj-ide-bar {
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    padding: 0 16px;
+    background: #fff;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.09);
+    flex: none;
+  }
+  .dtoj-ide-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #111827;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px;
+    font-weight: 760;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+  }
+  .dtoj-ide-pages { display: flex; gap: 8px; flex: none; }
+  .dtoj-ide-pages button,
+  .dtoj-ide-back {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 11px;
+    background: #fff;
+    color: #243044;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-ide-pages button.is-on { background: #e7eefc; color: #2563eb; border-color: transparent; }
+  .dtoj-ide-pages button:hover,
+  .dtoj-ide-back:hover { background: #f4f7fb; }
+  .dtoj-ide-pages button.is-on:hover { background: #e7eefc; }
+  .dtoj-ide-back { margin-left: auto; }
+  .dtoj-ide-bar button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-ide-foot {
+    align-items: center;
+    gap: 16px;
+    height: 32px;
+    padding: 0 16px;
+    background: #fff;
+    border-top: 1px solid rgba(30, 41, 59, 0.09);
+    color: #5f6b7a;
+    font-size: 12px;
+    font-weight: 700;
+    flex: none;
+  }
+  body.mode--scratchpad .scratchpad__problem,
+  body.mode--scratchpad .splitpane-fill {
+    left: 8px;
+    right: 8px;
+    top: 4px;
+    bottom: 4px;
+    width: auto;
+    height: auto;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 24px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  body.mode--scratchpad .scratchpad__problem { overflow: auto; padding: 16px 24px 24px; scrollbar-color: #8aa0b3 transparent; }
+  body.mode--scratchpad .splitpane-fill { overflow: hidden; }
+  body.mode--scratchpad .scratchpad__problem .section__header,
+  body.mode--scratchpad .scratchpad__problem .section__body { padding: 0; position: static; }
+  body.mode--scratchpad .scratchpad__problem .non-scratchpad--hide { display: none; }
+  body.mode--scratchpad ::selection { background: #d5e4f0; color: #111827; }
+  body.mode--scratchpad .scratchpad__problem .typo { color: #111827; font-size: 16px; line-height: 1.85; }
+  body.mode--scratchpad .scratchpad__problem .typo h1,
+  body.mode--scratchpad .scratchpad__problem .typo h2,
+  body.mode--scratchpad .scratchpad__problem .typo h3,
+  body.mode--scratchpad .scratchpad__problem .typo h4 {
+    margin: 24px 0 8px;
+    color: #111827;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.35;
+  }
+  body.mode--scratchpad .scratchpad__problem .typo > :first-child { margin-top: 0; }
+  body.mode--scratchpad .scratchpad__problem .typo p,
+  body.mode--scratchpad .scratchpad__problem .typo li { max-width: none; }
+  body.mode--scratchpad .scratchpad__problem .row { max-width: 420px; margin: 16px 0; }
+  body.mode--scratchpad .scratchpad__problem .columns { padding-left: 0; padding-right: 0; }
+  body.mode--scratchpad .scratchpad__problem label { color: #111827; font-weight: 700; }
+  body.mode--scratchpad .scratchpad__panel-title {
+    background: #f4f7fb;
+    color: #111827;
+    font-weight: 700;
+  }
+  body.mode--scratchpad .scratchpad__data-input {
+    border: 0;
+    background: #f4f7fb;
+    color: #111827;
+  }
+  body.mode--scratchpad .scratchpad__problem .dtoj-samples { grid-template-columns: 1fr; }
+  body.mode--scratchpad .scratchpad__problem .typo pre {
+    max-width: none;
+    margin: 8px 0 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f4f7fb;
+    overflow: auto;
+  }
+  body.mode--scratchpad .scratchpad__problem .typo pre,
+  body.mode--scratchpad .scratchpad__problem .typo pre code,
+  body.mode--scratchpad .scratchpad__problem .typo code[class*="language-"],
+  body.mode--scratchpad .scratchpad__problem .typo .token {
+    color: #111827;
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.85;
+  }
+  body.mode--scratchpad .scratchpad__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.09);
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+  }
+  body.mode--scratchpad .scratchpad__toolbar__split { display: none; }
+  body.mode--scratchpad .scratchpad__toolbar__button .icon {
+    display: inline-block;
+    margin-right: 6px;
+    font-size: 16px;
+    line-height: 1;
+  }
+  body.mode--scratchpad .monaco-editor {
+    --vscode-editorSuggestWidget-background: #ffffff;
+    --vscode-editorSuggestWidget-foreground: #111827;
+    --vscode-editorSuggestWidget-selectedBackground: #dbe7ff;
+    --vscode-editorSuggestWidget-selectedForeground: #111827;
+    --vscode-editorSuggestWidget-selectedIconForeground: #1e40af;
+    --vscode-editorSuggestWidget-highlightForeground: #1e40af;
+    --vscode-editorSuggestWidget-focusHighlightForeground: #1e3a8a;
+    --vscode-editorSuggestWidget-border: rgba(30, 41, 59, 0.16);
+    --vscode-editorHoverWidget-background: #ffffff;
+    --vscode-editorHoverWidget-foreground: #111827;
+  }
+  body.mode--scratchpad .monaco-editor .suggest-widget,
+  body.mode--scratchpad .monaco-editor .suggest-details {
+    background: #fff;
+    color: #111827;
+    border-color: rgba(30, 41, 59, 0.16);
+  }
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-list .monaco-list-row,
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-list .monaco-list-row .monaco-icon-label,
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-list .monaco-list-row .monaco-highlighted-label,
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-list .monaco-list-row .label-name {
+    color: #111827;
+  }
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused {
+    background: #dbe7ff;
+    color: #111827;
+  }
+  body.mode--scratchpad .monaco-editor .suggest-widget .monaco-highlighted-label .highlight {
+    color: #1e3a8a;
+    font-weight: 700;
+  }
+  body.mode--scratchpad .scratchpad__toolbar [name="problem-sidebar__quit-scratchpad"] .icon { display: none; }
+  .dtoj-ide-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px 10px;
+    background: #fff;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.09);
+  }
+  .dtoj-ide-tools-lang {
+    color: #5f6b7a;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .dtoj-ide-tools-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; position: relative; }
+  .dtoj-ide-tools-actions > button {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #3c4b5e;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-ide-tools-actions > button:hover { background: #f4f7fb; }
+  .dtoj-ide-tools-actions > button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-ide-config {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 5;
+    width: 320px;
+    padding: 16px 16px 8px;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+  }
+  .dtoj-ide-config[hidden] { display: none; }
+  .dtoj-ide-config-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: #1e3a8a;
+    font-size: 16px;
+    font-weight: 800;
+  }
+  .dtoj-ide-config-head button {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #5f6b7a;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .dtoj-ide-config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    color: #3c4b5e;
+    font-size: 16px;
+  }
+  .dtoj-ide-config-row select {
+    width: 112px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid rgba(37, 99, 235, 0.45);
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font-size: 16px;
+  }
+  .dtoj-ide-config-row input { width: 18px; height: 18px; }
+  body.mode--scratchpad .scratchpad__toolbar .select {
+    width: auto;
+    height: 40px;
+    min-width: 148px;
+    font-size: 16px;
+    margin: 0;
+    padding: 0 10px;
+    border: 1px solid rgba(30, 41, 59, 0.14);
+    border-radius: 11px;
+    background: #fff;
+    color: #243044;
+    font-weight: 700;
+  }
+  body.mode--scratchpad .scratchpad__toolbar__item:has(select) { order: 1; }
+  body.mode--scratchpad .scratchpad__toolbar__button {
+    order: 2;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 16px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #3c4b5e;
+    font-weight: 700;
+  }
+  body.mode--scratchpad .scratchpad__toolbar__button div { color: inherit; }
+  body.mode--scratchpad .scratchpad__toolbar__button.enabled:hover { background: #f4f7fb; }
+  body.mode--scratchpad .scratchpad__toolbar__button.activated,
+  body.mode--scratchpad .scratchpad__toolbar__button.activated:hover {
+    background: #e7eefc;
+    color: #2563eb;
+  }
+  body.mode--scratchpad .scratchpad__toolbar__button.disabled,
+  body.mode--scratchpad .scratchpad__toolbar__button:disabled { opacity: 0.45; }
+  body.mode--scratchpad .scratchpad__toolbar button:focus-visible,
+  body.mode--scratchpad .scratchpad__toolbar .select:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  body.mode--scratchpad button.scratchpad__toolbar__pretest {
+    order: 10;
+    margin-left: auto;
+    border: 1px solid rgba(30, 41, 59, 0.16);
+    background: #fff;
+    color: #243044;
+  }
+  body.mode--scratchpad button.scratchpad__toolbar__submit,
+  body.mode--scratchpad button.scratchpad__toolbar__submit div {
+    order: 11;
+    background: #2563eb;
+    color: #fff;
+  }
+  body.mode--scratchpad button.scratchpad__toolbar__submit { border-radius: 11px; padding: 0 16px; }
+  body.mode--scratchpad button.scratchpad__toolbar__pretest:hover { background: #f4f7fb; }
+  body.mode--scratchpad button.scratchpad__toolbar__submit:hover,
+  body.mode--scratchpad button.scratchpad__toolbar__submit:hover div { background: #1e40af; color: #fff; }
+  body.mode--scratchpad .scratchpad__toolbar [name="problem-sidebar__quit-scratchpad"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    pointer-events: none;
+  }
+  @media (max-width: 860px) {
+    body.mode--scratchpad .dtoj-ide-bar { height: auto; min-height: 56px; flex-wrap: wrap; padding: 8px 12px; }
+    body.mode--scratchpad .dtoj-ide-title { flex: 1 1 140px; font-size: 18px; }
+    body.mode--scratchpad .dtoj-ide-back { margin-left: 0; }
+    body.mode--scratchpad #scratchpad { padding: 8px; overflow: auto; }
+    body.mode--scratchpad #scratchpad > .split-view {
+      transform: none !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 100%;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    body.mode--scratchpad #scratchpad > .split-view > .sash-container { display: none !important; }
+    body.mode--scratchpad #scratchpad > .split-view > .split-view-container {
+      display: flex !important;
+      flex-direction: column !important;
+      position: relative !important;
+      width: 100% !important;
+      height: auto !important;
+    }
+    body.mode--scratchpad #scratchpad > .split-view > .split-view-container > .split-view-view {
+      position: relative !important;
+      left: auto !important;
+      top: auto !important;
+      width: 100% !important;
+      flex: none;
+    }
+    body.mode--scratchpad #scratchpad > .split-view > .split-view-container > .split-view-view:has(.scratchpad__tablist) { display: none !important; }
+    body.mode--scratchpad #scratchpad > .split-view > .split-view-container > .split-view-view:has(.scratchpad__problem) { height: 42vh !important; }
+    body.mode--scratchpad #scratchpad > .split-view > .split-view-container > .split-view-view:has(.splitpane-fill) { height: 52vh !important; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-problem">
+      {% if not tdoc %}<p class="dtoj-problem-back"><a href="{{ url('dtoj_problems') }}">返回题库</a></p>{% endif %}
+      <div class="dtoj-problem-layout">
+        <div>
+    <div class="section dtoj-panel dtoj-problem-main">
+      <div class="section__header dtoj-problem-head">
+        <div class="dtoj-problem-titleline">
         <h1 class="section__title">
           {% if rdoc %}
             <a href="{{ url('record_detail', {rid:rdoc._id}) }}">
@@ -53,25 +824,26 @@
               <span class="record-status--text {{ model.builtin.STATUS_CODES[rdoc['status']] }}">{{ rdoc.score }}</span>
             </a>
           {% endif %}
+          {%- if tdoc and tdoc.pids|length > 1 -%}
+            {{ utils.getAlphabeticId(tdoc.pids.indexOf(pdoc.docId)) }}.
+          {%- endif -%}{{ pdoc.title }}
+        </h1>
           {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) and not tdoc %}
             <form class="form--inline" action="" method="post">
               <input type="hidden" name="star" value="{{ 'true' if not psdoc.star else 'false' }}">
               <input type="hidden" name="operation" value="star">
-              <button class="star{% if psdoc.star %} activated{% endif %}" type="submit">
+              <button class="star{% if psdoc.star %} activated{% endif %}" type="submit" aria-label="{{ _('Unstar') if psdoc.star else _('Star') }}">
                 <span class="starred--hide"><span class="icon icon-star--outline" data-tooltip="{{ _('Star') }}"></span></span>
                 <span class="starred--show"><span class="icon icon-star" data-tooltip="{{ _('Unstar') }}"></span></span>
               </button>
             </form>
           {% endif %}
-          {%- if not tdoc or tdoc.pids|length > 1 -%}
-          {%- if tdoc -%}
-            {{ utils.getAlphabeticId(tdoc.pids.indexOf(pdoc.docId)) }}
-          {%- elif pdoc.pid and pdoc.pid.includes('-') -%}
-            {{ pdoc.pid.split('-').join('#') }}
-          {%- else -%}
-            #{{ pdoc.pid|default(pdoc.docId) }}
-          {%- endif -%}. {% endif %}{{ pdoc.title }}
-        </h1>
+          <div class="dtoj-problem-modes">
+            <button type="button" data-problem-focus>纯享模式</button>
+            <button type="button" data-problem-wide>展开题目</button>
+            <a data-problem-submit hidden href="{% if tdoc %}{{ url('problem_submit', pid=pdoc.pid|default(pdoc.docId), query={tid:tdoc.docId}) }}{% elif handler.user.hasPerm(perm.PERM_SUBMIT_PROBLEM) %}{{ url('problem_submit', pid=pdoc.pid|default(pdoc.docId)) }}{% elif not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}javascript:showSignInDialog();{% elif not handler.user._dudoc.join %}/domain/join?target={{ pdoc.domainId }}{% else %}javascript:;{% endif %}">递交题目</a>
+          </div>
+        </div>
         {% if tdoc and tdoc.pids|length <= 26 and tdoc.pids|length > 1 %}
           <div class="section__tools contest-problems">
             {% for pid in tdoc.pids -%}
@@ -88,63 +860,257 @@
           </div>
         {% endif %}
       </div>
-      <div class="section__body">
-        <ul class="problem__tags">
-          {% if not tdoc %}
-            <span class="problem__tag-item">{{ _('ID') }}: {{ pdoc.docId }}</span>
-          {% endif %}
-          <span class="problem__tag-item icon icon-book">{{ _('problem_type.' + pdoc.config.type).format(pdoc.config.subType) }}</span>
-          {% if pdoc.config.type == 'default' and pdoc.config.subType %}
-            <span class="problem__tag-item icon icon-book">{{ _('File IO: {0}').format(pdoc.config.subType) }}</span>
-          {% endif %}
-          {% if pdoc.config.type != 'objective' and pdoc.config.type != 'submit_answer' %}
-            <span class="problem__tag-item icon icon-stopwatch">{{ pdoc.config.timeMax if pdoc.config.timeMax == pdoc.config.timeMin else pdoc.config.timeMin+'~'+pdoc.config.timeMax }}ms</span>
-            <span class="problem__tag-item icon icon-comparison">{{ pdoc.config.memoryMax if pdoc.config.memoryMax == pdoc.config.memoryMin else pdoc.config.memoryMin+'~'+pdoc.config.memoryMax }}MiB</span>
-          {% endif %}
-          {% if not tdoc %}
-            <a class="problem__tag-item interactive" href="{{ url('record_main', query={pid:pdoc.docId}) }}">{{ _('Tried') }}: {{ pdoc.nSubmit }}</a>
-            <a class="problem__tag-item interactive" href="{{ url('record_main', query={pid:pdoc.docId, status:1}) }}">{{ _('Accepted') }}: {{ pdoc.nAccept if ((not tdoc) or showAccept) else '?' }}</a>
-            <span class="problem__tag-item">{{ _('Difficulty') }}: {{ pdoc['difficulty'] or lib.difficulty(pdoc.nSubmit, pdoc.nAccept) or _('(None)') }}</span>
-            <span class="problem__tag-item interactive">{{ _('Uploaded By') }}: {{ user.render_inline(udoc, badge=false) }}</span>
-          {% endif %}
-          {% if pdoc.tag.length %}
-            <span name="show_tags" class="problem__tag-item interactive nojs--hide icon icon-tag">{{ _('Tags') + '>' }}</span>
-            {%- for tag in pdoc.tag -%}
-              <span class="problem__tag-item tags hasjs--hide">{{ tag }}</span>
-            {%- endfor -%}
-          {% endif %}
-        </ul>
+    <div class="problem-content-container"><div class="problem-content" data-marker-enabled>
+      <div class="section__header non-scratchpad--hide">
+        <h1 class="section__title">{{ pdoc.title }}</h1>
+      </div>
+      {% if pdoc.content|contentLang|length > 1 %}
+      <div class="section__tab-container">
+        <div class="section__tab-header-wrapper">
+          <ul class="section__tab-header flex-row">
+            {% for k in pdoc.content|contentLang %}
+            <a class="section__tab-header-item {{'tab--active' if (handler.request.query.lang or handler.user.viewLang or handler.session.viewLang or (pdoc.content|contentLang)[0] ) == k }}" data-lang="{{ k }}" href="./{{pdoc.pid|default(pdoc.docId)}}?lang={{k}}">
+              {{ handler.ctx.i18n.get('__langname', k) or _('Unknown language') }}
+            </a>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+      {% include "partials/problem_description.html" %}
+    </div></div>
+    </div>
+        </div>
+        <aside>
+          {% include "partials/problem_sidebar.html" %}
+        </aside>
       </div>
     </div>
-    <div class="section">
-      <div class="problem-content-container"><div class="problem-content" data-marker-enabled>
-        <div class="section__header non-scratchpad--hide">
-          <h1 class="section__title">{{ pdoc.title }}</h1>
-        </div>
-        {% if pdoc.content|contentLang|length > 1 %}
-        <div class="section__tab-container">
-          <div class="section__tab-header-wrapper">
-            <ul class="section__tab-header flex-row">
-              {% for k in pdoc.content|contentLang %}
-              <a class="section__tab-header-item {{'tab--active' if (handler.request.query.lang or handler.user.viewLang or handler.session.viewLang or (pdoc.content|contentLang)[0] ) == k }}" data-lang="{{ k }}" href="./{{pdoc.pid|default(pdoc.docId)}}?lang={{k}}">
-                {{ handler.ctx.i18n.get('__langname', k) or _('Unknown language') }}
-              </a>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-        {% endif %}
-        {% include "partials/problem_description.html" %}
-      </div></div>
-    </div>
   </div>
-  <div class="medium-3 columns"><div data-sticky="large">
-    {% include "partials/problem_sidebar.html" %}
-  </div></div>
 </div>
+<script>
+(function () {
+  var root = document.querySelector('.problem-content .typo');
+  if (!root) return;
+  var pageTitle = document.querySelector('.dtoj-problem-main > .section__header .section__title');
+  var first = root.firstElementChild;
+  while (first && !/^H[1-6]$/.test(first.tagName)) first = first.nextElementSibling;
+  if (pageTitle && first && pageTitle.textContent.indexOf(first.textContent.trim()) !== -1) first.remove();
+  var heads = [].filter.call(root.querySelectorAll('h1,h2,h3,h4,h5,h6'), function (el) {
+    return /样例输入|输入样例/.test(el.textContent || '');
+  });
+  heads.forEach(function (el) {
+    var inputPre = el.nextElementSibling;
+    while (inputPre && inputPre.tagName !== 'PRE') inputPre = inputPre.nextElementSibling;
+    var outHead = inputPre && inputPre.nextElementSibling;
+    while (outHead && !/样例输出|输出样例/.test(outHead.textContent || '')) outHead = outHead.nextElementSibling;
+    var outputPre = outHead && outHead.nextElementSibling;
+    while (outputPre && outputPre.tagName !== 'PRE') outputPre = outputPre.nextElementSibling;
+    if (!inputPre || !outHead || !outputPre || !root.contains(el)) return;
+    var box = document.createElement('div');
+    box.className = 'dtoj-samples';
+    var left = document.createElement('div');
+    var right = document.createElement('div');
+    left.className = 'dtoj-sample';
+    right.className = 'dtoj-sample';
+    el.parentNode.insertBefore(box, el);
+    left.appendChild(el);
+    left.appendChild(inputPre);
+    right.appendChild(outHead);
+    right.appendChild(outputPre);
+    box.appendChild(left);
+    box.appendChild(right);
+  });
+})();
+(function () {
+  var btn = document.querySelector('[data-tags-toggle]');
+  var box = document.querySelector('[data-tags]');
+  if (!btn || !box) return;
+  btn.addEventListener('click', function () {
+    var open = box.hidden;
+    box.hidden = !open;
+    btn.textContent = open ? '收起' : '展开';
+  });
+})();
+(function () {
+  var root = document.querySelector('.dtoj-problem');
+  var focusBtn = document.querySelector('[data-problem-focus]');
+  var wideBtn = document.querySelector('[data-problem-wide]');
+  var submitLink = document.querySelector('[data-problem-submit]');
+  if (!root || !focusBtn || !wideBtn) return;
+  if (localStorage.getItem('dtoj-problem-focus') === '1') root.classList.add('is-focus');
+  if (localStorage.getItem('dtoj-problem-wide') === '1') root.classList.add('is-wide');
+  function paint() {
+    var focus = root.classList.contains('is-focus');
+    var wide = root.classList.contains('is-wide');
+    focusBtn.textContent = focus ? '退出纯享' : '纯享模式';
+    wideBtn.hidden = focus;
+    wideBtn.textContent = wide ? '收起题目' : '展开题目';
+    if (submitLink) submitLink.hidden = !focus;
+  }
+  focusBtn.addEventListener('click', function () {
+    root.classList.toggle('is-focus');
+    localStorage.setItem('dtoj-problem-focus', root.classList.contains('is-focus') ? '1' : '0');
+    paint();
+  });
+  wideBtn.addEventListener('click', function () {
+    root.classList.toggle('is-wide');
+    localStorage.setItem('dtoj-problem-wide', root.classList.contains('is-wide') ? '1' : '0');
+    paint();
+  });
+  paint();
+})();
+</script>
 <div style="display:none" class="outer-loader-container"><div class="loader"></div></div>
 <div class="scratchpad-container" style="display:none">
   <div style="display:none" class="loader-container"><div class="loader"></div></div>
+  <header class="dtoj-ide-bar">
+    <strong class="dtoj-ide-title">{{ pdoc.title }}</strong>
+    <div class="dtoj-ide-pages">
+      <button type="button" data-ide-page="problem" class="is-on">题目</button>
+    </div>
+    <button type="button" class="dtoj-ide-back" name="problem-sidebar__quit-scratchpad">返回题目</button>
+  </header>
   <div id="scratchpad" style="opacity:0"></div>
+  <footer class="dtoj-ide-foot">
+    <span>F9 自测</span>
+    <span>F10 递交</span>
+    <span>Alt+Q 返回</span>
+  </footer>
 </div>
+<script>
+(function () {
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-ide-page]');
+    if (!btn) return;
+    var icon = document.querySelector('.scratchpad__tabicon-' + btn.getAttribute('data-ide-page'));
+    if (icon) icon.click();
+    var pages = document.querySelectorAll('[data-ide-page]');
+    for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('is-on', pages[i] === btn);
+  });
+})();
+</script>
+<script>
+(function () {
+  function editor() { return window.editor || null; }
+  function cfg() {
+    if (!window.store) return {};
+    return window.store.getState().ui.settings.config || {};
+  }
+  function save(setting, value) {
+    if (!window.store) return;
+    window.store.dispatch({ type: 'SCRATCHPAD_SETTING_UPDATE', payload: { setting: setting, value: value } });
+  }
+  function langText() {
+    var sel = document.querySelector('.scratchpad__toolbar select');
+    if (!sel || sel.selectedIndex < 0) return '';
+    return sel.options[sel.selectedIndex].textContent;
+  }
+  function extOf() {
+    var lang = window.store ? String(window.store.getState().editor.lang || '') : '';
+    lang = lang.toLowerCase();
+    if (lang.indexOf('py') === 0) return 'py';
+    if (lang.indexOf('java') === 0) return 'java';
+    if (lang.indexOf('pas') === 0) return 'pas';
+    if (lang.indexOf('go') === 0) return 'go';
+    if (lang.indexOf('js') === 0 || lang.indexOf('node') === 0) return 'js';
+    if (lang.indexOf('rs') === 0) return 'rs';
+    return 'cpp';
+  }
+  function formatCode() {
+    var ed = editor();
+    if (!ed || !ed.getModel()) return;
+    var model = ed.getModel();
+    var tab = cfg().tabSize || 4;
+    var pad = new Array(tab + 1).join(' ');
+    var level = 0;
+    var lines = model.getValue().replace(/\t/g, pad).split('\n');
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var s = lines[i].trim();
+      if (!s) { out.push(''); continue; }
+      var dedent = /^[}\])]/.test(s);
+      var lvl = Math.max(0, level - (dedent ? 1 : 0));
+      out.push(new Array(lvl + 1).join(pad) + s);
+      var opens = (s.match(/[{(\[]/g) || []).length;
+      var closes = (s.match(/[}\])]/g) || []).length;
+      level = Math.max(0, level + opens - closes);
+    }
+    ed.pushUndoStop();
+    ed.executeEdits('format', [{ range: model.getFullModelRange(), text: out.join('\n') }]);
+    ed.pushUndoStop();
+  }
+  function downloadCode() {
+    var ed = editor();
+    if (!ed) return;
+    var name = ((window.UiContext && UiContext.problemId) || 'code') + '.' + extOf();
+    var blob = new Blob([ed.getValue()], { type: 'text/plain;charset=utf-8' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+  }
+  function mount(toolbar) {
+    if (toolbar.parentElement.querySelector('.dtoj-ide-tools')) return;
+    var row = document.createElement('div');
+    row.className = 'dtoj-ide-tools';
+    row.innerHTML = '<span class="dtoj-ide-tools-lang"></span>'
+      + '<div class="dtoj-ide-tools-actions">'
+      + '<button type="button" data-ide-format>格式化</button>'
+      + '<button type="button" data-ide-download>下载代码</button>'
+      + '<button type="button" data-ide-config>编辑设置</button>'
+      + '<div class="dtoj-ide-config" hidden>'
+      + '<div class="dtoj-ide-config-head"><span>编辑器设置</span><button type="button" data-ide-config-close aria-label="关闭">×</button></div>'
+      + '<label class="dtoj-ide-config-row">代码字号<select data-font><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>18</option><option>20</option></select></label>'
+      + '<label class="dtoj-ide-config-row">缩进空格<select data-tab><option>2</option><option>4</option><option>8</option></select></label>'
+      + '<label class="dtoj-ide-config-row">自动换行<input type="checkbox" data-wrap></label>'
+      + '<label class="dtoj-ide-config-row">代码缩略图<input type="checkbox" data-map></label>'
+      + '</div></div>';
+    toolbar.insertAdjacentElement('afterend', row);
+    var langEl = row.querySelector('.dtoj-ide-tools-lang');
+    function paintLang() {
+      var name = langText();
+      langEl.textContent = name ? ('代码 · ' + name) : '代码';
+    }
+    paintLang();
+    var sel = toolbar.querySelector('select');
+    if (sel) sel.addEventListener('change', paintLang);
+    var panel = row.querySelector('.dtoj-ide-config');
+    function fillConfig() {
+      var current = cfg();
+      var ed = editor();
+      var raw = ed && ed.getRawOptions ? ed.getRawOptions() : {};
+      panel.querySelector('[data-font]').value = String(current.fontSize || raw.fontSize || 14);
+      panel.querySelector('[data-tab]').value = String(current.tabSize || raw.tabSize || 4);
+      panel.querySelector('[data-wrap]').checked = (current.wordWrap || raw.wordWrap) === 'on';
+      var mini = current.minimap ? current.minimap.enabled : (raw.minimap ? raw.minimap.enabled : false);
+      panel.querySelector('[data-map]').checked = !!mini;
+    }
+    row.querySelector('[data-ide-format]').addEventListener('click', formatCode);
+    row.querySelector('[data-ide-download]').addEventListener('click', downloadCode);
+    row.querySelector('[data-ide-config]').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (panel.hidden) fillConfig();
+      panel.hidden = !panel.hidden;
+    });
+    row.querySelector('[data-ide-config-close]').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      panel.hidden = true;
+    });
+    panel.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    panel.querySelector('[data-font]').addEventListener('change', function (ev) { save('fontSize', +ev.target.value); });
+    panel.querySelector('[data-tab]').addEventListener('change', function (ev) { save('tabSize', +ev.target.value); });
+    panel.querySelector('[data-wrap]').addEventListener('change', function (ev) { save('wordWrap', ev.target.checked ? 'on' : 'off'); });
+    panel.querySelector('[data-map]').addEventListener('change', function (ev) { save('minimap', { enabled: ev.target.checked }); });
+    document.addEventListener('click', function () { if (panel) panel.hidden = true; });
+  }
+  function scan() {
+    var toolbar = document.querySelector('.scratchpad__toolbar');
+    if (!toolbar) return;
+    mount(toolbar);
+  }
+  new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 {% endblock %}

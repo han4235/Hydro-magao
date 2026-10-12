@@ -1,5 +1,28 @@
 {% extends "layout/basic.html" %}
 {% block content %}
+<style>
+  .dtoj-diff { margin: 8px 0 16px; }
+  .dtoj-diff-label { display: block; margin: 0 0 8px; font-weight: 700; }
+  .dtoj-diff-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-diff-bar button {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 999px;
+    background: #f4f7fb;
+    color: #243044;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-diff-bar button[data-diff="1"] { background: #fe4c61; color: #1a1a1a; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="2"] { background: #f39c11; color: #1a1a1a; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="3"] { background: #ffc116; color: #1a1a1a; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="4"] { background: #52c41a; color: #1a1a1a; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="5"] { background: #3498db; color: #1a1a1a; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="6"] { background: #9d3dcf; color: #fff; border-color: transparent; }
+  .dtoj-diff-bar button[data-diff="7"] { background: #0e1d69; color: #fff; border-color: transparent; }
+  .dtoj-diff-bar button.is-on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a1a1a; }
+</style>
 <div class="row">
   <div class="medium-9 columns">
     <div class="section">
@@ -33,20 +56,30 @@
           <div class="row">
           {{ form.form_text({
                row:false,
-               columns:9,
+               columns:12,
                label:'Tags',
                help_text:'Split by \', \'.',
                name:'tag',
                value:pdoc['tag']|default([])|join(', ')
              }) }}
-          {{ form.form_text({
-               row:false,
-               columns:3,
-               label:'Difficulty',
-               help_text:'From 1-10',
-               name:'difficulty',
-               value:pdoc['difficulty'] or ''
-             }) }}
+          </div>
+          {% set d = pdoc['difficulty'] or 0 %}
+          {% set pick = d if d == 1 or d == 2 or d == 3 or d == 4 or d == 5 or d == 6 or d == 7 else '' %}
+          <div class="row">
+            <div class="medium-12 columns dtoj-diff">
+              <label class="dtoj-diff-label">难度</label>
+              <input type="hidden" name="difficulty" value="{{ pick }}">
+              <div class="dtoj-diff-bar" data-diff-bar>
+                <button type="button" data-diff="" class="{{ 'is-on' if pick == '' else '' }}">不设定</button>
+                <button type="button" data-diff="1" class="{{ 'is-on' if pick == 1 else '' }}">入门</button>
+                <button type="button" data-diff="2" class="{{ 'is-on' if pick == 2 else '' }}">普及−</button>
+                <button type="button" data-diff="3" class="{{ 'is-on' if pick == 3 else '' }}">普及/提高−</button>
+                <button type="button" data-diff="4" class="{{ 'is-on' if pick == 4 else '' }}">普及+/提高</button>
+                <button type="button" data-diff="5" class="{{ 'is-on' if pick == 5 else '' }}">提高+/省选−</button>
+                <button type="button" data-diff="6" class="{{ 'is-on' if pick == 6 else '' }}">省选/NOI−</button>
+                <button type="button" data-diff="7" class="{{ 'is-on' if pick == 7 else '' }}">NOI/NOI+/CTSC</button>
+              </div>
+            </div>
           </div>
           <div class="section__tab-container nojs--hide">
           <div class="section__tab-header-wrapper">
@@ -108,4 +141,29 @@
     {% endif %}
   </div>
 </div>
+<script>
+(function () {
+  var bar = document.querySelector('[data-diff-bar]');
+  var input = document.querySelector('input[name="difficulty"]');
+  if (!bar || !input) return;
+  function paint() {
+    var value = input.value;
+    var buttons = bar.querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle('is-on', buttons[i].getAttribute('data-diff') === value);
+    }
+  }
+  bar.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button');
+    if (!btn || !bar.contains(btn)) return;
+    input.value = btn.getAttribute('data-diff') || '';
+    paint();
+  });
+  var form = bar.closest('form');
+  if (form) form.addEventListener('submit', function () {
+    if (!input.value) input.removeAttribute('name');
+  });
+  paint();
+})();
+</script>
 {% endblock %}

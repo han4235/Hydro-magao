@@ -8,6 +8,13 @@ import {
 } from './data';
 
 const blankChapter = { title: '', note: '', pids: '' };
+const luoguLevels = ['入门', '普及−', '普及/提高−', '普及+/提高', '提高+/省选−', '省选/NOI−', 'NOI/NOI+/CTSC'];
+
+function luoguLevel(difficulty: unknown) {
+    const n = Number(difficulty);
+    if (!Number.isInteger(n) || n < 1 || n > luoguLevels.length) return '';
+    return luoguLevels[n - 1];
+}
 
 function many(raw: unknown) {
     if (raw == null || raw === '') return [] as string[];
@@ -302,6 +309,7 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
                         missing,
                         tags: missing ? [] : tagsOf(pdoc),
                         difficulty: !missing && typeof pdoc.difficulty === 'number' && pdoc.difficulty > 0 ? pdoc.difficulty : null,
+                        level: !missing ? luoguLevel(pdoc.difficulty) : '',
                         rate: tried ? Math.round((100 * accepted) / tried) : null,
                         mine: mine.ac ? 'pass' : (mine.tried ? 'try' : ''),
                         mineScore: mine.tried && typeof psdict[pid]?.score === 'number' ? psdict[pid].score : null,
