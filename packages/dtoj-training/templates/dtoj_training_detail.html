@@ -154,6 +154,32 @@
     font-weight: 700;
     text-align: left;
   }
+  .dtoj-practice-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-practice-sort-btn:hover { color: var(--ink); }
+  .dtoj-practice-sort { display: inline-flex; flex-direction: column; gap: 2px; }
+  .dtoj-practice-sort i {
+    display: block;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+  }
+  .dtoj-practice-sort .up { border-bottom: 5px solid #c5ced9; }
+  .dtoj-practice-sort .down { border-top: 5px solid #c5ced9; }
+  .dtoj-practice-sort .up.is-on { border-bottom-color: var(--brand); }
+  .dtoj-practice-sort .down.is-on { border-top-color: var(--brand); }
   .dtoj-sheet td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; text-align: left; }
   .dtoj-sheet .dtoj-name { text-align: left; }
   .dtoj-sheet .dtoj-name > a.is-hang { margin-left: -0.7em; }
@@ -308,7 +334,7 @@
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell">
       <div class="dtoj-course-view">
-        <p class="dtoj-course-back"><a href="{{ url('training_main') }}">返回训练</a></p>
+        <p class="dtoj-course-back"><a href="{{ url('training_main') }}" data-dtoj-back-fallback="{{ url('training_main') }}" data-dtoj-back-escape="/training/">返回训练</a></p>
         <header class="dtoj-course-title">
           <div>
             <h1>{{ course.title }}</h1>
@@ -380,13 +406,18 @@
                         <th>状态</th>
                         <th>ID</th>
                         <th class="dtoj-name">题目名称</th>
-                        <th>难度</th>
+                        <th class="dtoj-col-diff" aria-sort="ascending">
+                          <button type="button" class="dtoj-practice-sort-btn" data-sort="asc">
+                            难度
+                            <span class="dtoj-practice-sort" aria-hidden="true"><i class="up is-on"></i><i class="down"></i></span>
+                          </button>
+                        </th>
                         <th>通过率</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for item in ch.problems %}
-                      <tr>
+                      <tr data-diff="{% if item.difficulty %}{{ item.difficulty }}{% endif %}">
                         <td>
                           {% if item.mine == 'pass' %}
                           <span class="dtoj-pass"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>AC</span>
@@ -561,6 +592,50 @@
       });
     });
   }
+  function practiceDiffKey(row) {
+    var raw = row.getAttribute('data-diff');
+    var n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+    return 9999;
+  }
+  function practiceIdKey(row) {
+    var cell = row.cells && row.cells[1];
+    return (cell && cell.textContent ? cell.textContent.trim() : '') || '';
+  }
+  function sortPracticeTable(table, dir) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(function (tr) {
+      return !tr.querySelector('td[colspan]');
+    });
+    rows.sort(function (a, b) {
+      var da = practiceDiffKey(a);
+      var db = practiceDiffKey(b);
+      if (da !== db) return dir === 'asc' ? da - db : db - da;
+      return practiceIdKey(a).localeCompare(practiceIdKey(b), 'zh-CN', { numeric: true });
+    });
+    rows.forEach(function (tr) { tbody.appendChild(tr); });
+  }
+  function setPracticeSortUi(btn, dir) {
+    var th = btn.closest('th');
+    if (th) th.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
+    btn.setAttribute('data-sort', dir);
+    var up = btn.querySelector('.up');
+    var down = btn.querySelector('.down');
+    if (up) up.classList.toggle('is-on', dir === 'asc');
+    if (down) down.classList.toggle('is-on', dir === 'desc');
+  }
+  document.querySelectorAll('.dtoj-practice .dtoj-sheet table').forEach(function (table) {
+    var btn = table.querySelector('.dtoj-practice-sort-btn');
+    if (!btn) return;
+    sortPracticeTable(table, 'asc');
+    setPracticeSortUi(btn, 'asc');
+    btn.addEventListener('click', function () {
+      var next = btn.getAttribute('data-sort') === 'asc' ? 'desc' : 'asc';
+      sortPracticeTable(table, next);
+      setPracticeSortUi(btn, next);
+    });
+  });
 })();
 </script>
 {% endblock %}
