@@ -293,6 +293,7 @@ export default async function (env: { watch?: boolean, production?: boolean, mea
         patterns: [
           { from: root('static') },
           { from: root('components/navigation/nav-logo-small_dark.png'), to: 'components/navigation/nav-logo-small_dark.png' },
+          { from: root('components/navigation/nav-logo-magao.png'), to: 'components/navigation/nav-logo-magao.png' },
           { from: root(`${dirname(require.resolve('streamsaver/package.json'))}/mitm.html`), to: 'streamsaver/mitm.html' },
           { from: root(`${dirname(require.resolve('streamsaver/package.json'))}/sw.js`), to: 'streamsaver/sw.js' },
           { from: `${dirname(require.resolve('monaco-themes/package.json'))}/themes`, to: 'monaco/themes/' },

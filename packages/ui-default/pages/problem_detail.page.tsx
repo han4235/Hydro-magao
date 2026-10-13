@@ -235,22 +235,29 @@ const page = new NamedPage(['problem_detail', 'contest_detail_problem', 'homewor
         cnt++;
         const id = info.replace(/\{\{ (input|select|multiselect|textarea|dropdown)\((\d+(-\d+)?)\)(?:\[([^\]]*)\])? \}\}/, '$2');
         pids.push(id);
+        const placeAnchor = () => {
+          if (document.getElementById(`p${id}`)) return;
+          $(e).prepend(tpl`<span class="dtoj-objective-anchor" id="p${id}"></span>`);
+        };
         if (type === 'input') {
+          placeAnchor();
           $(e).html($(e).html().replace(info, tpl`
-            <div class="objective_${id} medium-3" id="p${id}" style="display: inline-block;">
+            <div class="objective_${id} medium-3" style="display: inline-block;">
               <input type="text" name="${id}" class="textbox objective-input">
             </div>
           `));
         } else if (type === 'textarea') {
+          placeAnchor();
           $(e).html($(e).html().replace(info, tpl`
-            <div class="objective_${id} medium-6" id="p${id}">
+            <div class="objective_${id} medium-6">
               <textarea name="${id}" class="textbox objective-input"></textarea>
             </div>
           `));
         } else if (type === 'dropdown') {
+          placeAnchor();
           const opts = (options || '').split(',').map((s) => s.trim()).filter(Boolean);
           $(e).html($(e).html().replace(info, tpl`
-            <div class="objective_${id} medium-3 select-container" id="p${id}" style="display: inline-block;">
+            <div class="objective_${id} medium-3 select-container" style="display: inline-block;">
               <select name="${id}" class="objective-input select">
                 <option value=""></option>
                 ${{ templateRaw: true, html: opts.map((o) => tpl`<option value="${o}">${o}</option>`).join('') }}
@@ -262,10 +269,11 @@ const page = new NamedPage(['problem_detail', 'contest_detail_problem', 'homewor
             cnt--;
             return;
           }
+          placeAnchor();
           $(e).html($(e).html().replace(info, ''));
           $(e).next('ul').children().each((j, ele) => {
             $(ele).after(tpl`
-              <label class="objective_${id} radiobox" id="p${id}">
+              <label class="objective_${id} radiobox">
                 <input type="${type === 'select' ? 'radio' : 'checkbox'}" name="${id}" class="objective-input" value="${String.fromCharCode(65 + j)}">
                 ${String.fromCharCode(65 + j)}. ${{ templateRaw: true, html: ele.innerHTML }}
               </label>
@@ -305,8 +313,8 @@ const page = new NamedPage(['problem_detail', 'contest_detail_problem', 'homewor
         };
       }, [update]);
       return <>
-        <div className="contest-problems" style={{ margin: '1em' }}>
-          {pids.map((i) => <a href={`#p${i}`} key={i} className={ans[i] ? 'pending ' : ''}>
+        <div className="contest-problems dtoj-objective-nav">
+          {pids.map((i) => <a href="javascript:;" data-objective-jump={`p${i}`} key={i} className={ans[i] ? 'pending ' : ''}>
             <span className="id">{i}</span>
           </a>)}
         </div>
