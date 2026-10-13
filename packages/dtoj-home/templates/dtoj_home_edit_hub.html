@@ -1,0 +1,74 @@
+{% set page_name = "dtoj_home_edit" %}
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-home-edit-hub { display: flex; flex-direction: column; gap: 16px; }
+  .dtoj-home-edit-hub h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(28px, 3.5vw, 40px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+  }
+  .dtoj-home-edit-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.92);
+  }
+  .dtoj-home-edit-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    background: #f4f7fb;
+  }
+  .dtoj-home-edit-nav a.is-on { background: #e7eefb; color: var(--brand); }
+  .dtoj-home-edit-nav a:hover { transform: translateY(-1px); }
+  .dtoj-home-edit-nav__back { margin-left: auto; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+  .dtoj-home-edit-menu { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .dtoj-home-edit-menu a {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+  }
+  .dtoj-home-edit-menu a:hover { border-color: var(--brand); transform: translateY(-1px); }
+  .dtoj-home-edit-menu strong { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+  .dtoj-home-edit-menu span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-home-edit-hub">
+      <h1>首页配置</h1>
+      {% include "dtoj_home_edit_nav.html" %}
+      <p class="dtoj-hint" style="margin:0;color:var(--muted);font-size:13px;line-height:1.6;">请从下方选择要改的项目，或使用上方横向菜单切换。资料入口无单独配置，请在「首页卡片」里显示或隐藏。</p>
+      <ul class="dtoj-home-edit-menu">
+        {% for item in homeEditMenu %}
+        <li>
+          <a href="{{ url('dtoj_home_edit', section=item.section) }}">
+            <strong>{{ homeSectionTitles[item.section] }}</strong>
+            <span>{{ item.hint }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,13 +1,25 @@
 import {
-    Context, PERM, PRIV, ProblemModel, Types, param,
+    Context, PERM, PRIV, ProblemModel, Types, ValidationError, param,
 } from 'hydrooj';
 import {
     DtojDataHandler, DtojPageHandler, dropEarlierRoutes, queryString,
 } from 'dtoj-ui';
 import { wikiGroups } from 'dtoj-wiki';
 import {
-    activities, announcements, brand, countdowns, paths, places,
+    brand, heroFontOptions, heroGradientOptions, heroLineVariantOptions, homeCardTitles, homeEditMenu, homeSectionIds, homeSectionTitles, places,
 } from './data';
+import { buildCountdownDisplay } from './countdown';
+import { buildCheckinEvents, checkinCalendar } from './checkin';
+import { checkinFortunes, fortuneIndexForDay } from './fortunes';
+import { cardLookPicker, cardLookStyle, homeCardSizeOptions, homeEditSectionToCardId, spanOfSize } from './cardSize';
+import { layoutCardsForEdit, layoutCatalog, splitHomeLayout } from './layout';
+import {
+    checkinFortuneCount,
+} from './data';
+import {
+    countdownRowsForEdit, loadHomeConfig, patchHeroBackground, saveCardPlaces, saveHomeSection,
+} from './store';
+import { HERO_BG_PUBLIC_PATH, readHeroBackground, saveHeroBackgroundUpload } from './heroUpload';
 
 const levelNames = ['入门', '普及−', '普及/提高−', '普及+/提高', '提高+/省选−', '省选/NOI−', 'NOI/NOI+/CTSC'];
 
@@ -24,21 +36,255 @@ function passRate(nSubmit = 0, nAccept = 0) {
 
 class DtojHomeHandler extends DtojPageHandler {
     async get() {
+        const domainId = this.args.domainId;
         const u = this.user;
         const guest = !u || !u._id;
         const name = guest ? '示例同学' : String(u.uname || '示例同学');
+        const cfg = await loadHomeConfig(domainId);
+        const zone = this.user.timeZone || 'Asia/Shanghai';
+        const coin = cfg.asset.coin;
+        const streak = cfg.checkin.demoStreak;
+        const cal = checkinCalendar(zone);
+        const uid = guest ? 0 : Number(u._id) || 0;
+        const fortuneIndex = fortuneIndexForDay(uid, cal.dayKey);
+        const checkinFortune = checkinFortunes[fortuneIndex] || checkinFortunes[0];
+        const { boardLayout, bandLayout } = splitHomeLayout(cfg.layout);
         this.view('dtoj_home', {
             brand,
-            coin: 256,
-            streak: 6,
+            hero: cfg.hero,
+            coin,
+            streak,
             who: name,
             mark: name.slice(0, 1),
-            countdowns,
-            activities,
-            announcements,
-            paths,
+            checkinUid: uid,
+            checkinDayKey: cal.dayKey,
+            checkinCalendar: cal,
+            checkinEvents: buildCheckinEvents(cfg.countdowns, zone),
+            checkinFortuneJson: JSON.stringify(checkinFortune),
+            checkinWelcomeText: cfg.checkin.welcomeText,
+            checkinFortuneSuffix: cfg.checkin.fortuneTitleSuffix,
+            checkinFooterTemplate: cfg.checkin.footerTemplate,
+            checkinEmptyEventsText: cfg.checkin.emptyEventsText,
+            checkinFortuneCount,
+            boardLayout,
+            bandLayout,
+            homeLayout: cfg.layout,
+            cardSizes: cfg.cardSizes,
+            cardLookStyle: Object.fromEntries(cfg.layout.map((id) => [id, cardLookStyle(cfg.cardLooks[id])])),
+            checkinGoodColor: cfg.checkin.goodColor,
+            checkinBadColor: cfg.checkin.badColor,
+            cardPlacesJson: JSON.stringify(cfg.layout.map((id) => ({
+                id,
+                row: cfg.cardPlaces[id].row,
+                col: cfg.cardPlaces[id].col,
+                span: spanOfSize(cfg.cardSizes[id]),
+            }))),
+            homeCardTitles,
+            countdownSubtitle: cfg.countdownSubtitle,
+            countdowns: buildCountdownDisplay(cfg.countdowns, zone),
+            assetNote: cfg.asset.note,
+            activities: cfg.activities,
+            announcements: cfg.announcements,
+            paths: cfg.paths,
             wikiGroups,
+            canEditHome: this.user.hasPerm(PERM.PERM_EDIT_DOMAIN),
         });
+    }
+}
+
+function sectionOk(section: string) {
+    return (homeSectionIds as readonly string[]).includes(section);
+}
+
+function cardSizeFields(section: string, cfg: Awaited<ReturnType<typeof loadHomeConfig>>) {
+    const cardId = homeEditSectionToCardId[section];
+    if (!cardId) {
+        if (section === 'layout') {
+            return {
+                cardSizeOptions: homeCardSizeOptions,
+                docsCardSize: cfg.cardSizes.docs,
+                ...lookFields('docs', cfg),
+            };
+        }
+        return {};
+    }
+    return {
+        cardSizeOptions: homeCardSizeOptions,
+        cardSize: cfg.cardSizes[cardId],
+        ...lookFields(cardId, cfg),
+    };
+}
+
+function lookFields(cardId: string, cfg: Awaited<ReturnType<typeof loadHomeConfig>>) {
+    const id = cardId as keyof typeof cfg.cardLooks;
+    const look = cfg.cardLooks[id];
+    if (!look) return {};
+    const picker = cardLookPicker(id, look);
+    return {
+        cardBorder: picker.border,
+        cardBackground: picker.background,
+        cardColorOn: picker.on,
+    };
+}
+
+function editForm(section: string, cfg: Awaited<ReturnType<typeof loadHomeConfig>>) {
+    const sizeFields = cardSizeFields(section, cfg);
+    if (section === 'hero') {
+        return {
+            hero: cfg.hero,
+            heroFonts: heroFontOptions,
+            heroFontsJson: JSON.stringify(heroFontOptions),
+            heroGradients: heroGradientOptions,
+            heroGradientsJson: JSON.stringify(heroGradientOptions),
+            heroLineVariants: heroLineVariantOptions,
+            heroLineVariantsJson: JSON.stringify(heroLineVariantOptions),
+        };
+    }
+    if (section === 'countdown') {
+        return {
+            ...sizeFields,
+            countdownSubtitle: cfg.countdownSubtitle,
+            countdownRows: countdownRowsForEdit(cfg.countdowns),
+        };
+    }
+    if (section === 'checkin') {
+        return {
+            ...sizeFields,
+            welcomeText: cfg.checkin.welcomeText,
+            fortuneTitleSuffix: cfg.checkin.fortuneTitleSuffix,
+            footerTemplate: cfg.checkin.footerTemplate,
+            goodColor: cfg.checkin.goodColor,
+            badColor: cfg.checkin.badColor,
+            checkinFortuneCount,
+        };
+    }
+    if (section === 'asset') {
+        return { ...sizeFields, coin: cfg.asset.coin, note: cfg.asset.note };
+    }
+    if (section === 'activities') {
+        const acts = cfg.activities.length
+            ? cfg.activities.map((item) => ({
+                id: item.id,
+                href: item.href,
+                title: item.title,
+                about: item.about,
+            }))
+            : [{ id: '', href: '', title: '', about: '' }];
+        return { ...sizeFields, acts };
+    }
+    if (section === 'news') {
+        const news = cfg.announcements.length
+            ? cfg.announcements.map((item) => ({ title: item.title, body: item.body }))
+            : [{ title: '', body: '' }];
+        return { ...sizeFields, news };
+    }
+    if (section === 'paths') {
+        return { ...sizeFields, pathRows: cfg.paths };
+    }
+    if (section === 'layout') {
+        return {
+            ...sizeFields,
+            layoutCards: layoutCardsForEdit(cfg.layout),
+            layoutCatalog: layoutCatalog(cfg.layout),
+        };
+    }
+    return { ...sizeFields };
+}
+
+class DtojHomeEditHubHandler extends DtojDataHandler {
+    async get() {
+        this.checkPerm(PERM.PERM_EDIT_DOMAIN);
+        this.view('dtoj_home_edit_hub', {
+            page_name: 'dtoj_home_edit',
+            homeEditMenu,
+            homeSectionTitles,
+            currentSection: '',
+        });
+    }
+}
+
+class DtojHomeEditHandler extends DtojDataHandler {
+    section = '';
+
+    @param('section', Types.String)
+    async prepare(_domainId: string, section = '') {
+        this.checkPerm(PERM.PERM_EDIT_DOMAIN);
+        this.section = section;
+    }
+
+    async show(domainId: string, error = '') {
+        const cfg = await loadHomeConfig(domainId);
+        this.view('dtoj_home_edit', {
+            section: this.section,
+            sectionTitle: homeSectionTitles[this.section as keyof typeof homeSectionTitles],
+            homeCardTitlesJson: JSON.stringify(homeCardTitles),
+            homeEditMenu,
+            homeSectionTitles,
+            currentSection: this.section,
+            error,
+            heroUploadUrl: this.section === 'hero' ? this.url('dtoj_home_hero_upload') : '',
+            heroBgPublicPath: HERO_BG_PUBLIC_PATH,
+            ...editForm(this.section, cfg),
+        });
+    }
+
+    @param('section', Types.String)
+    async get(domainId: string, section = '') {
+        if (!sectionOk(section)) {
+            this.response.redirect = this.url('homepage');
+            return;
+        }
+        this.section = section;
+        await this.show(domainId);
+    }
+
+    @param('section', Types.String)
+    async post(domainId: string, section = '') {
+        if (!sectionOk(section)) {
+            this.response.redirect = this.url('homepage');
+            return;
+        }
+        this.section = section;
+        try {
+            await saveHomeSection(domainId, section, this.request.body || {});
+            this.response.redirect = this.url('homepage');
+        } catch (e) {
+            await this.show(domainId, '保存失败，请检查填写内容。');
+        }
+    }
+}
+
+class DtojHomeLayoutHandler extends DtojDataHandler {
+    @param('places', Types.String, true)
+    async post(domainId: string, places = '') {
+        this.checkPerm(PERM.PERM_EDIT_DOMAIN);
+        let items: { id: string; row: number; col: number; span: number }[] = [];
+        try { items = JSON.parse(String(places || '')); } catch (e) { items = []; }
+        if (!Array.isArray(items)) items = [];
+        await saveCardPlaces(domainId, items);
+        this.response.template = null;
+        this.response.body = { ok: true };
+    }
+}
+
+class DtojHomeHeroUploadHandler extends DtojDataHandler {
+    async post(domainId: string) {
+        this.checkPerm(PERM.PERM_EDIT_DOMAIN);
+        const file = this.request.files?.file;
+        if (!file) throw new ValidationError('file');
+        const url = await saveHeroBackgroundUpload(domainId, file, this.user._id);
+        await patchHeroBackground(domainId, url);
+        this.response.template = null;
+        this.response.body = { ok: true, url };
+    }
+}
+
+class DtojHomeHeroBackgroundHandler extends DtojPageHandler {
+    async get(domainId: string) {
+        const asset = await readHeroBackground(domainId);
+        this.response.type = asset.type;
+        this.response.body = asset.body;
+        this.response.addHeader('Cache-Control', 'public, max-age=3600');
     }
 }
 
@@ -50,7 +296,6 @@ class DtojPlaceHandler extends DtojPageHandler {
         this.view('dtoj_place', { ...places[this.place], pageName: this.pageName });
     }
 }
-
 class DtojBugfindHandler extends DtojPlaceHandler {
     place = 'bugfind';
     pageName = 'dtoj_bugfind';
@@ -158,10 +403,17 @@ const titles = {
     dtoj_blackbox: '黑盒',
     dtoj_farm: '农场',
     dtoj_problems: '题库',
+    dtoj_home_edit: '首页配置',
+    dtoj_home_edit_hub: '首页配置',
 };
 
 export async function apply(ctx: Context) {
     ctx.Route('homepage', '/', DtojHomeHandler);
+    ctx.Route('dtoj_home_edit_hub', '/home/edit', DtojHomeEditHubHandler, PERM.PERM_EDIT_DOMAIN);
+    ctx.Route('dtoj_home_edit', '/home/edit/:section', DtojHomeEditHandler, PERM.PERM_EDIT_DOMAIN);
+    ctx.Route('dtoj_home_layout', '/home/layout', DtojHomeLayoutHandler, PERM.PERM_EDIT_DOMAIN);
+    ctx.Route('dtoj_home_hero_upload', '/home/hero/upload', DtojHomeHeroUploadHandler, PERM.PERM_EDIT_DOMAIN);
+    ctx.Route('dtoj_home_hero_background', '/home/hero/background', DtojHomeHeroBackgroundHandler);
     ctx.Route('dtoj_bugfind', '/bugfind', DtojBugfindHandler);
     ctx.Route('dtoj_jigsaw', '/jigsaw', DtojJigsawHandler);
     ctx.Route('dtoj_blackbox', '/blackbox', DtojBlackboxHandler);

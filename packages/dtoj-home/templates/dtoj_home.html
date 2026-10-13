@@ -5,109 +5,218 @@
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell">
-      <section class="dtoj-hero-card">
-        <span class="dtoj-mark dtoj-mark--a" aria-hidden="true">&lt;/&gt;</span>
-        <span class="dtoj-mark dtoj-mark--b" aria-hidden="true">{ }</span>
-        <p class="dtoj-kicker">算法竞赛 · 本地练习</p>
-        <h1 class="dtoj-display">{{ brand }}</h1>
-        <div class="dtoj-rule" aria-hidden="true"></div>
-        <p class="dtoj-tagline">题库、训练、比赛放在一处</p>
-        <p class="dtoj-range">题库 · 训练 · 比赛</p>
+      <section class="dtoj-hero-card{% if hero.background %} has-photo{% endif %}"{% if hero.background %} style="background-image:url({{ hero.background }})"{% endif %}>
+        {% for line in hero.lines %}
+        {% if line.text %}
+        {% if line.variant == 'title' %}
+        <h1 class="dtoj-display dtoj-font-{{ line.font }}" style="font-size: {{ line.size }}px{% if line.color %}; color: {{ line.color }}{% endif %}">{{ line.text }}</h1>
+        {% elif line.variant == 'kicker' %}
+        <p class="dtoj-kicker dtoj-font-{{ line.font }}" style="font-size: {{ line.size }}px{% if line.color %}; color: {{ line.color }}{% endif %}">{{ line.text }}</p>
+        {% elif line.variant == 'tagline' %}
+        <p class="dtoj-tagline dtoj-font-{{ line.font }}" style="font-size: {{ line.size }}px{% if line.color %}; color: {{ line.color }}{% endif %}">{{ line.text }}</p>
+        {% else %}
+        <p class="dtoj-range dtoj-font-{{ line.font }}" style="font-size: {{ line.size }}px{% if line.color %}; color: {{ line.color }}{% endif %}">{{ line.text }}</p>
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+        {% if hero.buttons|length %}
         <div class="dtoj-actions">
-          <a class="dtoj-go" href="{{ url('dtoj_problems') }}">进入题库</a>
-          <a class="dtoj-alt" href="{{ url('contest_main') }}">参加比赛</a>
-          <a class="dtoj-alt" href="{{ url('dtoj_rank') }}">查看排名</a>
+          {% for item in hero.buttons %}
+          <a class="{% if item.primary %}dtoj-go dtoj-hero-grad-{{ item.gradient if item.gradient else 'brand' }}{% else %}dtoj-alt{% endif %} dtoj-font-{{ item.font }}" href="{{ item.href }}"{% if item.color %} style="color: {{ item.color }}"{% endif %}>{{ item.label }}</a>
+          {% endfor %}
         </div>
+        {% endif %}
+        {% if hero.links|length %}
         <div class="dtoj-links">
-          <a href="{{ url('training_main') }}">训练计划</a>
-          <a href="{{ url('dtoj_wiki') }}">WIKI</a>
-          <a href="{{ url('discussion_main') }}">讨论</a>
-          <a href="{{ url('record_main') }}">评测队列</a>
+          {% for item in hero.links %}
+          <a href="{{ item.href }}">{{ item.label }}</a>
+          {% endfor %}
         </div>
+        {% endif %}
       </section>
 
-      <div class="dtoj-board">
-        <article class="dtoj-panel dtoj-count is-count">
+      {% if canEditHome %}
+      <p class="dtoj-home-admin">
+        <a href="{{ url('dtoj_home_edit_hub') }}">管理首页配置</a>
+        <span>长按卡片可拖动换位，松手后按窄、宽、整行自动换行。顺序会记住。</span>
+      </p>
+      {% endif %}
+
+      {% if homeLayout|length %}
+      <div class="dtoj-board" id="dtoj-home-board"{% if canEditHome %} data-save="{{ url('dtoj_home_layout') }}"{% endif %}>
+        {% for cardId in homeLayout %}
+        {% if cardId == 'countdown' %}
+        <article class="dtoj-panel dtoj-count is-count dtoj-size-{{ cardSizes.countdown }}" data-card="countdown"{% if cardLookStyle.countdown %} style="{{ cardLookStyle.countdown }}"{% endif %}>
           <header class="dtoj-panel-head">
             <div>
               <h2>赛事倒计时</h2>
-              <p>CSP-J/S · NOIP 关键节点（示例）</p>
+              <p>{{ countdownSubtitle }}</p>
             </div>
-            <span class="dtoj-count-pill">COUNT</span>
+            <div class="dtoj-panel-tools">
+              {% if canEditHome %}<a class="dtoj-panel-edit" href="{{ url('dtoj_home_edit', section='countdown') }}">配置</a>{% endif %}
+              <span class="dtoj-count-pill">COUNT</span>
+            </div>
           </header>
           <div class="dtoj-count-body">
             {% for item in countdowns %}
-            {% if item.split %}
-            <div class="dtoj-count-row dtoj-count-split">
+            <div class="dtoj-count-row{% if item.showRight %} dtoj-count-split{% endif %}">
               <div>
                 <p class="dtoj-count-tag">{{ item.left.tag }}</p>
                 <p class="dtoj-count-title">{{ item.left.title }}</p>
-                <p class="dtoj-count-state">{{ item.left.state }}</p>
-                <p class="dtoj-count-when">{{ item.left.when }}</p>
+                {% if item.left.ended %}
+                <p class="dtoj-count-state">已结束</p>
+                {% elif item.left.date %}
+                <p class="dtoj-count-num is-blue">{{ item.left.days }}<span>天</span></p>
+                {% endif %}
+                {% if item.left.date %}<p class="dtoj-count-when">{{ item.left.date }}</p>{% endif %}
               </div>
-              <div class="is-live">
+              {% if item.showRight and item.right %}
+              <div class="{% if not item.right.ended %}is-live{% endif %}">
                 <p class="dtoj-count-tag">{{ item.right.tag }}</p>
                 <p class="dtoj-count-title">{{ item.right.title }}</p>
+                {% if item.right.ended %}
+                <p class="dtoj-count-state">已结束</p>
+                {% elif item.right.date %}
                 <p class="dtoj-count-num is-blue">{{ item.right.days }}<span>天</span></p>
-                <p class="dtoj-count-when">{{ item.right.when }}</p>
+                {% endif %}
+                {% if item.right.date %}<p class="dtoj-count-when">{{ item.right.date }}</p>{% endif %}
               </div>
+              {% endif %}
             </div>
-            {% else %}
-            <div class="dtoj-count-row">
-              <p class="dtoj-count-tag">{{ item.tag }}</p>
-              <p class="dtoj-count-title">{{ item.title }}</p>
-              <p class="dtoj-count-num is-{{ item.tone }}">{{ item.days }}</p>
-              <p class="dtoj-days is-{{ item.tone }}">DAYS LEFT</p>
-              <p class="dtoj-count-when">{{ item.note }}</p>
-            </div>
-            {% endif %}
             {% endfor %}
           </div>
         </article>
-
-        <article class="dtoj-panel dtoj-checkin is-check">
-          <header class="dtoj-check-head">
+        {% elif cardId == 'checkin' %}
+        <article class="dtoj-panel dtoj-checkin is-check dtoj-size-{{ cardSizes.checkin }}" data-card="checkin" id="dtoj-checkin-card"
+          data-uid="{{ checkinUid }}"
+          data-day="{{ checkinDayKey }}"
+          data-streak="{{ streak }}"
+          data-footer="{{ checkinFooterTemplate }}"
+          data-good="{{ checkinGoodColor }}"
+          data-bad="{{ checkinBadColor }}"{% if cardLookStyle.checkin %} style="{{ cardLookStyle.checkin }}"{% endif %}>
+          <script type="application/json" id="dtoj-checkin-fortune-data">{{ checkinFortuneJson | safe }}</script>
+          <header class="dtoj-checkin-top">
             <h2>每日打卡</h2>
-            <span class="dtoj-check-bar" aria-hidden="true"></span>
-            <span class="dtoj-avatar" aria-hidden="true">{{ mark }}</span>
-            <div class="dtoj-who">
-              <p>欢迎回来</p>
-              <p><strong>{{ who }}</strong> <span class="dtoj-lv">示例</span></p>
-            </div>
-            <a class="dtoj-claim" href="{{ url('dtoj_shop') }}">领羊币</a>
+            {% if canEditHome %}<a class="dtoj-panel-edit" href="{{ url('dtoj_home_edit', section='checkin') }}">配置</a>{% endif %}
           </header>
-          <div class="dtoj-dash">
-            <p class="dtoj-dash-title">今日打卡可查看</p>
-            <ul>
-              <li>
-                <span class="dtoj-ico is-gold" aria-hidden="true">礼</span>
-                <span>基础记录：已连续 <b class="is-gold">{{ streak }}</b> 天</span>
-              </li>
-              <li>
-                <span class="dtoj-ico is-green" aria-hidden="true">勤</span>
-                <span>全勤加成：满 <b class="is-green">7</b> 天另记一次</span>
-              </li>
-              <li>
-                <span class="dtoj-ico is-blue" aria-hidden="true">注</span>
-                <span>账本说明：余额 <b class="is-blue">{{ coin }}</b> 不会入账</span>
-              </li>
+          <div class="dtoj-checkin-before" id="dtoj-checkin-before">
+            <p class="dtoj-checkin-welcome">{{ checkinWelcomeText }}<span class="is-green">{{ who }}</span></p>
+            <div class="dtoj-checkin-date" aria-hidden="false">
+              <span class="dtoj-checkin-month">{{ checkinCalendar.monthLong }}</span>
+              <span class="dtoj-checkin-day">{{ checkinCalendar.day }}</span>
+              <span class="dtoj-checkin-week">{{ checkinCalendar.weekday }}</span>
+            </div>
+            <ul class="dtoj-checkin-events">
+              {% for ev in checkinEvents %}
+              <li>距 {{ ev.label }} 还剩 <b>{{ ev.days }}</b> 天</li>
+              {% endfor %}
+              {% if not checkinEvents|length %}
+              <li class="is-muted">{{ checkinEmptyEventsText }}</li>
+              {% endif %}
             </ul>
+            <button type="button" class="dtoj-checkin-go" id="dtoj-checkin-go">点击打卡</button>
           </div>
-          <button type="button" class="dtoj-sign" disabled>签到</button>
+          <div class="dtoj-checkin-after is-hidden" id="dtoj-checkin-after" hidden>
+            <p class="dtoj-checkin-fortune-title"><span class="is-green">{{ who }}</span>{{ checkinFortuneSuffix }}</p>
+            <p class="dtoj-checkin-level" id="dtoj-checkin-level"></p>
+            <div class="dtoj-checkin-fortune-body">
+              <p class="dtoj-checkin-advice" id="dtoj-checkin-advice"></p>
+              <ul class="dtoj-checkin-taboos" id="dtoj-checkin-taboos"></ul>
+            </div>
+            <p class="dtoj-checkin-streak" id="dtoj-checkin-streak"></p>
+          </div>
         </article>
+        <script>
+        (function () {
+          var card = document.getElementById('dtoj-checkin-card');
+          if (!card) return;
+          var fortuneNode = document.getElementById('dtoj-checkin-fortune-data');
+          var before = document.getElementById('dtoj-checkin-before');
+          var after = document.getElementById('dtoj-checkin-after');
+          var btn = document.getElementById('dtoj-checkin-go');
+          var uid = card.getAttribute('data-uid') || '0';
+          var day = card.getAttribute('data-day') || '';
+          var streak = Number(card.getAttribute('data-streak') || '1');
+          var key = 'dtoj_checkin_' + uid + '_' + day;
+          var f = null;
+          try {
+            f = fortuneNode ? JSON.parse(fortuneNode.textContent || '') : null;
+          } catch (e) { f = null; }
 
-        <article class="dtoj-panel dtoj-asset is-coin">
-          <h2>羊币与装扮</h2>
+          function renderFortune() {
+            if (!f) return;
+            var level = document.getElementById('dtoj-checkin-level');
+            var advice = document.getElementById('dtoj-checkin-advice');
+            var taboos = document.getElementById('dtoj-checkin-taboos');
+            var streakEl = document.getElementById('dtoj-checkin-streak');
+            if (level) {
+              level.textContent = '§ ' + f.level + ' §';
+              level.className = 'dtoj-checkin-level' + (f.level.indexOf('凶') >= 0 ? ' is-bad' : ' is-good');
+              level.style.color = f.level.indexOf('凶') >= 0
+                ? (card.getAttribute('data-bad') || '')
+                : (card.getAttribute('data-good') || '');
+            }
+            if (advice) {
+              advice.textContent = f.advice;
+              advice.className = 'dtoj-checkin-advice' + (f.level.indexOf('凶') >= 0 ? ' is-bad' : ' is-good');
+              advice.style.color = f.level.indexOf('凶') >= 0
+                ? (card.getAttribute('data-bad') || '')
+                : (card.getAttribute('data-good') || '');
+            }
+            if (taboos) {
+              taboos.innerHTML = '';
+              (f.taboos || []).forEach(function (t) {
+                var li = document.createElement('li');
+                li.innerHTML = '<strong>' + t.title + '</strong><span>' + t.note + '</span>';
+                taboos.appendChild(li);
+              });
+            }
+            if (streakEl) {
+              var tpl = card.getAttribute('data-footer') || '';
+              streakEl.textContent = tpl.replace(/\{\{(\w+)\}\}/g, function (_, k) {
+                return k === 'streak' ? String(streak) : '';
+              });
+            }
+          }
+
+          function showDone() {
+            if (before) before.hidden = true;
+            if (after) {
+              after.hidden = false;
+              after.classList.remove('is-hidden');
+            }
+            renderFortune();
+          }
+
+          try {
+            if (localStorage.getItem(key) === '1') showDone();
+          } catch (e) { /* ignore */ }
+
+          if (btn) btn.addEventListener('click', function () {
+            try { localStorage.setItem(key, '1'); } catch (e) { /* ignore */ }
+            showDone();
+          });
+        })();
+        </script>
+        {% elif cardId == 'asset' %}
+        <article class="dtoj-panel dtoj-asset is-coin dtoj-size-{{ cardSizes.asset }}" data-card="asset"{% if cardLookStyle.asset %} style="{{ cardLookStyle.asset }}"{% endif %}>
+          <header class="dtoj-mini-head">
+            <h2>羊币与装扮</h2>
+            {% if canEditHome %}<a class="dtoj-panel-edit" href="{{ url('dtoj_home_edit', section='asset') }}">配置</a>{% endif %}
+          </header>
           <p class="dtoj-asset-num">{{ coin }}</p>
-          <p class="dtoj-asset-note">示例余额，没有账本。</p>
+          <p class="dtoj-asset-note">{{ assetNote }}</p>
           <div class="dtoj-asset-links">
             <a href="{{ url('dtoj_theme') }}">主题商店</a>
             <a href="{{ url('dtoj_card') }}">闪卡</a>
           </div>
         </article>
-
-        <article class="dtoj-panel dtoj-acts is-act">
-          <h2 class="dtoj-activity-title">四项活动</h2>
+        {% elif cardId == 'activities' %}
+        <article class="dtoj-panel dtoj-acts is-act dtoj-size-{{ cardSizes.activities }}" data-card="activities"{% if cardLookStyle.activities %} style="{{ cardLookStyle.activities }}"{% endif %}>
+          <header class="dtoj-mini-head">
+            <h2 class="dtoj-activity-title">四项活动</h2>
+            {% if canEditHome %}<a class="dtoj-panel-edit" href="{{ url('dtoj_home_edit', section='activities') }}">配置</a>{% endif %}
+          </header>
           <div class="dtoj-act-grid">
             {% for item in activities %}
             <a href="{{ item.href }}">
@@ -117,10 +226,12 @@
             {% endfor %}
           </div>
         </article>
-      </div>
-
-      <section class="dtoj-news">
-        <h2>公告</h2>
+        {% elif cardId == 'news' %}
+      <section class="dtoj-news dtoj-size-{{ cardSizes.news }}" data-card="news"{% if cardLookStyle.news %} style="{{ cardLookStyle.news }}"{% endif %}>
+        <header class="dtoj-mini-head dtoj-mini-head--news">
+          <h2>公告</h2>
+          {% if canEditHome %}<a class="dtoj-panel-edit" href="{{ url('dtoj_home_edit', section='news') }}">配置</a>{% endif %}
+        </header>
         {% for item in announcements %}
         <div>
           <h3>{{ item.title }}</h3>
@@ -128,10 +239,13 @@
         </div>
         {% endfor %}
       </section>
-
-      <section class="dtoj-path">
+      {% elif cardId == 'paths' %}
+      <section class="dtoj-path dtoj-size-{{ cardSizes.paths }}" data-card="paths"{% if cardLookStyle.paths %} style="{{ cardLookStyle.paths }}"{% endif %}>
         <div class="dtoj-path-copy">
-          <h2>学习路径</h2>
+          <header class="dtoj-mini-head dtoj-mini-head--path">
+            <h2>学习路径</h2>
+            {% if canEditHome %}<a class="dtoj-panel-edit dtoj-panel-edit--path" href="{{ url('dtoj_home_edit', section='paths') }}">配置</a>{% endif %}
+          </header>
           <ol>
             {% for item in paths %}
             <li>
@@ -152,8 +266,8 @@
           <strong>先选题，再训练，然后比赛，最后复盘。</strong>
         </aside>
       </section>
-
-      <section class="dtoj-docs">
+      {% elif cardId == 'docs' %}
+      <section class="dtoj-docs dtoj-size-{{ cardSizes.docs }}" data-card="docs"{% if cardLookStyle.docs %} style="{{ cardLookStyle.docs }}"{% endif %}>
         <h2>资料入口</h2>
         <div class="dtoj-doc-grid">
           {% for group in wikiGroups %}
@@ -161,6 +275,415 @@
           {% endfor %}
         </div>
       </section>
+      {% endif %}
+        {% endfor %}
+      </div>
+      <script type="application/json" id="dtoj-home-places">{{ cardPlacesJson | safe }}</script>
+      <script>
+      (function () {
+        var board = document.getElementById('dtoj-home-board');
+        var node = document.getElementById('dtoj-home-places');
+        if (!board || !node) return;
+        var places = [];
+        try { places = JSON.parse(node.textContent || '[]'); } catch (e) { places = []; }
+        window.dtojPlaceCard = function (el, row, col, span) {
+          el.setAttribute('data-row', String(row));
+          el.setAttribute('data-col', String(col));
+          el.setAttribute('data-span', String(span));
+          if (window.matchMedia('(max-width: 800px)').matches) {
+            el.style.gridColumn = '';
+            el.style.gridRow = '';
+            return;
+          }
+          el.style.gridRow = String(row);
+          el.style.gridColumn = col + ' / span ' + span;
+        };
+        function unitsOf(col, span) {
+          var start = (Number(col) - 1) / 2;
+          var n = Number(span) / 2;
+          var list = [];
+          for (var i = 0; i < n; i++) list.push(start + i);
+          return list;
+        }
+        function sharesCell(a, b) {
+          if (Number(a.row) !== Number(b.row)) return false;
+          var left = unitsOf(a.col, a.span);
+          var right = unitsOf(b.col, b.span);
+          for (var i = 0; i < left.length; i++) {
+            if (right.indexOf(left[i]) >= 0) return true;
+          }
+          return false;
+        }
+        window.dtojSettleCards = function (keepId) {
+          var items = Array.prototype.map.call(board.querySelectorAll('[data-card]'), function (el) {
+            return {
+              el: el,
+              id: el.getAttribute('data-card'),
+              row: Number(el.getAttribute('data-row')) || 1,
+              col: Number(el.getAttribute('data-col')) || 1,
+              span: Number(el.getAttribute('data-span')) || 2,
+            };
+          });
+          var guard = 0;
+          var moved = true;
+          while (moved && guard < 48) {
+            moved = false;
+            guard += 1;
+            for (var i = 0; i < items.length; i++) {
+              for (var j = i + 1; j < items.length; j++) {
+                if (!sharesCell(items[i], items[j])) continue;
+                var down = items[j];
+                if (items[i].id === keepId) down = items[j];
+                else if (items[j].id === keepId) down = items[i];
+                else if (items[i].row < items[j].row || (items[i].row === items[j].row && items[i].col <= items[j].col)) down = items[j];
+                else down = items[i];
+                down.row += 1;
+                moved = true;
+              }
+            }
+          }
+          items.forEach(function (item) {
+            if (item.el.classList.contains('is-lifted')) {
+              item.el.setAttribute('data-row', String(item.row));
+              item.el.setAttribute('data-col', String(item.col));
+              item.el.setAttribute('data-span', String(item.span));
+              return;
+            }
+            window.dtojPlaceCard(item.el, item.row, item.col, item.span);
+          });
+        };
+        window.dtojCompactCards = function () {
+          var items = Array.prototype.map.call(board.querySelectorAll('[data-card]'), function (el) {
+            return {
+              el: el,
+              row: Number(el.getAttribute('data-row')) || 1,
+              col: Number(el.getAttribute('data-col')) || 1,
+              span: Number(el.getAttribute('data-span')) || 2,
+            };
+          });
+          var rows = [];
+          items.forEach(function (item) {
+            if (rows.indexOf(item.row) < 0) rows.push(item.row);
+          });
+          rows.sort(function (a, b) { return a - b; });
+          var map = {};
+          rows.forEach(function (row, index) { map[row] = index + 1; });
+          items.forEach(function (item) {
+            if (map[item.row] === item.row) return;
+            window.dtojPlaceCard(item.el, map[item.row], item.col, item.span);
+          });
+        };
+        places.forEach(function (item) {
+          var el = board.querySelector('[data-card="' + item.id + '"]');
+          if (el) window.dtojPlaceCard(el, item.row, item.col, item.span);
+        });
+        window.dtojSettleCards('');
+        window.dtojCompactCards();
+      })();
+      </script>
+      {% endif %}
+      {% if canEditHome %}
+      <script>
+      (function () {
+        var board = document.getElementById('dtoj-home-board');
+        if (!board || !board.getAttribute('data-save')) return;
+        var press = null;
+        var drag = null;
+        var blockClick = false;
+        var holdMs = 280;
+
+        function cards() {
+          return Array.prototype.filter.call(board.children, function (el) {
+            return el.hasAttribute && el.hasAttribute('data-card') && (!drag || el !== drag.card);
+          });
+        }
+
+        function metrics() {
+          var box = board.getBoundingClientRect();
+          var gapX = parseFloat(getComputedStyle(board).columnGap) || 18;
+          var gapY = parseFloat(getComputedStyle(board).rowGap) || 14;
+          var colW = (box.width - gapX * 5) / 6;
+          return { box: box, gapX: gapX, gapY: gapY, colW: colW };
+        }
+
+        function collectBands() {
+          var map = {};
+          function take(row, el) {
+            var rect = el.getBoundingClientRect();
+            if (rect.height < 1) return;
+            var band = map[row];
+            if (!band) map[row] = { row: Number(row), top: rect.top, bottom: rect.bottom };
+            else {
+              band.top = Math.min(band.top, rect.top);
+              band.bottom = Math.max(band.bottom, rect.bottom);
+            }
+          }
+          drag.snapshot.forEach(function (item) {
+            if (item.el === drag.card) return;
+            take(item.row, item.el);
+          });
+          if (drag.slot && drag.origin) take(drag.origin.row, drag.slot);
+          return Object.keys(map).map(function (key) { return map[key]; })
+            .sort(function (a, b) { return a.row - b.row; });
+        }
+
+        function snap(cardLeft, cardTop) {
+          var span = drag.prefer;
+          var m = metrics();
+          var cardRight = cardLeft + drag.w;
+          var cardBottom = cardTop + drag.h;
+          var cardMidY = cardTop + drag.h / 2;
+          var maxUnit = Math.max(0, 3 - span / 2);
+          var step = m.colW + m.gapX;
+          var bestUnit = 0;
+          var bestOverlap = -1;
+          for (var u = 0; u <= maxUnit; u++) {
+            var left = m.box.left + u * 2 * step;
+            var width = span * m.colW + (span - 1) * m.gapX;
+            var overlap = Math.min(cardRight, left + width) - Math.max(cardLeft, left);
+            if (overlap > bestOverlap) {
+              bestOverlap = overlap;
+              bestUnit = u;
+            }
+          }
+          var bands = collectBands();
+          var row = drag.origin.row;
+          var above = false;
+          if (bands.length && cardTop < bands[0].top - 16) {
+            row = bands[0].row;
+            above = true;
+          } else if (bands.length) {
+            var last = bands[bands.length - 1];
+            if (cardMidY > last.bottom + 24) {
+              row = last.row + 1;
+            } else {
+              var best = bands[0];
+              var bestH = -1;
+              for (var i = 0; i < bands.length; i++) {
+                var overlapH = Math.min(cardBottom, bands[i].bottom) - Math.max(cardTop, bands[i].top);
+                if (overlapH > bestH) {
+                  bestH = overlapH;
+                  best = bands[i];
+                }
+              }
+              if (bestH <= 0) {
+                var bestDist = Infinity;
+                for (var j = 0; j < bands.length; j++) {
+                  var mid = (bands[j].top + bands[j].bottom) / 2;
+                  var dist = Math.abs(cardMidY - mid);
+                  if (dist < bestDist) {
+                    bestDist = dist;
+                    best = bands[j];
+                  }
+                }
+              }
+              row = best.row;
+            }
+          }
+          return { row: row, col: bestUnit * 2 + 1, span: span, above: above };
+        }
+
+        function restoreCards() {
+          drag.snapshot.forEach(function (item) {
+            if (item.el === drag.card) return;
+            window.dtojPlaceCard(item.el, item.row, item.col, item.span);
+          });
+        }
+
+        function paintPreview(place) {
+          var m = metrics();
+          var step = m.colW + m.gapX;
+          var left = m.box.left + (place.col - 1) * step;
+          var width = place.span * m.colW + (place.span - 1) * m.gapX;
+          var bands = collectBands();
+          var top = m.box.top;
+          var height = drag.h;
+          var found = null;
+          for (var i = 0; i < bands.length; i++) {
+            if (bands[i].row === place.row) found = bands[i];
+          }
+          if (place.above && bands.length) {
+            var hole = bands[0].top - m.box.top;
+            height = drag.h;
+            top = hole > 36 ? m.box.top : bands[0].top - m.gapY - drag.h;
+          } else if (found) {
+            top = found.top;
+            height = Math.max(found.bottom - found.top, drag.h);
+          } else if (bands.length) {
+            top = bands[bands.length - 1].bottom + m.gapY;
+            height = drag.h;
+          }
+          drag.preview.style.left = left + 'px';
+          drag.preview.style.top = top + 'px';
+          drag.preview.style.width = width + 'px';
+          drag.preview.style.height = height + 'px';
+          drag.place = place;
+        }
+
+        function savePlaces() {
+          var items = Array.prototype.map.call(board.querySelectorAll('[data-card]'), function (el) {
+            return {
+              id: el.getAttribute('data-card'),
+              row: Number(el.getAttribute('data-row')) || 1,
+              col: Number(el.getAttribute('data-col')) || 1,
+              span: Number(el.getAttribute('data-span')) || 2,
+            };
+          });
+          fetch(board.getAttribute('data-save'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'places=' + encodeURIComponent(JSON.stringify(items)),
+            credentials: 'same-origin',
+          }).catch(function () {});
+        }
+
+        function endDrag(e) {
+          if (!drag) return;
+          var card = drag.card;
+          var place = drag.place || drag.origin;
+          if (e) place = snap(e.clientX - drag.dx, e.clientY - drag.dy);
+          var same = !place.above && place.row === drag.origin.row && place.col === drag.origin.col && place.span === drag.origin.span;
+          drag.slot.remove();
+          drag.preview.remove();
+          card.classList.remove('is-lifted');
+          card.style.left = '';
+          card.style.top = '';
+          card.style.width = '';
+          restoreCards();
+          if (place.above) {
+            drag.snapshot.forEach(function (item) {
+              if (item.el === card) return;
+              window.dtojPlaceCard(item.el, item.row + 1, item.col, item.span);
+            });
+          }
+          if (window.dtojPlaceCard) window.dtojPlaceCard(card, place.row, place.col, place.span);
+          card.classList.remove('dtoj-size-narrow', 'dtoj-size-wide', 'dtoj-size-full');
+          card.classList.add(place.span >= 6 ? 'dtoj-size-full' : place.span >= 4 ? 'dtoj-size-wide' : 'dtoj-size-narrow');
+          if (!same && !place.above && window.dtojSettleCards) window.dtojSettleCards(card.getAttribute('data-card'));
+          if (window.dtojCompactCards) window.dtojCompactCards();
+          board.classList.remove('is-sorting');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+          drag = null;
+          blockClick = true;
+          setTimeout(function () { blockClick = false; }, 400);
+          savePlaces();
+        }
+
+        function onMove(e) {
+          if (!drag) return;
+          var left = e.clientX - drag.dx;
+          var top = e.clientY - drag.dy;
+          drag.card.style.left = left + 'px';
+          drag.card.style.top = top + 'px';
+          paintPreview(snap(left, top));
+        }
+
+        function onUp(e) {
+          endDrag(e);
+        }
+
+        board.addEventListener('pointerdown', function (e) {
+          if (e.button != null && e.button !== 0) return;
+          if (e.target.closest('input, textarea, select')) return;
+          var card = e.target.closest('[data-card]');
+          if (!card || !board.contains(card)) return;
+          if (!e.target.closest('a, button')) e.preventDefault();
+          press = {
+            card: card,
+            x: e.clientX,
+            y: e.clientY,
+            pointerId: e.pointerId,
+            timer: setTimeout(function () { begin(e); }, holdMs),
+          };
+        });
+
+        function begin(e) {
+          if (!press) return;
+          var card = press.card;
+          var rect = card.getBoundingClientRect();
+          var origin = {
+            row: Number(card.getAttribute('data-row')) || 1,
+            col: Number(card.getAttribute('data-col')) || 1,
+            span: Number(card.getAttribute('data-span')) || 2,
+          };
+          var slot = document.createElement('div');
+          slot.className = 'dtoj-card-slot';
+          slot.style.gridRow = String(origin.row);
+          slot.style.gridColumn = origin.col + ' / span ' + origin.span;
+          slot.style.minHeight = rect.height + 'px';
+          card.parentNode.insertBefore(slot, card);
+          var preview = document.createElement('div');
+          preview.className = 'dtoj-card-slot';
+          preview.style.position = 'fixed';
+          preview.style.zIndex = '30';
+          preview.style.pointerEvents = 'none';
+          preview.style.margin = '0';
+          document.body.appendChild(preview);
+          var snapshot = Array.prototype.map.call(board.querySelectorAll('[data-card]'), function (el) {
+            return {
+              el: el,
+              row: Number(el.getAttribute('data-row')) || 1,
+              col: Number(el.getAttribute('data-col')) || 1,
+              span: Number(el.getAttribute('data-span')) || 2,
+            };
+          });
+          drag = {
+            card: card,
+            slot: slot,
+            preview: preview,
+            prefer: origin.span,
+            origin: origin,
+            place: origin,
+            snapshot: snapshot,
+            w: rect.width,
+            h: rect.height,
+            dx: e.clientX - rect.left,
+            dy: e.clientY - rect.top,
+          };
+          paintPreview(origin);
+          card.classList.add('is-lifted');
+          card.style.width = rect.width + 'px';
+          card.style.left = rect.left + 'px';
+          card.style.top = rect.top + 'px';
+          board.classList.add('is-sorting');
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
+          press = null;
+        }
+
+        board.addEventListener('pointermove', function (e) {
+          if (!press) return;
+          if (Math.abs(e.clientX - press.x) > 8 || Math.abs(e.clientY - press.y) > 8) {
+            clearTimeout(press.timer);
+            press = null;
+          }
+        });
+
+        board.addEventListener('pointerup', function () {
+          if (!press) return;
+          clearTimeout(press.timer);
+          press = null;
+        });
+        board.addEventListener('pointercancel', function () {
+          if (drag) return;
+          if (!press) return;
+          clearTimeout(press.timer);
+          press = null;
+        });
+        board.addEventListener('click', function (e) {
+          if (!blockClick) return;
+          e.preventDefault();
+          e.stopPropagation();
+        }, true);
+        board.addEventListener('contextmenu', function (e) {
+          if (drag || press) e.preventDefault();
+        });
+      })();
+      </script>
+      {% endif %}
     </div>
   </div>
 </div>

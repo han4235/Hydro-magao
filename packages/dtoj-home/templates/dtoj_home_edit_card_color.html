@@ -1,0 +1,16 @@
+{% if cardBorder is defined %}
+<input type="hidden" name="cardColorFields" value="1">
+<div class="dtoj-fields dtoj-card-color-row">
+  <label class="dtoj-color-toggle">
+    <input type="checkbox" name="cardColorOn" value="1" {% if cardColorOn %}checked{% endif %}>
+    自定义边框和背景
+  </label>
+  <label>边框颜色
+    <input class="dtoj-color" type="color" name="cardBorder" value="{{ cardBorder }}">
+  </label>
+  <label>背景色
+    <input class="dtoj-color" type="color" name="cardBackground" value="{{ cardBackground }}">
+  </label>
+</div>
+<p class="dtoj-hint">不勾选时沿用卡片原来的颜色。勾选后，上面两个颜色会盖住边框和底色。</p>
+{% endif %}

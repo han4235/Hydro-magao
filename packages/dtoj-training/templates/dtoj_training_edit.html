@@ -124,7 +124,20 @@
     cursor: pointer;
   }
   .dtoj-tag-chip button[data-pick] { padding-left: 12px; }
+  .dtoj-tag-chip button[data-rename] { padding: 0 4px; font-size: 12px; opacity: 0.72; }
   .dtoj-tag-chip.is-on button { color: #fff; }
+  .dtoj-tag-rename {
+    width: 8em;
+    margin: 4px 0 4px 8px;
+    min-height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    color: #1e3a8a;
+    font-size: 14px;
+    font-weight: 700;
+  }
   .dtoj-tag-add { display: flex; flex-wrap: wrap; gap: 8px; }
   .dtoj-tag-add input { flex: 1 1 180px; }
   .dtoj-plan-note { margin: 0; color: #3e4c63; font-size: 14px; font-weight: 400; line-height: 1.5; }
@@ -258,6 +271,7 @@
       </header>
       <form method="post" class="dtoj-plan" id="dtoj-plan">
         <input type="hidden" name="tagName" value="">
+        <input type="hidden" name="tagNext" value="">
         <input type="hidden" name="chapterIndex" value="">
         {% if error %}<p class="dtoj-plan-error">{{ error }}</p>{% endif %}
         <section>
@@ -272,6 +286,7 @@
                   {% for d in directions %}
                   <span class="dtoj-tag-chip{% if direction == d %} is-on{% endif %}">
                     <button type="button" data-pick="{{ d }}">{{ d }}</button>
+                    <button type="button" data-rename="{{ d }}" aria-label="修改{{ d }}">改</button>
                     <button type="button" data-op="dropDirection" data-drop="{{ d }}" aria-label="删除{{ d }}">×</button>
                   </span>
                   {% endfor %}
@@ -288,6 +303,7 @@
                   {% for k in kinds %}
                   <span class="dtoj-tag-chip{% if kind == k %} is-on{% endif %}">
                     <button type="button" data-pick="{{ k }}">{{ k }}</button>
+                    <button type="button" data-rename="{{ k }}" aria-label="修改{{ k }}">改</button>
                     <button type="button" data-op="dropKind" data-drop="{{ k }}" aria-label="删除{{ k }}">×</button>
                   </span>
                   {% endfor %}
@@ -301,7 +317,7 @@
                 <input name="pin" value="{{ pin }}" inputmode="numeric">
               </label>
             </div>
-            <p class="dtoj-plan-note">点标签选用。添加和删除会改训练页上的筛选项，删掉后用过这个标签的课程不再带着它。置顶写 0 就是不放进热门。</p>
+            <p class="dtoj-plan-note">点标签选用。点「改」可以改名，回车确认，已经用过这个标签的课程会一起换成新名字。删掉后，这些课程不再带着它。置顶写 0 就是不放进热门。</p>
             <label>简介<textarea name="content">{{ content }}</textarea></label>
           </div>
         </section>
@@ -383,6 +399,48 @@
               box.querySelectorAll('[data-pick]').forEach(function (el) {
                 el.parentElement.classList.toggle('is-on', el.getAttribute('data-pick') === next && next !== '');
               });
+            });
+          });
+          form.querySelectorAll('[data-rename]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var chip = btn.closest('.dtoj-tag-chip');
+              var field = btn.closest('[data-field]');
+              var pick = chip && chip.querySelector('[data-pick]');
+              var oldName = btn.getAttribute('data-rename') || '';
+              if (!chip || !field || !pick || chip.querySelector('.dtoj-tag-rename')) return;
+              var input = document.createElement('input');
+              input.className = 'dtoj-tag-rename';
+              input.value = oldName;
+              input.maxLength = 16;
+              pick.hidden = true;
+              chip.insertBefore(input, btn);
+              input.focus();
+              input.select();
+              var done = false;
+              function finish(commit) {
+                if (done) return;
+                var next = input.value.trim();
+                if (!commit || !next || next === oldName) {
+                  done = true;
+                  input.remove();
+                  pick.hidden = false;
+                  return;
+                }
+                done = true;
+                form.querySelector('[name="tagName"]').value = oldName;
+                form.querySelector('[name="tagNext"]').value = next;
+                var op = document.createElement('input');
+                op.type = 'hidden';
+                op.name = 'operation';
+                op.value = field.getAttribute('data-field') === 'kind' ? 'renameKind' : 'renameDirection';
+                form.appendChild(op);
+                form.submit();
+              }
+              input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+                if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+              });
+              input.addEventListener('blur', function () { finish(true); });
             });
           });
           form.querySelectorAll('[data-op]').forEach(function (btn) {
