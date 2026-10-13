@@ -1,6 +1,7 @@
 import { load } from 'js-yaml';
 import { Dictionary } from 'lodash';
 import moment from 'moment-timezone';
+import path from 'path';
 import Schema from 'schemastery';
 import type { Context } from '../context';
 import {
@@ -8,7 +9,7 @@ import {
     InvalidJoinInvitationCodeError, NotFoundError, OnlyOwnerCanDeleteDomainError, PermissionError, RoleAlreadyExistError, ValidationError,
 } from '../error';
 import type { DomainDoc } from '../interface';
-import avatar from '../lib/avatar';
+import avatar, { validate as validateAvatar } from '../lib/avatar';
 import { PERM, PERMS_BY_FAMILY, PRIV } from '../model/builtin';
 import * as discussion from '../model/discussion';
 import domain from '../model/domain';
@@ -16,6 +17,7 @@ import MessageModel from '../model/message';
 import * as oplog from '../model/oplog';
 import { DOMAIN_SETTINGS, DOMAIN_SETTINGS_BY_KEY } from '../model/setting';
 import system from '../model/system';
+import storage from '../model/storage';
 import user from '../model/user';
 import {
     Handler, Mutation, param, post, Query, query, requireSudo, Types,
@@ -46,10 +48,34 @@ class ManageHandler extends Handler {
     }
 }
 
+class DomainAvatarHandler extends ManageHandler {
+    @param('avatar', Types.String, true)
+    async post(domainId: string, input?: string) {
+        if (input) {
+            if (!validateAvatar(input)) throw new ValidationError('avatar');
+            await domain.edit(domainId, { avatar: input });
+        } else if (this.request.files?.file) {
+            const file = this.request.files.file;
+            if (file.size > 8 * 1024 * 1024) throw new ValidationError('file');
+            const ext = path.extname(file.originalFilename || '').toLowerCase();
+            if (!['.jpg', '.jpeg', '.png'].includes(ext)) throw new ValidationError('file');
+            const ownerId = this.domain.owner;
+            const filename = `.domain-${domainId}-avatar${ext}`;
+            await storage.put(`user/${ownerId}/${filename}`, file.filepath, this.user._id);
+            await domain.edit(domainId, { avatar: `url:/file/${ownerId}/${filename}` });
+        } else throw new ValidationError('avatar');
+        this.back();
+    }
+}
+
 class DomainEditHandler extends ManageHandler {
     async get() {
         this.response.template = 'domain_edit.html';
-        this.response.body = { current: this.domain, settings: DOMAIN_SETTINGS };
+        this.response.body = {
+            current: this.domain,
+            settings: DOMAIN_SETTINGS,
+            domainAvatarUrl: avatar(this.domain.avatar, 64),
+        };
     }
 
     async post(args) {
@@ -480,6 +506,7 @@ export async function apply(ctx: Context) {
     ctx.Route('ranking', '/ranking', DomainRankHandler, PERM.PERM_VIEW_RANKING);
     ctx.Route('domain_dashboard', '/domain/dashboard', DomainDashboardHandler);
     ctx.Route('domain_edit', '/domain/edit', DomainEditHandler);
+    ctx.Route('domain_avatar', '/domain/avatar', DomainAvatarHandler);
     ctx.Route('domain_user', '/domain/user', DomainUserHandler);
     ctx.Route('domain_permission', '/domain/permission', DomainPermissionHandler);
     ctx.Route('domain_role', '/domain/role', DomainRoleHandler);
