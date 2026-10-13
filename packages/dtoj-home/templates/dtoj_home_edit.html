@@ -1,0 +1,1011 @@
+{% set page_name = "dtoj_home_edit" %}
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-home-edit { display: flex; flex-direction: column; gap: 16px; }
+  .dtoj-home-edit h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(28px, 3.5vw, 40px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+  }
+  .dtoj-home-edit .dtoj-pad { display: flex; flex-direction: column; gap: 14px; }
+  .dtoj-home-edit .dtoj-fields { margin: 0; }
+  .dtoj-home-edit .dtoj-block {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+  .dtoj-home-edit .dtoj-block h3 { margin: 0 0 10px; font-size: 15px; font-weight: 800; }
+  .dtoj-home-edit textarea.textbox { min-height: 72px; padding: 10px 12px; }
+  .dtoj-home-edit .dtoj-hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .dtoj-home-edit .dtoj-error { margin: 0; color: #8a1f1f; font-size: 14px; font-weight: 700; }
+  .dtoj-home-edit .dtoj-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .dtoj-home-edit-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.92);
+  }
+  .dtoj-home-edit-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    background: #f4f7fb;
+  }
+  .dtoj-home-edit-nav a.is-on { background: #e7eefb; color: var(--brand); }
+  .dtoj-home-edit-nav a:hover { transform: translateY(-1px); }
+  .dtoj-home-edit-nav__back { margin-left: auto; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+  .dtoj-count-rows { display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-count-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .dtoj-count-row-head h3 { margin: 0; }
+  .dtoj-count-row-del {
+    border: 0;
+    background: #f8e6e6;
+    color: #8a1f1f;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-count-row-add {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-count-row-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+  .dtoj-layout-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .dtoj-layout-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .dtoj-layout-item strong { flex: 1 1 120px; font-size: 15px; }
+  .dtoj-layout-item code { color: var(--muted); font-size: 12px; }
+  .dtoj-layout-move, .dtoj-layout-del {
+    border: 0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-layout-move { background: #e7eefb; color: var(--brand-deep); }
+  .dtoj-layout-del { background: #f8e6e6; color: #8a1f1f; }
+  .dtoj-layout-add { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .dtoj-card-size-row { margin-bottom: 14px; }
+  .dtoj-card-size-row .select { max-width: 220px; }
+  .dtoj-card-size-hint { margin: 6px 0 0; }
+  .dtoj-hero-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 10px; }
+  .dtoj-hero-upload-status { margin: 0; }
+  .dtoj-hero-preview {
+    margin: 0 0 12px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+  .dtoj-hero-preview img {
+    display: block;
+    max-width: 100%;
+    max-height: 200px;
+    margin: 0 auto;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+  .dtoj-hero-edit { display: flex; flex-direction: column; gap: 28px; }
+  .dtoj-hero-edit__section { display: flex; flex-direction: column; gap: 14px; }
+  .dtoj-hero-edit__head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-hero-edit__head h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.3;
+  }
+  .dtoj-hero-edit__head p { margin: 0; max-width: 62ch; color: var(--muted); font-size: 13px; line-height: 1.65; }
+  .dtoj-hero-edit__panel {
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dtoj-hero-edit__panel .dtoj-fields { grid-template-columns: 1fr; margin: 0; }
+  .dtoj-hero-edit__upload-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+  }
+  .dtoj-hero-edit__upload-row .dtoj-count-row-add {
+    min-height: 44px;
+    border-style: solid;
+    border-color: rgba(37, 99, 235, 0.28);
+    background: #fff;
+  }
+  .dtoj-hero-line .dtoj-fields {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr) minmax(0, 0.75fr) minmax(0, 1fr) minmax(0, 0.85fr);
+  }
+  .dtoj-hero-edit__list { display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-hero-edit__item {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+  .dtoj-hero-edit__item .dtoj-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    margin: 0;
+  }
+  .dtoj-hero-edit__item .dtoj-fields label.dtoj-field-span-2 { grid-column: span 2; }
+  .dtoj-hero-edit__item .dtoj-fields label.dtoj-field-row-2 { grid-column: 1 / -1; }
+  .dtoj-hero-button .dtoj-fields {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  }
+  .dtoj-hero-edit__primary {
+    display: flex;
+    align-items: center;
+    align-self: end;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 0 2px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .dtoj-hero-edit__primary input { margin-right: 6px; }
+  .dtoj-f-gradient:disabled { opacity: 0.45; cursor: not-allowed; }
+  .dtoj-hero-edit__item .dtoj-count-row-head { margin-bottom: 12px; }
+  .dtoj-hero-edit__item .dtoj-count-row-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .dtoj-hero-edit__tools { margin-top: 4px; }
+  @media (max-width: 960px) {
+    .dtoj-hero-line .dtoj-fields { grid-template-columns: 1fr 1fr; }
+    .dtoj-hero-line .dtoj-fields label:nth-child(2) { grid-column: 1 / -1; }
+    .dtoj-hero-edit__item .dtoj-fields { grid-template-columns: 1fr 1fr; }
+    .dtoj-hero-edit__item .dtoj-fields label.dtoj-field-span-2 { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .dtoj-hero-edit__item .dtoj-fields { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-home-edit">
+      <h1>配置 · {{ sectionTitle }}</h1>
+      {% include "dtoj_home_edit_nav.html" %}
+      <article class="dtoj-panel">
+        <form method="post" class="dtoj-pad">
+          {% if section == 'hero' %}
+          <div class="dtoj-hero-edit">
+          <section class="dtoj-hero-edit__section">
+            <header class="dtoj-hero-edit__head">
+              <h2>背景图</h2>
+              <p>留空为白底。上传后自动写入 <code>{{ heroBgPublicPath }}</code>，也可手填站内路径或 https 外链。</p>
+            </header>
+            <div class="dtoj-hero-edit__panel">
+              <div class="dtoj-fields">
+                <label>图片地址
+                  <input class="textbox" name="background" id="dtoj-hero-bg-url" value="{{ hero.background }}" placeholder="/home/hero/background 或 https://...">
+                </label>
+              </div>
+              <div class="dtoj-hero-edit__upload-row">
+                <input type="file" id="dtoj-hero-bg-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                <button type="button" class="dtoj-count-row-add" id="dtoj-hero-bg-pick">选择本地图片并上传</button>
+                <span class="dtoj-hint dtoj-hero-upload-status" id="dtoj-hero-bg-status"></span>
+              </div>
+              <div class="dtoj-hero-preview" id="dtoj-hero-bg-preview-wrap"{% if not hero.background %} hidden{% endif %}>
+                <img id="dtoj-hero-bg-preview" src="{{ hero.background }}" alt="背景预览">
+              </div>
+            </div>
+          </section>
+          <script>
+          (function () {
+            var pick = document.getElementById('dtoj-hero-bg-pick');
+            var input = document.getElementById('dtoj-hero-bg-file');
+            var urlInput = document.getElementById('dtoj-hero-bg-url');
+            var status = document.getElementById('dtoj-hero-bg-status');
+            var preview = document.getElementById('dtoj-hero-bg-preview');
+            var wrap = document.getElementById('dtoj-hero-bg-preview-wrap');
+            var uploadUrl = '{{ heroUploadUrl }}';
+            if (!pick || !input || !urlInput || !uploadUrl) return;
+            function setPreview(src) {
+              if (!preview || !wrap) return;
+              if (!src) {
+                wrap.hidden = true;
+                preview.removeAttribute('src');
+                return;
+              }
+              preview.src = src + (src.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+              wrap.hidden = false;
+            }
+            urlInput.addEventListener('change', function () { setPreview(urlInput.value.trim()); });
+            pick.addEventListener('click', function () { input.click(); });
+            input.addEventListener('change', function () {
+              var file = input.files && input.files[0];
+              if (!file) return;
+              if (status) status.textContent = '上传中…';
+              var body = new FormData();
+              body.append('file', file);
+              fetch(uploadUrl, { method: 'POST', body: body, credentials: 'same-origin' })
+                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                .then(function (pack) {
+                  if (!pack.ok || !pack.data || !pack.data.url) throw new Error('fail');
+                  urlInput.value = pack.data.url;
+                  setPreview(pack.data.url);
+                  if (status) status.textContent = '已上传';
+                })
+                .catch(function () {
+                  if (status) status.textContent = '上传失败，请换一张图或检查登录状态';
+                })
+                .finally(function () { input.value = ''; });
+            });
+          })();
+          </script>
+          <section class="dtoj-hero-edit__section">
+            <header class="dtoj-hero-edit__head">
+              <h2>文案</h2>
+              <p>可增删多行文案，按顺序显示在头图区。样式决定排版风格；文字留空则首页不显示该行。文字颜色留空则使用主题默认色。</p>
+            </header>
+          <input type="hidden" name="lineCount" id="dtoj-hero-line-count" value="{{ hero.lines|length }}">
+          <div class="dtoj-hero-edit__list" id="dtoj-hero-lines">
+            {% for line in hero.lines %}
+            <div class="dtoj-block dtoj-hero-line dtoj-hero-edit__item">
+              <div class="dtoj-count-row-head">
+                <h3>文案 {{ loop.index }}</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <div class="dtoj-fields">
+                <label>样式
+                  <select class="select dtoj-f-variant">
+                    {% for opt in heroLineVariants %}
+                    <option value="{{ opt.id }}" {% if line.variant == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>文字<input class="textbox dtoj-f-text" value="{{ line.text }}" maxlength="80"></label>
+                <label>字号<input class="textbox dtoj-f-size" value="{{ line.size }}" inputmode="numeric"></label>
+                <label>字体
+                  <select class="select dtoj-f-font">
+                    {% for opt in heroFonts %}
+                    <option value="{{ opt.id }}" {% if line.font == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>文字颜色
+                  <input class="dtoj-color dtoj-f-color" type="color" value="{{ line.color if line.color else '#2563eb' }}" data-empty="{{ '1' if not line.color else '0' }}">
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools dtoj-hero-edit__tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-hero-line-add">添加文案行</button>
+          </div>
+          </section>
+          <section class="dtoj-hero-edit__section">
+            <header class="dtoj-hero-edit__head">
+              <h2>按钮</h2>
+              <p>最多 8 个。名称与链接必填；勾选主按钮后可选渐变底色，次按钮为白底描边。</p>
+            </header>
+          <input type="hidden" name="buttonCount" id="dtoj-hero-button-count" value="{{ hero.buttons|length }}">
+          <div class="dtoj-hero-edit__list" id="dtoj-hero-buttons">
+            {% for item in hero.buttons %}
+            <div class="dtoj-block dtoj-hero-button dtoj-hero-edit__item">
+              <div class="dtoj-count-row-head">
+                <h3>按钮 {{ loop.index }}</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <div class="dtoj-fields">
+                <label>名称<input class="textbox dtoj-f-label" value="{{ item.label }}" maxlength="20"></label>
+                <label class="dtoj-field-span-2">链接<input class="textbox dtoj-f-href" value="{{ item.href }}"></label>
+                <label class="dtoj-color-toggle dtoj-hero-edit__primary"><input type="checkbox" class="dtoj-f-primary" value="1" {% if item.primary %}checked{% endif %}> 主按钮</label>
+                <label>字体
+                  <select class="select dtoj-f-font">
+                    {% for opt in heroFonts %}
+                    <option value="{{ opt.id }}" {% if item.font == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>渐变底色
+                  <select class="select dtoj-f-gradient" {% if not item.primary %}disabled{% endif %}>
+                    {% for opt in heroGradients %}
+                    <option value="{{ opt.id }}" {% if (item.gradient if item.gradient else 'brand') == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>文字颜色
+                  <input class="dtoj-color dtoj-f-color" type="color" value="{{ item.color if item.color else ('#ffffff' if item.primary else '#1e40af') }}">
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools dtoj-hero-edit__tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-hero-button-add">添加按钮</button>
+          </div>
+          </section>
+          <section class="dtoj-hero-edit__section">
+            <header class="dtoj-hero-edit__head">
+              <h2>文字链接</h2>
+              <p>显示在按钮下方，最多 12 条。</p>
+            </header>
+          <input type="hidden" name="linkCount" id="dtoj-hero-link-count" value="{{ hero.links|length }}">
+          <div class="dtoj-hero-edit__list" id="dtoj-hero-links">
+            {% for item in hero.links %}
+            <div class="dtoj-block dtoj-hero-link dtoj-hero-edit__item">
+              <div class="dtoj-count-row-head">
+                <h3>链接 {{ loop.index }}</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <div class="dtoj-fields">
+                <label>名称<input class="textbox dtoj-f-label" value="{{ item.label }}" maxlength="20"></label>
+                <label class="dtoj-field-span-2">链接<input class="textbox dtoj-f-href" value="{{ item.href }}"></label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools dtoj-hero-edit__tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-hero-link-add">添加链接</button>
+          </div>
+          </section>
+          </div>
+          <script type="application/json" id="dtoj-hero-font-options">{{ heroFontsJson | safe }}</script>
+          <script type="application/json" id="dtoj-hero-gradient-options">{{ heroGradientsJson | safe }}</script>
+          <script type="application/json" id="dtoj-hero-line-variant-options">{{ heroLineVariantsJson | safe }}</script>
+          <script>
+          (function () {
+            var heroFonts = [];
+            var heroGradients = [];
+            var heroLineVariants = [];
+            try {
+              heroFonts = JSON.parse(document.getElementById('dtoj-hero-font-options').textContent || '[]');
+            } catch (e) { heroFonts = []; }
+            try {
+              heroGradients = JSON.parse(document.getElementById('dtoj-hero-gradient-options').textContent || '[]');
+            } catch (e) { heroGradients = []; }
+            try {
+              heroLineVariants = JSON.parse(document.getElementById('dtoj-hero-line-variant-options').textContent || '[]');
+            } catch (e) { heroLineVariants = []; }
+            function variantSelectHtml(selected) {
+              var html = '<label>样式<select class="select dtoj-f-variant">';
+              for (var i = 0; i < heroLineVariants.length; i++) {
+                var opt = heroLineVariants[i];
+                html += '<option value="' + opt.id + '"' + (opt.id === selected ? ' selected' : '') + '>' + opt.label + '</option>';
+              }
+              return html + '</select></label>';
+            }
+            function fontSelectHtml(selected) {
+              var html = '<label>字体<select class="select dtoj-f-font">';
+              for (var i = 0; i < heroFonts.length; i++) {
+                var opt = heroFonts[i];
+                html += '<option value="' + opt.id + '"' + (opt.id === selected ? ' selected' : '') + '>' + opt.label + '</option>';
+              }
+              return html + '</select></label>';
+            }
+            function gradientSelectHtml(selected) {
+              var html = '<label>渐变底色<select class="select dtoj-f-gradient">';
+              for (var i = 0; i < heroGradients.length; i++) {
+                var opt = heroGradients[i];
+                html += '<option value="' + opt.id + '"' + (opt.id === selected ? ' selected' : '') + '>' + opt.label + '</option>';
+              }
+              return html + '</select></label>';
+            }
+            function syncHeroButtonStyle(row) {
+              var primary = row.querySelector('.dtoj-f-primary');
+              var grad = row.querySelector('.dtoj-f-gradient');
+              var color = row.querySelector('.dtoj-f-color');
+              var on = primary && primary.checked;
+              if (grad) grad.disabled = !on;
+              if (color && !color.dataset.userPicked) {
+                color.value = on ? '#ffffff' : '#1e40af';
+              }
+            }
+            function bindList(listId, countId, addId, rowClass, maxRows, withPrimary) {
+              var list = document.getElementById(listId);
+              var countInput = document.getElementById(countId);
+              var addBtn = document.getElementById(addId);
+              var form = list && list.closest('form');
+              if (!list || !form) return;
+              function rowHtml() {
+                var primary = withPrimary
+                  ? '<label class="dtoj-color-toggle dtoj-hero-edit__primary"><input type="checkbox" class="dtoj-f-primary" value="1"> 主按钮</label>'
+                    + fontSelectHtml('sans')
+                    + gradientSelectHtml('brand')
+                    + '<label>文字颜色<input class="dtoj-color dtoj-f-color" type="color" value="#1e40af"></label>'
+                  : '';
+                var linkClass = withPrimary ? 'dtoj-field-span-2' : 'dtoj-field-span-2';
+                return '<div class="dtoj-block ' + rowClass + ' dtoj-hero-edit__item">'
+                  + '<div class="dtoj-count-row-head"><h3>新的</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
+                  + '<div class="dtoj-fields">'
+                  + '<label>名称<input class="textbox dtoj-f-label" value="" maxlength="20"></label>'
+                  + '<label class="' + linkClass + '">链接<input class="textbox dtoj-f-href" value="" placeholder="/contest"></label>'
+                  + primary
+                  + '</div></div>';
+              }
+              function bindRow(row) {
+                var del = row.querySelector('.dtoj-count-row-del');
+                if (del) del.addEventListener('click', function () {
+                  row.remove();
+                  renumber();
+                });
+                if (withPrimary) {
+                  var primary = row.querySelector('.dtoj-f-primary');
+                  var color = row.querySelector('.dtoj-f-color');
+                  if (primary) primary.addEventListener('change', function () { syncHeroButtonStyle(row); });
+                  if (color) color.addEventListener('input', function () { color.dataset.userPicked = '1'; });
+                  syncHeroButtonStyle(row);
+                }
+              }
+              function renumber() {
+                var rows = list.querySelectorAll('.' + rowClass);
+                var prefix = withPrimary ? 'button' : 'link';
+                var titleWord = withPrimary ? '按钮 ' : '链接 ';
+                for (var i = 0; i < rows.length; i++) {
+                  var row = rows[i];
+                  var title = row.querySelector('.dtoj-count-row-head h3');
+                  if (title) title.textContent = titleWord + (i + 1);
+                  var label = row.querySelector('.dtoj-f-label');
+                  var href = row.querySelector('.dtoj-f-href');
+                  var primary = row.querySelector('.dtoj-f-primary');
+                  var font = row.querySelector('.dtoj-f-font');
+                  var gradient = row.querySelector('.dtoj-f-gradient');
+                  var color = row.querySelector('.dtoj-f-color');
+                  if (label) label.setAttribute('name', prefix + i + '_label');
+                  if (href) href.setAttribute('name', prefix + i + '_href');
+                  if (primary) primary.setAttribute('name', prefix + i + '_primary');
+                  if (font) font.setAttribute('name', prefix + i + '_font');
+                  if (gradient) gradient.setAttribute('name', prefix + i + '_gradient');
+                  if (color) color.setAttribute('name', prefix + i + '_color');
+                }
+                if (countInput) countInput.value = String(rows.length);
+                if (addBtn) addBtn.disabled = rows.length >= maxRows;
+              }
+              list.querySelectorAll('.' + rowClass).forEach(bindRow);
+              renumber();
+              if (addBtn) addBtn.addEventListener('click', function () {
+                if (list.querySelectorAll('.' + rowClass).length >= maxRows) return;
+                var wrap = document.createElement('div');
+                wrap.innerHTML = rowHtml();
+                var row = wrap.firstElementChild;
+                list.appendChild(row);
+                bindRow(row);
+                renumber();
+              });
+              form.addEventListener('submit', function () {
+                if (withPrimary) {
+                  list.querySelectorAll('.dtoj-f-gradient').forEach(function (el) { el.disabled = false; });
+                }
+                renumber();
+              });
+            }
+            bindList('dtoj-hero-buttons', 'dtoj-hero-button-count', 'dtoj-hero-button-add', 'dtoj-hero-button', 8, true);
+            bindList('dtoj-hero-links', 'dtoj-hero-link-count', 'dtoj-hero-link-add', 'dtoj-hero-link', 12, false);
+            (function bindHeroLines() {
+              var list = document.getElementById('dtoj-hero-lines');
+              var countInput = document.getElementById('dtoj-hero-line-count');
+              var addBtn = document.getElementById('dtoj-hero-line-add');
+              var form = list && list.closest('form');
+              if (!list || !form) return;
+              function rowHtml() {
+                return '<div class="dtoj-block dtoj-hero-line dtoj-hero-edit__item">'
+                  + '<div class="dtoj-count-row-head"><h3>新的</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
+                  + '<div class="dtoj-fields">'
+                  + variantSelectHtml('tagline')
+                  + '<label>文字<input class="textbox dtoj-f-text" value="" maxlength="80"></label>'
+                  + '<label>字号<input class="textbox dtoj-f-size" value="22" inputmode="numeric"></label>'
+                  + fontSelectHtml('sans')
+                  + '<label>文字颜色<input class="dtoj-color dtoj-f-color" type="color" value="#2563eb" data-empty="1"></label>'
+                  + '</div></div>';
+              }
+              function bindRow(row) {
+                var del = row.querySelector('.dtoj-count-row-del');
+                if (del) del.addEventListener('click', function () {
+                  row.remove();
+                  renumber();
+                });
+                var color = row.querySelector('.dtoj-f-color');
+                if (color) color.addEventListener('input', function () { color.dataset.empty = '0'; });
+              }
+              function renumber() {
+                var rows = list.querySelectorAll('.dtoj-hero-line');
+                for (var i = 0; i < rows.length; i++) {
+                  var row = rows[i];
+                  var title = row.querySelector('.dtoj-count-row-head h3');
+                  if (title) title.textContent = '文案 ' + (i + 1);
+                  var variant = row.querySelector('.dtoj-f-variant');
+                  var text = row.querySelector('.dtoj-f-text');
+                  var size = row.querySelector('.dtoj-f-size');
+                  var font = row.querySelector('.dtoj-f-font');
+                  var color = row.querySelector('.dtoj-f-color');
+                  if (variant) variant.setAttribute('name', 'line' + i + '_variant');
+                  if (text) text.setAttribute('name', 'line' + i + '_text');
+                  if (size) size.setAttribute('name', 'line' + i + '_size');
+                  if (font) font.setAttribute('name', 'line' + i + '_font');
+                  if (color) {
+                    color.setAttribute('name', 'line' + i + '_color');
+                    if (color.dataset.empty === '1') color.removeAttribute('name');
+                  }
+                }
+                if (countInput) countInput.value = String(rows.length);
+                if (addBtn) addBtn.disabled = rows.length >= 12;
+              }
+              list.querySelectorAll('.dtoj-hero-line').forEach(bindRow);
+              renumber();
+              if (addBtn) addBtn.addEventListener('click', function () {
+                if (list.querySelectorAll('.dtoj-hero-line').length >= 12) return;
+                var wrap = document.createElement('div');
+                wrap.innerHTML = rowHtml();
+                var row = wrap.firstElementChild;
+                list.appendChild(row);
+                bindRow(row);
+                renumber();
+              });
+              form.addEventListener('submit', renumber);
+            })();
+          })();
+          </script>
+          {% elif section == 'countdown' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          <p class="dtoj-hint">每行固定：左标签、左标题、左日期；右标签、右标题、右日期（右标签留空则首页不显示右侧）。状态与剩余天数按日期自动计算，过期显示「已结束」。</p>
+          <div class="dtoj-fields">
+            <label>卡片副标题
+              <input class="textbox" name="countdownSubtitle" value="{{ countdownSubtitle }}" maxlength="120">
+            </label>
+          </div>
+          <input type="hidden" name="rowCount" id="dtoj-row-count" value="{{ countdownRows|length }}">
+          <div class="dtoj-count-rows" id="dtoj-count-rows">
+            {% for row in countdownRows %}
+            <div class="dtoj-block dtoj-count-row">
+              <div class="dtoj-count-row-head">
+                <h3>第 {{ loop.index }} 行</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <div class="dtoj-fields">
+                <label>左 · 标签<input class="textbox dtoj-f-left_tag" value="{{ row.left.tag }}"></label>
+                <label>左 · 标题<input class="textbox dtoj-f-left_title" value="{{ row.left.title }}"></label>
+                <label>左 · 日期<input class="textbox dtoj-f-left_date" type="date" value="{{ row.left.date }}"></label>
+                <label>右 · 标签<input class="textbox dtoj-f-right_tag" value="{{ row.right.tag }}" placeholder="留空则不显示右侧"></label>
+                <label>右 · 标题<input class="textbox dtoj-f-right_title" value="{{ row.right.title }}"></label>
+                <label>右 · 日期<input class="textbox dtoj-f-right_date" type="date" value="{{ row.right.date }}"></label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-count-row-add">添加一行</button>
+          </div>
+          <script>
+          (function () {
+            var list = document.getElementById('dtoj-count-rows');
+            var countInput = document.getElementById('dtoj-row-count');
+            var addBtn = document.getElementById('dtoj-count-row-add');
+            var form = list && list.closest('form');
+            if (!list || !form) return;
+
+            function rowHtml() {
+              return '<div class="dtoj-block dtoj-count-row">'
+                + '<div class="dtoj-count-row-head"><h3>新行</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
+                + '<div class="dtoj-fields">'
+                + '<label>左 · 标签<input class="textbox dtoj-f-left_tag" value=""></label>'
+                + '<label>左 · 标题<input class="textbox dtoj-f-left_title" value=""></label>'
+                + '<label>左 · 日期<input class="textbox dtoj-f-left_date" type="date" value=""></label>'
+                + '<label>右 · 标签<input class="textbox dtoj-f-right_tag" value="" placeholder="留空则不显示右侧"></label>'
+                + '<label>右 · 标题<input class="textbox dtoj-f-right_title" value=""></label>'
+                + '<label>右 · 日期<input class="textbox dtoj-f-right_date" type="date" value=""></label>'
+                + '</div></div>';
+            }
+
+            function bindRow(row) {
+              var del = row.querySelector('.dtoj-count-row-del');
+              if (del) del.addEventListener('click', function () {
+                row.remove();
+                renumber();
+              });
+            }
+
+            function renumber() {
+              var rows = list.querySelectorAll('.dtoj-count-row');
+              for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var title = row.querySelector('.dtoj-count-row-head h3');
+                if (title) title.textContent = '第 ' + (i + 1) + ' 行';
+                ['left_tag', 'left_title', 'left_date', 'right_tag', 'right_title', 'right_date'].forEach(function (key) {
+                  var el = row.querySelector('.dtoj-f-' + key);
+                  if (el) el.setAttribute('name', key + '_' + i);
+                });
+              }
+              if (countInput) countInput.value = String(rows.length);
+            }
+
+            list.querySelectorAll('.dtoj-count-row').forEach(bindRow);
+            renumber();
+
+            if (addBtn) addBtn.addEventListener('click', function () {
+              var wrap = document.createElement('div');
+              wrap.innerHTML = rowHtml();
+              var row = wrap.firstElementChild;
+              list.appendChild(row);
+              bindRow(row);
+              renumber();
+            });
+
+            form.addEventListener('submit', function () { renumber(); });
+          })();
+          </script>
+          {% elif section == 'checkin' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          <p class="dtoj-hint">打卡前：欢迎语 + 当天日期（自动） + 「赛事倒计时」里未过期赛事的剩余天数。打卡后：从内置 {{ checkinFortuneCount }} 条运势中按账号与日期抽取一条展示。修改运势库需改代码文件 fortunes.ts。</p>
+          <div class="dtoj-fields">
+            <label>欢迎语（用户名前）<input class="textbox" name="welcomeText" value="{{ welcomeText }}" maxlength="40"></label>
+            <label>运势标题后缀（用户名后）<input class="textbox" name="fortuneTitleSuffix" value="{{ fortuneTitleSuffix }}" maxlength="20"></label>
+            <label>打卡后底部文案（可用 {{ '{{streak}}' }}）<input class="textbox" name="footerTemplate" value="{{ footerTemplate }}" maxlength="200"></label>
+            <label>吉色（大吉、中吉、小吉、吉、末吉）
+              <input class="dtoj-color" type="color" name="goodColor" value="{{ goodColor }}">
+            </label>
+            <label>凶色（凶、小凶、中凶、大凶）
+              <input class="dtoj-color" type="color" name="badColor" value="{{ badColor }}">
+            </label>
+          </div>
+          <p class="dtoj-hint">打卡后的「§ 小吉 §」按名字区分：带「凶」用凶色，其余用吉色。</p>
+          <p class="dtoj-hint">赛事文案请到 <a href="{{ url('dtoj_home_edit', section='countdown') }}">赛事倒计时</a> 配置；是否在首页显示打卡模块请到 <a href="{{ url('dtoj_home_edit', section='layout') }}">首页卡片</a> 调整。</p>
+          {% elif section == 'asset' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          <div class="dtoj-fields">
+            <label>展示余额<input class="textbox" name="coin" value="{{ coin }}" inputmode="numeric"></label>
+            <label>说明文字<input class="textbox" name="note" value="{{ note }}"></label>
+          </div>
+          {% elif section == 'activities' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          <p class="dtoj-hint">标题与链接都留空的行不会保存。可添加或删除，最多 12 条。</p>
+          <input type="hidden" name="rowCount" id="dtoj-act-count" value="{{ acts|length }}">
+          <div class="dtoj-count-rows" id="dtoj-act-rows">
+            {% for item in acts %}
+            <div class="dtoj-block dtoj-count-row dtoj-act-row">
+              <div class="dtoj-count-row-head">
+                <h3>活动 {{ loop.index }}</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <input type="hidden" class="dtoj-f-act_id" value="{{ item.id }}">
+              <div class="dtoj-fields">
+                <label>标题<input class="textbox dtoj-f-act_title" value="{{ item.title }}"></label>
+                <label>一句话说明<input class="textbox dtoj-f-act_about" value="{{ item.about }}"></label>
+                <label>链接路径<input class="textbox dtoj-f-act_href" value="{{ item.href }}" placeholder="/bugfind"></label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-act-row-add">添加一项活动</button>
+          </div>
+          <script>
+          (function () {
+            var list = document.getElementById('dtoj-act-rows');
+            var countInput = document.getElementById('dtoj-act-count');
+            var addBtn = document.getElementById('dtoj-act-row-add');
+            var form = list && list.closest('form');
+            var maxRows = 12;
+            if (!list || !form) return;
+
+            function rowHtml() {
+              return '<div class="dtoj-block dtoj-count-row dtoj-act-row">'
+                + '<div class="dtoj-count-row-head"><h3>新活动</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
+                + '<input type="hidden" class="dtoj-f-act_id" value="">'
+                + '<div class="dtoj-fields">'
+                + '<label>标题<input class="textbox dtoj-f-act_title" value=""></label>'
+                + '<label>一句话说明<input class="textbox dtoj-f-act_about" value=""></label>'
+                + '<label>链接路径<input class="textbox dtoj-f-act_href" value="" placeholder="/bugfind"></label>'
+                + '</div></div>';
+            }
+
+            function bindRow(row) {
+              var del = row.querySelector('.dtoj-count-row-del');
+              if (del) del.addEventListener('click', function () {
+                row.remove();
+                renumber();
+              });
+            }
+
+            function renumber() {
+              var rows = list.querySelectorAll('.dtoj-act-row');
+              for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var title = row.querySelector('.dtoj-count-row-head h3');
+                if (title) title.textContent = '活动 ' + (i + 1);
+                var id = row.querySelector('.dtoj-f-act_id');
+                var t = row.querySelector('.dtoj-f-act_title');
+                var a = row.querySelector('.dtoj-f-act_about');
+                var h = row.querySelector('.dtoj-f-act_href');
+                if (id) id.setAttribute('name', 'act' + i + '_id');
+                if (t) t.setAttribute('name', 'act' + i + '_title');
+                if (a) a.setAttribute('name', 'act' + i + '_about');
+                if (h) h.setAttribute('name', 'act' + i + '_href');
+              }
+              if (countInput) countInput.value = String(rows.length);
+              if (addBtn) addBtn.disabled = rows.length >= maxRows;
+            }
+
+            list.querySelectorAll('.dtoj-act-row').forEach(bindRow);
+            renumber();
+
+            if (addBtn) addBtn.addEventListener('click', function () {
+              if (list.querySelectorAll('.dtoj-act-row').length >= maxRows) return;
+              var wrap = document.createElement('div');
+              wrap.innerHTML = rowHtml();
+              var row = wrap.firstElementChild;
+              list.appendChild(row);
+              bindRow(row);
+              renumber();
+            });
+
+            form.addEventListener('submit', function () { renumber(); });
+          })();
+          </script>
+          {% elif section == 'news' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          <p class="dtoj-hint">留空标题的行不会出现在首页。可添加或删除条目，最多 20 条。</p>
+          <input type="hidden" name="rowCount" id="dtoj-news-count" value="{{ news|length }}">
+          <div class="dtoj-count-rows" id="dtoj-news-rows">
+            {% for item in news %}
+            <div class="dtoj-block dtoj-count-row dtoj-news-row">
+              <div class="dtoj-count-row-head">
+                <h3>公告 {{ loop.index }}</h3>
+                <button type="button" class="dtoj-count-row-del">删除</button>
+              </div>
+              <div class="dtoj-fields">
+                <label>标题<input class="textbox dtoj-f-news_title" value="{{ item.title }}"></label>
+                <label>正文<textarea class="textbox dtoj-f-news_body" rows="3">{{ item.body }}</textarea></label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="dtoj-count-row-tools">
+            <button type="button" class="dtoj-count-row-add" id="dtoj-news-row-add">添加一条公告</button>
+          </div>
+          <script>
+          (function () {
+            var list = document.getElementById('dtoj-news-rows');
+            var countInput = document.getElementById('dtoj-news-count');
+            var addBtn = document.getElementById('dtoj-news-row-add');
+            var form = list && list.closest('form');
+            var maxRows = 20;
+            if (!list || !form) return;
+
+            function rowHtml() {
+              return '<div class="dtoj-block dtoj-count-row dtoj-news-row">'
+                + '<div class="dtoj-count-row-head"><h3>新公告</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
+                + '<div class="dtoj-fields">'
+                + '<label>标题<input class="textbox dtoj-f-news_title" value=""></label>'
+                + '<label>正文<textarea class="textbox dtoj-f-news_body" rows="3"></textarea></label>'
+                + '</div></div>';
+            }
+
+            function bindRow(row) {
+              var del = row.querySelector('.dtoj-count-row-del');
+              if (del) del.addEventListener('click', function () {
+                row.remove();
+                renumber();
+              });
+            }
+
+            function renumber() {
+              var rows = list.querySelectorAll('.dtoj-news-row');
+              for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var title = row.querySelector('.dtoj-count-row-head h3');
+                if (title) title.textContent = '公告 ' + (i + 1);
+                var t = row.querySelector('.dtoj-f-news_title');
+                var b = row.querySelector('.dtoj-f-news_body');
+                if (t) t.setAttribute('name', 'news' + i + '_title');
+                if (b) b.setAttribute('name', 'news' + i + '_body');
+              }
+              if (countInput) countInput.value = String(rows.length);
+              if (addBtn) addBtn.disabled = rows.length >= maxRows;
+            }
+
+            list.querySelectorAll('.dtoj-news-row').forEach(bindRow);
+            renumber();
+
+            if (addBtn) addBtn.addEventListener('click', function () {
+              if (list.querySelectorAll('.dtoj-news-row').length >= maxRows) return;
+              var wrap = document.createElement('div');
+              wrap.innerHTML = rowHtml();
+              var row = wrap.firstElementChild;
+              list.appendChild(row);
+              bindRow(row);
+              renumber();
+            });
+
+            form.addEventListener('submit', function () { renumber(); });
+          })();
+          </script>
+          {% elif section == 'paths' %}
+          {% include "dtoj_home_edit_card_size.html" %}
+          {% for item in pathRows %}
+          <div class="dtoj-block">
+            <h3>步骤 {{ loop.index }}</h3>
+            <div class="dtoj-fields">
+              <label>标题<input class="textbox" name="path{{ loop.index0 }}_title" value="{{ item.title }}"></label>
+              <label>链接<input class="textbox" name="path{{ loop.index0 }}_href" value="{{ item.href }}"></label>
+              <label>说明<input class="textbox" name="path{{ loop.index0 }}_text" value="{{ item.text }}"></label>
+            </div>
+          </div>
+          {% endfor %}
+          {% elif section == 'layout' %}
+          <p class="dtoj-hint">从上往下是首页显示顺序。每种卡片最多一条。点右侧「删除」只是从首页拿掉，内容还在；下方会出现「加回」按钮，点一下加到列表末尾。改完要点保存。</p>
+          {% if docsCardSize is defined and cardSizeOptions %}
+          <div class="dtoj-fields dtoj-card-size-row">
+            <label>资料入口 · 首页宽度
+              <select class="select" name="cardSize_docs">
+                {% for opt in cardSizeOptions %}
+                <option value="{{ opt.id }}" {% if docsCardSize == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <p class="dtoj-hint dtoj-card-size-hint">资料入口没有单独配置页，宽度和颜色在此设置。当前默认宽度是整行。</p>
+          </div>
+          {% include "dtoj_home_edit_card_color.html" %}
+          {% endif %}
+          <input type="hidden" name="rowCount" id="dtoj-layout-count" value="{{ layoutCards|length }}">
+          <ul class="dtoj-layout-list" id="dtoj-layout-list">
+            {% for item in layoutCards %}
+            <li class="dtoj-layout-item" data-id="{{ item.id }}">
+              <strong>{{ item.title }}</strong>
+              <code>{{ item.id }}</code>
+              <input type="hidden" class="dtoj-layout-id" value="{{ item.id }}">
+              <button type="button" class="dtoj-layout-move" data-dir="up">上移</button>
+              <button type="button" class="dtoj-layout-move" data-dir="down">下移</button>
+              <button type="button" class="dtoj-layout-del">删除</button>
+            </li>
+            {% endfor %}
+          </ul>
+          <div class="dtoj-layout-add" id="dtoj-layout-add">
+            {% for opt in layoutCatalog %}
+            <button type="button" class="dtoj-count-row-add" data-add="{{ opt.id }}" data-title="{{ opt.title }}" {% if opt.used %}hidden{% endif %}>加回{{ opt.title }}</button>
+            {% endfor %}
+            <p class="dtoj-hint" id="dtoj-layout-add-empty">上面已包含全部卡片。删掉某一条后，这里会出现对应的「加回」按钮。</p>
+          </div>
+          <script>
+          (function () {
+            var list = document.getElementById('dtoj-layout-list');
+            var countInput = document.getElementById('dtoj-layout-count');
+            var addBox = document.getElementById('dtoj-layout-add');
+            var emptyNote = document.getElementById('dtoj-layout-add-empty');
+            var form = list && list.closest('form');
+            if (!list || !form || !addBox) return;
+
+            function usedIds() {
+              var ids = {};
+              list.querySelectorAll('.dtoj-layout-item').forEach(function (li) {
+                ids[li.getAttribute('data-id')] = true;
+              });
+              return ids;
+            }
+
+            function syncAddButtons() {
+              var used = usedIds();
+              var hiddenCount = 0;
+              var buttons = addBox.querySelectorAll('[data-add]');
+              buttons.forEach(function (btn) {
+                var on = !!used[btn.getAttribute('data-add')];
+                btn.hidden = on;
+                if (on) hiddenCount += 1;
+              });
+              if (emptyNote) emptyNote.hidden = hiddenCount !== buttons.length;
+            }
+
+            function renumber() {
+              var items = list.querySelectorAll('.dtoj-layout-item');
+              for (var i = 0; i < items.length; i++) {
+                var input = items[i].querySelector('.dtoj-layout-id');
+                if (input) input.setAttribute('name', 'layout_id_' + i);
+              }
+              if (countInput) countInput.value = String(items.length);
+              syncAddButtons();
+            }
+
+            function bindItem(li) {
+              li.querySelectorAll('.dtoj-layout-del').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                  li.remove();
+                  renumber();
+                });
+              });
+              li.querySelectorAll('.dtoj-layout-move').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                  var dir = btn.getAttribute('data-dir');
+                  if (dir === 'up' && li.previousElementSibling) {
+                    list.insertBefore(li, li.previousElementSibling);
+                  } else if (dir === 'down' && li.nextElementSibling) {
+                    list.insertBefore(li.nextElementSibling, li);
+                  }
+                  renumber();
+                });
+              });
+            }
+
+            function addCard(id, title) {
+              if (!id || usedIds()[id]) return;
+              var li = document.createElement('li');
+              li.className = 'dtoj-layout-item';
+              li.setAttribute('data-id', id);
+              li.innerHTML = '<strong></strong><code></code>'
+                + '<input type="hidden" class="dtoj-layout-id">'
+                + '<button type="button" class="dtoj-layout-move" data-dir="up">上移</button>'
+                + '<button type="button" class="dtoj-layout-move" data-dir="down">下移</button>'
+                + '<button type="button" class="dtoj-layout-del">删除</button>';
+              li.querySelector('strong').textContent = title || id;
+              li.querySelector('code').textContent = id;
+              li.querySelector('.dtoj-layout-id').value = id;
+              list.appendChild(li);
+              bindItem(li);
+              renumber();
+            }
+
+            list.querySelectorAll('.dtoj-layout-item').forEach(bindItem);
+            addBox.querySelectorAll('[data-add]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                addCard(btn.getAttribute('data-add'), btn.getAttribute('data-title'));
+              });
+            });
+            renumber();
+            form.addEventListener('submit', function () { renumber(); });
+          })();
+          </script>
+          {% endif %}
+          {% if error %}<p class="dtoj-error">{{ error }}</p>{% endif %}
+          <div class="dtoj-actions">
+            <button type="submit" class="dtoj-go" style="width:auto;padding:0 22px;height:44px;">保存</button>
+            <a class="dtoj-alt" href="{{ url('homepage') }}" style="width:auto;padding:0 18px;height:44px;">返回首页</a>
+          </div>
+        </form>
+      </article>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% if cardSize is defined and cardSizeOptions %}
+<div class="dtoj-fields dtoj-card-size-row">
+  <label>首页宽度
+    <select class="select" name="cardSize">
+      {% for opt in cardSizeOptions %}
+      <option value="{{ opt.id }}" {% if cardSize == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <p class="dtoj-hint dtoj-card-size-hint">窄、宽按一行六等份计算：窄占 2 份，宽占 4 份，整行占满。上半区里「宽 + 窄」会并排成一行。</p>
+</div>
+{% endif %}
+{% include "dtoj_home_edit_card_color.html" %}

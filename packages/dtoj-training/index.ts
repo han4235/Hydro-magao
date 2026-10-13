@@ -146,8 +146,23 @@ async function saveVocab(domainId: string, nextDirections: string[], nextKinds: 
 async function clearMark(domainId: string, field: 'direction' | 'kind', name: string) {
     const docs = await TrainingModel.getMulti(domainId, {}).toArray();
     for (const tdoc of docs) {
-        if (tdoc.dtoj?.[field] !== name) continue;
+        if (markOf(tdoc)[field] !== name) continue;
         const dtoj = { ...(tdoc.dtoj || {}), [field]: '' };
+        // eslint-disable-next-line no-await-in-loop
+        await TrainingModel.edit(domainId, tdoc.docId, { dtoj } as any);
+    }
+}
+
+async function renameMark(domainId: string, field: 'direction' | 'kind', from: string, to: string) {
+    const docs = await TrainingModel.getMulti(domainId, {}).toArray();
+    for (const tdoc of docs) {
+        const mark = markOf(tdoc);
+        if (mark[field] !== from) continue;
+        const dtoj = {
+            ...(tdoc.dtoj || {}),
+            direction: field === 'direction' ? to : (tdoc.dtoj?.direction ?? mark.direction),
+            kind: field === 'kind' ? to : (tdoc.dtoj?.kind ?? mark.kind),
+        };
         // eslint-disable-next-line no-await-in-loop
         await TrainingModel.edit(domainId, tdoc.docId, { dtoj } as any);
     }
@@ -675,8 +690,9 @@ class DtojTrainingEditHandler extends DtojDataHandler {
         domainId: string,
         draft: ReturnType<DtojTrainingEditHandler['draft']>,
         which: 'direction' | 'kind',
-        mode: 'add' | 'drop',
+        mode: 'add' | 'drop' | 'rename',
         raw: string,
+        nextRaw = '',
     ) {
         const vocab = await loadVocab(domainId);
         const key = which === 'direction' ? 'directions' : 'kinds';
@@ -705,6 +721,24 @@ class DtojTrainingEditHandler extends DtojDataHandler {
             await saveVocab(domainId, vocab.directions, vocab.kinds);
             await clearMark(domainId, which, name);
             if (draft[which] === name) draft[which] = '';
+        } else if (name && vocab[key].includes(name)) {
+            const next = cleanName(nextRaw);
+            if (!next) {
+                await this.form({ ...draft, vocab, error: `先写新的${label}。` });
+                return;
+            }
+            if (next.length > 16) {
+                await this.form({ ...draft, vocab, error: '标签不能超过 16 个字。' });
+                return;
+            }
+            if (next !== name) {
+                const at = vocab[key].indexOf(name);
+                if (vocab[key].includes(next)) vocab[key].splice(at, 1);
+                else vocab[key][at] = next;
+                await saveVocab(domainId, vocab.directions, vocab.kinds);
+                await renameMark(domainId, which, name, next);
+                if (draft[which] === name) draft[which] = next;
+            }
         }
         await this.form({ ...draft, vocab });
     }
@@ -763,6 +797,36 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     ) {
         const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
         await this.changeTag(domainId, draft, 'kind', 'drop', tagName);
+    }
+
+    @param('title', Types.String, true)
+    @param('content', Types.String, true)
+    @param('direction', Types.String, true)
+    @param('kind', Types.String, true)
+    @param('pin', Types.String, true)
+    @param('pq', Types.String, true)
+    @param('tagName', Types.String, true)
+    @param('tagNext', Types.String, true)
+    async postRenameDirection(
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '', tagNext = '',
+    ) {
+        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        await this.changeTag(domainId, draft, 'direction', 'rename', tagName, tagNext);
+    }
+
+    @param('title', Types.String, true)
+    @param('content', Types.String, true)
+    @param('direction', Types.String, true)
+    @param('kind', Types.String, true)
+    @param('pin', Types.String, true)
+    @param('pq', Types.String, true)
+    @param('tagName', Types.String, true)
+    @param('tagNext', Types.String, true)
+    async postRenameKind(
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '', tagNext = '',
+    ) {
+        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        await this.changeTag(domainId, draft, 'kind', 'rename', tagName, tagNext);
     }
 
     async postDelete() {

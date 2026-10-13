@@ -1,24 +1,185 @@
 export const brand = '青石练习场';
 
+export const homeCardIds = [
+    'countdown', 'checkin', 'asset', 'activities', 'news', 'paths', 'docs',
+] as const;
+export type HomeCardId = typeof homeCardIds[number];
+
+export const homeBoardCardIds: HomeCardId[] = ['countdown', 'checkin', 'asset', 'activities'];
+
+export const defaultHomeLayout: HomeCardId[] = [...homeCardIds];
+
+export const homeCardTitles: Record<HomeCardId, string> = {
+    countdown: '赛事倒计时',
+    checkin: '每日打卡',
+    asset: '羊币与装扮',
+    activities: '四项活动',
+    news: '公告',
+    paths: '学习路径',
+    docs: '资料入口',
+};
+
+export const homeEditSectionIds = [
+    'hero', 'layout', 'countdown', 'checkin', 'asset', 'activities', 'news', 'paths',
+] as const;
+export type HomeEditSectionId = typeof homeEditSectionIds[number];
+
+export const homeSectionIds = homeEditSectionIds;
+export type HomeSectionId = HomeEditSectionId;
+
+export const homeSectionTitles: Record<HomeSectionId, string> = {
+    hero: '首页头图',
+    layout: '首页卡片',
+    countdown: homeCardTitles.countdown,
+    checkin: homeCardTitles.checkin,
+    asset: homeCardTitles.asset,
+    activities: homeCardTitles.activities,
+    news: homeCardTitles.news,
+    paths: homeCardTitles.paths,
+};
+
+export const homeEditMenu: { section: HomeSectionId; hint: string }[] = [
+    { section: 'hero', hint: '头图背景、文字、按钮和链接' },
+    { section: 'layout', hint: '增删、排序首页上的各模块' },
+    { section: 'countdown', hint: '赛事倒计时行与日期' },
+    { section: 'checkin', hint: '欢迎语、运势页底部文案' },
+    { section: 'asset', hint: '羊币展示与说明' },
+    { section: 'activities', hint: '四项活动入口' },
+    { section: 'news', hint: '公告列表' },
+    { section: 'paths', hint: '学习路径四步' },
+];
+
+export const countdownSubtitleDefault = 'CSP-J/S · NOIP 关键节点（示例）';
+
+export type HeroFont =
+    | 'sans' | 'yahei' | 'hei' | 'song' | 'serif' | 'fangsong' | 'kai' | 'round' | 'display' | 'mono';
+
+export const heroFontIds: HeroFont[] = [
+    'sans', 'yahei', 'hei', 'song', 'serif', 'fangsong', 'kai', 'round', 'display', 'mono',
+];
+
+export type HeroText = {
+    text: string;
+    size: number;
+    font: HeroFont;
+};
+
+export type HeroLineVariant = 'kicker' | 'title' | 'tagline' | 'range';
+
+export const heroLineVariantIds: HeroLineVariant[] = ['kicker', 'title', 'tagline', 'range'];
+
+export const heroLineVariantOptions: { id: HeroLineVariant; label: string }[] = [
+    { id: 'kicker', label: '眉题' },
+    { id: 'title', label: '主标题' },
+    { id: 'tagline', label: '副标题' },
+    { id: 'range', label: '范围说明' },
+];
+
+export type HeroLine = {
+    variant: HeroLineVariant;
+    text: string;
+    size: number;
+    font: HeroFont;
+    color: string;
+};
+
+export type HeroGradient =
+    | 'brand' | 'teal' | 'ocean' | 'sunset' | 'rose' | 'violet' | 'slate';
+
+export const heroGradientIds: HeroGradient[] = [
+    'brand', 'teal', 'ocean', 'sunset', 'rose', 'violet', 'slate',
+];
+
+export const heroGradientOptions: { id: HeroGradient; label: string }[] = [
+    { id: 'brand', label: '青蓝（默认）' },
+    { id: 'teal', label: '青绿' },
+    { id: 'ocean', label: '海蓝' },
+    { id: 'sunset', label: '夕橙' },
+    { id: 'rose', label: '玫红' },
+    { id: 'violet', label: '紫罗兰' },
+    { id: 'slate', label: '墨灰' },
+];
+
+export type HeroButton = {
+    label: string;
+    href: string;
+    primary: boolean;
+    font: HeroFont;
+    color: string;
+    gradient: HeroGradient;
+};
+export type HeroLink = { label: string; href: string };
+
+export type HeroConfig = {
+    background: string;
+    lines: HeroLine[];
+    buttons: HeroButton[];
+    links: HeroLink[];
+};
+
+export const heroFontOptions: { id: HeroFont; label: string }[] = [
+    { id: 'sans', label: '黑体（默认）' },
+    { id: 'yahei', label: '微软雅黑' },
+    { id: 'hei', label: '黑体' },
+    { id: 'song', label: '宋体' },
+    { id: 'serif', label: '思源宋体' },
+    { id: 'fangsong', label: '仿宋' },
+    { id: 'kai', label: '楷体' },
+    { id: 'round', label: '圆体' },
+    { id: 'display', label: '艺术标题' },
+    { id: 'mono', label: '等宽' },
+];
+
+export const heroDefaults: HeroConfig = {
+    background: '',
+    lines: [
+        { variant: 'kicker', text: '算法竞赛 · 本地练习', size: 12, font: 'sans', color: '' },
+        { variant: 'title', text: brand, size: 48, font: 'serif', color: '' },
+        { variant: 'tagline', text: '题库、训练、比赛放在一处', size: 22, font: 'sans', color: '' },
+        { variant: 'range', text: '题库 · 训练 · 比赛', size: 13, font: 'sans', color: '' },
+    ],
+    buttons: [
+        { label: '进入题库', href: '/dtoj/p', primary: true, font: 'sans', color: '', gradient: 'brand' },
+        { label: '参加比赛', href: '/contest', primary: false, font: 'sans', color: '', gradient: 'brand' },
+        { label: '查看排名', href: '/rank', primary: false, font: 'sans', color: '', gradient: 'brand' },
+    ],
+    links: [
+        { label: '训练计划', href: '/training' },
+        { label: 'WIKI', href: '/yzy-wiki' },
+        { label: '讨论', href: '/discuss' },
+        { label: '评测队列', href: '/record' },
+    ],
+};
+
+export const checkinDefaults = {
+    welcomeText: '欢迎回来，',
+    fortuneTitleSuffix: '的运势',
+    footerTemplate: '你已经在青石练习场连续打卡了 {{streak}} 天（示例，未入账）',
+    emptyEventsText: '暂无赛事倒计时，请在「赛事倒计时」里配置日期。',
+    demoStreak: 6,
+    goodColor: '#15803d',
+    badColor: '#b42318',
+};
+
+export const checkinFortuneCount = 365;
+
+export const assetDefaults = {
+    coin: 256,
+    note: '示例余额，没有账本。',
+};
+
 export const countdowns = [
     {
-        split: true,
-        left: { tag: 'CSP-J/S 2026', title: '第一轮', state: '已结束', when: '2026-09-18' },
-        right: { tag: 'CSP-J/S 2027', title: '第一轮 · 预估', days: 343, when: '预计 2027-09-18' },
+        left: { tag: 'CSP-J/S 2026', title: '第一轮', date: '2026-09-18' },
+        right: { tag: 'CSP-J/S 2027', title: '第一轮 · 预估', date: '2027-09-18' },
     },
     {
-        tone: 'gold',
-        tag: 'CSP-J/S 2026',
-        title: '第二轮',
-        days: 20,
-        note: '距第二轮还剩 20 天（示例）',
+        left: { tag: 'CSP-J/S 2026', title: '第二轮', date: '2026-11-08' },
+        right: { tag: '', title: '', date: '' },
     },
     {
-        tone: 'blue',
-        tag: 'NOIP 2026',
-        title: '正式比赛 · 11 月 28 日',
-        days: 49,
-        note: '距 NOIP 2026 还剩 49 天（示例）',
+        left: { tag: 'NOIP 2026', title: '正式比赛', date: '2026-11-28' },
+        right: { tag: '', title: '', date: '' },
     },
 ];
 
