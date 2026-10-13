@@ -96,16 +96,13 @@
     color: #111827;
     font-weight: 400;
   }
-  a.dtoj-bank-tag.is-on:link,
-  a.dtoj-bank-tag.is-on:visited,
-  a.dtoj-bank-tag.is-on:hover,
-  a.dtoj-bank-tag.is-on:active,
   .dtoj-bank-cloud a.dtoj-bank-tag.is-on:link,
   .dtoj-bank-cloud a.dtoj-bank-tag.is-on:visited,
   .dtoj-bank-cloud a.dtoj-bank-tag.is-on:hover,
   .dtoj-bank-cloud a.dtoj-bank-tag.is-on:active {
-    background: #2563eb;
-    color: #fff;
+    background: #e7eefb;
+    color: #1e40af;
+    font-weight: 700;
   }
   .dtoj-bank-lv {
     display: inline-flex;
@@ -302,7 +299,7 @@
                     {% if p.tags.length %}
                     <span class="dtoj-bank-tags">
                       {% for name in p.tags %}
-                      <a class="dtoj-bank-tag{% if tag == name %} is-on{% endif %}" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}{% if not showTags %}&tags=0{% endif %}">{{ name }}</a>
+                      <a class="dtoj-bank-tag" href="{{ url('dtoj_problems') }}?tag={{ name }}&diff={{ diff }}&sort={{ sort }}&q={{ q }}{% if not showTags %}&tags=0{% endif %}">{{ name }}</a>
                       {% endfor %}
                     </span>
                     {% else %}<span class="dtoj-bank-none">—</span>{% endif %}

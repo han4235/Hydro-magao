@@ -811,7 +811,7 @@
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell dtoj-problem">
-      {% if not tdoc %}<p class="dtoj-problem-back"><a href="{{ url('dtoj_problems') }}">返回题库</a></p>{% endif %}
+      {% if not tdoc %}<p class="dtoj-problem-back"><a href="{{ url('dtoj_problems') }}" data-dtoj-back-fallback="{{ url('dtoj_problems') }}">返回题库</a></p>{% endif %}
       <div class="dtoj-problem-layout">
         <div>
     <div class="section dtoj-panel dtoj-problem-main">

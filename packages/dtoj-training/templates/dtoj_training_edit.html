@@ -371,7 +371,7 @@
         </section>
         <div class="dtoj-plan-actions">
           <button class="dtoj-plan-save" type="submit" name="operation" value="save">保存</button>
-          <button class="dtoj-plan-save" type="button" data-back="{{ url('training_main') }}">返回训练</button>
+          <button class="dtoj-plan-save" type="button" data-back="{{ url('training_main') }}" data-dtoj-back-escape="/training/">返回训练</button>
           {% if canDelete %}<button class="dtoj-plan-save" type="button" id="dtoj-plan-ask-delete">删除本训练</button>{% endif %}
         </div>
         {% if canDelete %}
@@ -388,8 +388,13 @@
         (function () {
           var form = document.getElementById('dtoj-plan');
           if (!form) return;
-          var back = form.querySelector('[data-back]');
-          if (back) back.addEventListener('click', function () { location.assign(back.getAttribute('data-back')); });
+          form.addEventListener('submit', function (ev) {
+            var sub = ev.submitter;
+            if (!sub || sub.name !== 'operation') return;
+            if (sub.value === 'save' || sub.value === 'delete') {
+              try { sessionStorage.setItem('dtoj:training-stale', '1'); } catch (e) {}
+            }
+          });
           form.querySelectorAll('[data-pick]').forEach(function (btn) {
             btn.addEventListener('click', function () {
               var box = btn.closest('[data-field]');

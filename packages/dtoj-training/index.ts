@@ -4,7 +4,7 @@ import {
 } from 'hydrooj';
 import { DtojDataHandler, dropEarlierRoutes, pick, queryOf, queryString } from 'dtoj-ui';
 import {
-    courseKinds, directions, listed, markOf, noteOf,
+    courseKinds, directionBucket, directions, listed, markOf, noteOf,
 } from './data';
 
 const blankChapter = { title: '', note: '', pids: '' };
@@ -66,13 +66,33 @@ function pinOf(raw: unknown) {
     return n;
 }
 
+function shortChapterTitle(title: string) {
+    const t = String(title || '').trim();
+    const m = t.match(/第[^章]*章\s*(.+)$/);
+    if (m) return m[1].trim();
+    if (t.length > 28) return `${t.slice(0, 28)}…`;
+    return t;
+}
+
+function courseIntro(title: string, tdoc: any) {
+    const name = String(title || '').trim();
+    const desc = String(tdoc.description || '').trim();
+    const content = String(tdoc.content || '').trim();
+    let intro = desc || (content !== name ? content : '');
+    if (!intro) return '';
+    if (name && intro.startsWith(name)) intro = intro.slice(name.length).trim();
+    if (intro.startsWith('·')) intro = intro.slice(1).trim();
+    return intro;
+}
+
 function courseOf(tdoc: any) {
     const dag = tdoc.dag || [];
     const mark = markOf(tdoc);
+    const intro = courseIntro(tdoc.title, tdoc);
     return {
         id: tdoc.docId.toHexString(),
         title: tdoc.title,
-        brief: tdoc.content || '',
+        brief: intro,
         chapters: dag.length,
         problems: TrainingModel.getPids(dag).length,
         direction: mark.direction,
@@ -80,6 +100,7 @@ function courseOf(tdoc: any) {
         preview: dag.slice(0, 2).map((node, index) => ({
             n: String(index + 1).padStart(2, '0'),
             title: node.title || '',
+            label: shortChapterTitle(node.title || ''),
         })),
     };
 }
@@ -175,8 +196,8 @@ function tally(docs: any[], dirs: string[], kinds: string[]) {
     for (const name of kinds) kind[name] = 0;
     for (const tdoc of docs) {
         const mark = markOf(tdoc);
-        if (mark.direction && direction[mark.direction] != null) direction[mark.direction] += 1;
-        else if (direction['其他'] != null) direction['其他'] += 1;
+        const dir = directionBucket(mark.direction, dirs);
+        if (direction[dir] != null) direction[dir] += 1;
         if (mark.kind && kind[mark.kind] != null) kind[mark.kind] += 1;
     }
     return { total: docs.length, direction, kind };
@@ -257,7 +278,7 @@ class DtojTrainingHandler extends DtojDataHandler {
         const hotDocs = searched.filter((tdoc) => tdoc.pin > 0);
         const learning = await learningOf(domainId, this.user);
         const counts = tally(searched, vocab.directions, vocab.kinds);
-        const matched = searched.filter((tdoc) => listed(tdoc, direction, kind));
+        const matched = searched.filter((tdoc) => listed(tdoc, direction, kind, vocab.directions));
         const pageSize = 12;
         const pages = matched.length ? Math.floor((matched.length + pageSize - 1) / pageSize) : 0;
         const tdocs = matched.slice((page - 1) * pageSize, page * pageSize);
@@ -294,7 +315,7 @@ class DtojTrainingHandler extends DtojDataHandler {
         if (q) query.title = { $regex: new RegExp(escapeRegExp(q), 'i') };
         await this.ctx.parallel('training/list', query, this);
         const catalog = sortCourses(await TrainingModel.getMulti(domainId, query).toArray(), vocab.order);
-        const matched = catalog.filter((tdoc) => listed(tdoc, direction, kind));
+        const matched = catalog.filter((tdoc) => listed(tdoc, direction, kind, vocab.directions));
         const pageSize = 12;
         const start = (page - 1) * pageSize;
         const windowIds = matched.slice(start, start + pageSize).map(courseId);

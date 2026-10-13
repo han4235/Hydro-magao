@@ -3,5 +3,5 @@
   {% for item in homeEditMenu %}
   <a class="{% if currentSection == item.section %}is-on{% endif %}" href="{{ url('dtoj_home_edit', section=item.section) }}">{{ homeSectionTitles[item.section] }}</a>
   {% endfor %}
-  <a class="dtoj-home-edit-nav__back" href="{{ url('homepage') }}">返回首页</a>
+  <a class="dtoj-home-edit-nav__back" href="{{ url('homepage') }}" data-dtoj-back-fallback="{{ url('homepage') }}">返回首页</a>
 </nav>

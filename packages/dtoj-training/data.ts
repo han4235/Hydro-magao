@@ -64,11 +64,21 @@ export function markOf(tdoc: MarkDoc) {
     return courseMark(tdoc.docId.toHexString());
 }
 
-export function listed(tdoc: MarkDoc, direction: string, kind: string) {
+/** 与训练列表 tally 一致：未配置或不在词表里的方向归入「其他」。 */
+export function directionBucket(raw: string, vocabDirections: string[]) {
+    const d = (raw || '').trim();
+    if (!d || d === '其他') return '其他';
+    const known = vocabDirections.filter((name) => name !== '其他');
+    if (known.includes(d)) return d;
+    return '其他';
+}
+
+export function listed(tdoc: MarkDoc, direction: string, kind: string, vocabDirections: string[] = directions) {
     const mark = markOf(tdoc);
+    const bucket = directionBucket(mark.direction, vocabDirections);
     let byDirection = true;
-    if (direction === '其他') byDirection = !mark.direction || mark.direction === '其他';
-    else if (direction) byDirection = mark.direction === direction;
+    if (direction === '其他') byDirection = bucket === '其他';
+    else if (direction) byDirection = bucket === direction;
     const byKind = kind ? mark.kind === kind : true;
     return byDirection && byKind;
 }

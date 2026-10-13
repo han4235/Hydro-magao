@@ -189,8 +189,6 @@
           tab.addEventListener('change', sync);
           track.addEventListener('change', sync);
           sync();
-          var back = form.querySelector('[data-back]');
-          if (back) back.addEventListener('click', function () { location.assign(back.getAttribute('data-back')); });
           var find = form.querySelector('[name="pq"]');
           var pids = form.querySelector('[name="pids"]');
           var hits = document.getElementById('dtoj-race-hits');

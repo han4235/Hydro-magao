@@ -172,7 +172,7 @@
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell dtoj-race-detail">
-      <p class="dtoj-race-back"><a href="{{ url('contest_main') }}">返回比赛列表</a></p>
+      <p class="dtoj-race-back"><a href="{{ url('contest_main') }}" data-dtoj-back-fallback="{{ url('contest_main') }}">返回比赛列表</a></p>
       <header class="dtoj-race-title">
         <h1>{{ contest.title }}</h1>
         {% if canEdit %}<a class="dtoj-race-edit" href="{{ url('dtoj_contest_edit', tid=contest.id) }}">编辑</a>{% endif %}

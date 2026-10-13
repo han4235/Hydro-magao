@@ -990,4 +990,365 @@
   @media (max-width: 600px) {
     .dtoj-fields, .dtoj-room { grid-template-columns: 1fr; }
   }
+
+  .dtoj-user .dtoj-user-hero { padding: 0; overflow: hidden; }
+  .dtoj-user-hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px 24px;
+    padding: 22px 24px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-user-identity { display: flex; gap: 18px; align-items: flex-start; min-width: 0; }
+  .dtoj-user-avatar {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 8px 24px rgba(28, 39, 64, 0.12);
+    object-fit: cover;
+  }
+  .dtoj-user-kicker { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+  .dtoj-user-title {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+  .dtoj-user-subtitle { margin: 4px 0 0; font-size: 15px; color: var(--muted); font-weight: 600; }
+  .dtoj-user-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-user-dot { width: 4px; height: 4px; border-radius: 50%; background: #c5ced9; }
+  .dtoj-user-online.is-on::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    vertical-align: middle;
+  }
+  .dtoj-user-warn { margin: 8px 0 0; color: #b42318; font-size: 13px; font-weight: 700; }
+  .dtoj-user-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .dtoj-user-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dtoj-user-btn:hover { border-color: rgba(37, 99, 235, 0.35); background: #f8fafc; color: var(--brand-deep); text-decoration: none; }
+  .dtoj-user-btn--static { cursor: default; }
+  .dtoj-user-btn--static:hover { background: #fff; border-color: var(--line); color: var(--ink); }
+  .dtoj-user-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .dtoj-user-stats > div {
+    padding: 18px 24px;
+    border-right: 1px solid var(--line);
+    text-align: center;
+  }
+  .dtoj-user-stats > div:last-child { border-right: 0; }
+  .dtoj-user-stats dt { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .dtoj-user-stats dd {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .dtoj-user-rp { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .dtoj-user-rank { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .dtoj-user-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    align-items: start;
+  }
+  .dtoj-user-tabs-panel { overflow: hidden; }
+  .dtoj-user-tab-root.section__tab-container { background: transparent; box-shadow: none; margin: 0; }
+  .dtoj-user .section__tab-header-wrapper { border-bottom: 1px solid var(--line); }
+  .dtoj-user .section__tab-header {
+    padding: 0 12px !important;
+    margin: 0 !important;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .dtoj-user .section__tab-header-item {
+    display: inline-flex;
+    align-items: center;
+    height: 48px !important;
+    line-height: 1 !important;
+    padding: 0 14px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--muted) !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+  }
+  .dtoj-user .section__tab-header-item:hover { color: var(--brand-deep) !important; background: transparent !important; }
+  .dtoj-user .section__tab-header-item.selected {
+    color: var(--brand) !important;
+    border-bottom-color: var(--brand) !important;
+    background: transparent !important;
+  }
+  .dtoj-user .section__tab-content { padding: 0; }
+  .dtoj-user .section__tab-main { padding: 20px 22px 24px; }
+  .dtoj-user-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 200px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .dtoj-user-empty--compact { min-height: 120px; }
+  .dtoj-user-empty-icon { font-size: 28px; opacity: 0.35; }
+  .dtoj-user-empty p { margin: 0; max-width: 36ch; line-height: 1.6; }
+  .dtoj-user-empty a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-user-empty a:hover { color: var(--brand); text-decoration: underline; }
+  .dtoj-user-bio { max-width: 72ch; }
+  .dtoj-user-ac-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; }
+  .dtoj-user-ac-col ul { margin: 0; padding-left: 1.1em; }
+  .dtoj-user-aside { display: flex; flex-direction: column; gap: 14px; }
+  .dtoj-user-side-card { padding: 0; overflow: hidden; }
+  .dtoj-user-side-card .section.side { margin: 0; background: transparent; border: 0; box-shadow: none; }
+  .dtoj-user-side-card .menu { list-style: none; margin: 0; padding: 8px; }
+  .dtoj-user-side-card .menu__link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .dtoj-user-side-card .menu__link:hover { background: #f4f7fb; }
+  .dtoj-user-side-card .menu__link.active { background: #e7eefb; color: var(--brand); font-weight: 700; }
+  .dtoj-user-side-card .menu__seperator { height: 1px; margin: 6px 12px; background: var(--line); list-style: none; }
+  .dtoj-user-side-head { padding: 16px 18px 0; }
+  .dtoj-user-side-head h2 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .dtoj-user-facts { margin: 0; padding: 12px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .dtoj-user-facts > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: 14px; }
+  .dtoj-user-facts dt { margin: 0; color: var(--muted); font-weight: 700; }
+  .dtoj-user-facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .dtoj-user-tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 18px 18px; }
+  .dtoj-user-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #f4f7fb;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .dtoj-user-tag b { color: var(--ink); font-weight: 800; }
+  @media (max-width: 960px) {
+    .dtoj-user-layout { grid-template-columns: 1fr; }
+    .dtoj-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dtoj-user-stats > div { border-right: 0; border-bottom: 1px solid var(--line); }
+    .dtoj-user-stats > div:nth-child(odd) { border-right: 1px solid var(--line); }
+    .dtoj-user-ac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .dtoj-user-hero-top { padding: 18px 16px; }
+    .dtoj-user-identity { flex-direction: column; align-items: center; text-align: center; }
+    .dtoj-user-actions { justify-content: center; width: 100%; }
+    .dtoj-user-stats { grid-template-columns: 1fr 1fr; }
+    .dtoj-user-ac-grid { grid-template-columns: 1fr; }
+  }
+  .dtoj-scroll-top {
+    position: fixed;
+    z-index: 60;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 44px;
+    height: 52px;
+    padding: 0;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--brand-deep, #1d4ed8);
+    box-shadow: 0 10px 24px rgba(28, 39, 64, 0.12);
+    cursor: pointer;
+    transition: opacity 0.18s ease, box-shadow 0.18s ease;
+  }
+  .dtoj-scroll-top[hidden] { display: none !important; }
+  .dtoj-scroll-top:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 12px 28px rgba(28, 39, 64, 0.16);
+  }
+  .dtoj-scroll-top:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .dtoj-scroll-top svg { width: 18px; height: 18px; }
+  .dtoj-scroll-top span { font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: 0.02em; }
+  @media (max-width: 900px) {
+    .dtoj-scroll-top { left: 8px; width: 40px; height: 48px; }
+  }
 </style>
+<button type="button" class="dtoj-scroll-top" id="dtoj-scroll-top" hidden aria-label="返回页面顶部">
+  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5 3.5 8h3v4.5h3V8h3L8 3.5z" fill="currentColor"/></svg>
+  <span>顶部</span>
+</button>
+<script>
+(function () {
+  var TRAINING_STALE_KEY = 'dtoj:training-stale';
+  function markTrainingStale() {
+    try { sessionStorage.setItem(TRAINING_STALE_KEY, '1'); } catch (e) {}
+  }
+  function consumeTrainingStale() {
+    try { sessionStorage.removeItem(TRAINING_STALE_KEY); } catch (e) {}
+  }
+  function trainingStale() {
+    try { return sessionStorage.getItem(TRAINING_STALE_KEY) === '1'; } catch (e) { return false; }
+  }
+  function isTrainingListUrl(url) {
+    try {
+      var u = new URL(url, location.origin);
+      return u.pathname === '/training';
+    } catch (e) {
+      return false;
+    }
+  }
+  function refreshTrainingIfStale(ev) {
+    if (!trainingStale()) return;
+    var p = location.pathname;
+    if (p.indexOf('/training') !== 0 || p === '/training/create' || /\/edit$/.test(p)) return;
+    if (p === '/training') {
+      consumeTrainingStale();
+      location.reload();
+      return;
+    }
+    if (ev && ev.persisted && /^\/training\/[^/]+$/.test(p)) {
+      consumeTrainingStale();
+      location.reload();
+    }
+  }
+  window.addEventListener('pageshow', refreshTrainingIfStale);
+  function fallbackOf(el) {
+    return el.getAttribute('data-dtoj-back-fallback')
+      || el.getAttribute('data-back')
+      || '';
+  }
+  function stillInEscapeZone(pathname, escapePrefix) {
+    if (!escapePrefix) return false;
+    if (pathname === '/training/create') return false;
+    return pathname.indexOf(escapePrefix) === 0 && pathname !== escapePrefix.replace(/\/$/, '');
+  }
+  function backWithEscape(fallback, escapePrefix) {
+    if (window.history.length <= 1) {
+      if (fallback) location.assign(fallback);
+      return;
+    }
+    var guard = 0;
+    var max = 30;
+    function onPop() {
+      guard += 1;
+      if (!stillInEscapeZone(location.pathname, escapePrefix) || guard >= max) {
+        window.removeEventListener('popstate', onPop);
+        if (stillInEscapeZone(location.pathname, escapePrefix) && fallback) {
+          location.assign(fallback);
+        }
+        return;
+      }
+      history.back();
+    }
+    window.addEventListener('popstate', onPop);
+    history.back();
+  }
+  function goBackOrAssign(fallback, el) {
+    if (trainingStale() && fallback && isTrainingListUrl(fallback)) {
+      consumeTrainingStale();
+      location.assign(fallback);
+      return;
+    }
+    var escapePrefix = el.getAttribute('data-dtoj-back-escape');
+    if (escapePrefix && stillInEscapeZone(location.pathname, escapePrefix)) {
+      backWithEscape(fallback, escapePrefix);
+      return;
+    }
+    if (window.history.length > 1) {
+      history.back();
+      return;
+    }
+    if (fallback) location.assign(fallback);
+  }
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-dtoj-back-fallback], [data-back]');
+    if (!el) return;
+    var fallback = fallbackOf(el);
+    if (!fallback) return;
+    ev.preventDefault();
+    goBackOrAssign(fallback, el);
+  });
+})();
+(function () {
+  var topBtn = document.getElementById('dtoj-scroll-top');
+  if (!topBtn) return;
+  function toggleTopBtn() {
+    topBtn.hidden = window.scrollY < 240;
+  }
+  topBtn.addEventListener('click', function () {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  });
+  window.addEventListener('scroll', toggleTopBtn, { passive: true });
+  toggleTopBtn();
+})();
+</script>
