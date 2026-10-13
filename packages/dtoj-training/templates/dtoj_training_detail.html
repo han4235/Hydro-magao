@@ -430,7 +430,7 @@
                           {% if item.missing %}
                           {{ item.show }} 题库里没有这道题
                           {% else %}
-                          <a class="{% if item.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=item.pid) }}">{{ item.title }}</a>
+                          <a class="{% if item.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=item.pid) }}" data-dtoj-training-return="{{ url('dtoj_training_detail', tid=course.id) }}?part={{ part }}">{{ item.title }}</a>
                           {% endif %}
                         </td>
                         <td>{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>

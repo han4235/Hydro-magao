@@ -1302,7 +1302,7 @@
       guard += 1;
       if (!stillInEscapeZone(location.pathname, escapePrefix) || guard >= max) {
         window.removeEventListener('popstate', onPop);
-        if (stillInEscapeZone(location.pathname, escapePrefix) && fallback) {
+        if (fallback && (stillInEscapeZone(location.pathname, escapePrefix) || !isTrainingListUrl(location.href))) {
           location.assign(fallback);
         }
         return;
@@ -1312,7 +1312,18 @@
     window.addEventListener('popstate', onPop);
     history.back();
   }
+  function trainingReturnUrl() {
+    try { return sessionStorage.getItem('dtoj-training-return') || ''; } catch (e) { return ''; }
+  }
   function goBackOrAssign(fallback, el) {
+    var trainingRet = trainingReturnUrl();
+    if (trainingRet && /^\/p\//.test(location.pathname) && el.closest('#dtoj-problem-back-links, .dtoj-problem-back')) {
+      location.assign(trainingRet);
+      return;
+    }
+    if (location.hash && history.replaceState) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     if (trainingStale() && fallback && isTrainingListUrl(fallback)) {
       consumeTrainingStale();
       location.assign(fallback);
@@ -1320,6 +1331,10 @@
     }
     var escapePrefix = el.getAttribute('data-dtoj-back-escape');
     if (escapePrefix && stillInEscapeZone(location.pathname, escapePrefix)) {
+      if (fallback && isTrainingListUrl(fallback)) {
+        location.assign(fallback);
+        return;
+      }
       backWithEscape(fallback, escapePrefix);
       return;
     }
@@ -1330,6 +1345,12 @@
     if (fallback) location.assign(fallback);
   }
   document.addEventListener('click', function (ev) {
+    var fromTraining = ev.target.closest('[data-dtoj-training-return]');
+    if (fromTraining) {
+      try {
+        sessionStorage.setItem('dtoj-training-return', fromTraining.getAttribute('data-dtoj-training-return') || '');
+      } catch (e) {}
+    }
     var el = ev.target.closest('[data-dtoj-back-fallback], [data-back]');
     if (!el) return;
     var fallback = fallbackOf(el);

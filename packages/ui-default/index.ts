@@ -187,7 +187,7 @@ export function apply(ctx: Context, config: ReturnType<typeof Config>) {
     c.setting.SystemSetting(Schema.object({
       'ui-default': Schema.object({
         footer_extra_html: Schema.string().role('textarea').default(''),
-        nav_logo_dark: Schema.string().default('/components/navigation/nav-logo-small_dark.png'),
+        nav_logo_dark: Schema.string().default('/components/navigation/nav-logo-magao.png'),
         domainNavigation: Schema.boolean().default(true).description('Show Domain Navigation'),
         about: Schema.string().role('markdown').default(defaultAbout),
         enableScratchpad: Schema.boolean().default(true).description('Enable Scratchpad Mode'),
