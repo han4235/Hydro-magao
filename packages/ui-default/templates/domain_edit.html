@@ -1,6 +1,50 @@
 {% extends "domain_base.html" %}
 {% block domain_content %}
 <div class="section">
+  <img src="{{ domainAvatarUrl|default('/img/team_avatar.png') }}" alt="" width="1" height="1" class="display-hidden" data-domain-avatar-preview>
   {% include "partials/setting.html" %}
 </div>
+<script>
+(function () {
+  if (document.querySelector('.domain-avatar-upload')) return;
+  var input = document.querySelector('form [name="avatar"]');
+  if (!input) return;
+  var fallback = (document.querySelector('[data-domain-avatar-preview]') || {}).src || '/img/team_avatar.png';
+  var file = document.createElement('input');
+  file.type = 'file';
+  file.accept = '.jpg,.jpeg,.png';
+  file.style.display = 'none';
+  var wrap = document.createElement('div');
+  wrap.className = 'domain-avatar-upload row';
+  wrap.style.marginTop = '-8px';
+  wrap.style.marginBottom = '12px';
+  wrap.innerHTML = '<div class="medium-5 columns form__item"></div><div class="medium-7 columns"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button type="button" class="button rounded domain-avatar-browse">选择本地图片</button><button type="button" class="button rounded primary domain-avatar-upload-btn">上传为域图标</button><img class="domain-avatar-preview" width="48" height="48" alt="" style="border-radius:8px;background:#f4f7fb"></div><p class="supplementary" style="margin-top:6px">支持 JPG/PNG，最大 8MB。上传后会写入上方 avatar 字段。</p></div>';
+  var preview = wrap.querySelector('.domain-avatar-preview');
+  var browse = wrap.querySelector('.domain-avatar-browse');
+  var uploadBtn = wrap.querySelector('.domain-avatar-upload-btn');
+  function syncPreview() {
+    var raw = input.value || '';
+    preview.src = raw.indexOf('url:') === 0 ? raw.slice(4) : fallback;
+  }
+  var formRow = input.closest('.row');
+  if (formRow) formRow.after(wrap);
+  else input.parentNode.appendChild(wrap);
+  document.body.appendChild(file);
+  syncPreview();
+  browse.addEventListener('click', function () { file.click(); });
+  file.addEventListener('change', function () {
+    if (file.files && file.files[0]) browse.textContent = '选择本地图片 (' + file.files[0].name + ')';
+  });
+  uploadBtn.addEventListener('click', function () {
+    if (!file.files || !file.files[0]) { alert('请先选择一张本地图片'); return; }
+    var fd = new FormData();
+    fd.append('file', file.files[0]);
+    uploadBtn.disabled = true;
+    fetch('{{ url('domain_avatar') }}', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error('上传失败'); location.reload(); })
+      .catch(function () { alert('上传失败'); uploadBtn.disabled = false; });
+  });
+  input.addEventListener('input', syncPreview);
+})();
+</script>
 {% endblock %}

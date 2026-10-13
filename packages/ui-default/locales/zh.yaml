@@ -1023,7 +1023,12 @@ Update Permission: 更新权限
 Update Settings: 更新设置
 Update: 更新
 Upload Failed: 上传失败
+Upload success.: 上传成功。
 Upload File: 上传文件
+Upload domain icon: 上传为域图标
+Browse local image: 选择本地图片
+Please select a local image first.: 请先选择一张本地图片。
+JPG or PNG, up to 8 MiB. After upload the URL field above is filled; you can still save other changes with Save All Changes.: 支持 JPG/PNG，最大 8MB。上传后会自动写入上方 avatar 地址；其他项仍可用「保存全部更改」一并提交。
 Upload Problem: 上传题目
 Upload: 上传
 Uploaded By: 上传者

@@ -166,6 +166,23 @@
     letter-spacing: normal;
     line-height: 1.85;
   }
+  /* 题干 Markdown 反引号 → <p><code>…</code></p>，覆盖全局 code 的 rem 小号字 */
+  .dtoj-problem .typo p,
+  .dtoj-problem .typo li {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+  .dtoj-problem .typo p code,
+  .dtoj-problem .typo p font,
+  .dtoj-problem .typo p span,
+  .dtoj-problem .typo p .token,
+  .dtoj-problem .typo li code,
+  .dtoj-problem .typo li font,
+  .dtoj-problem .typo li .token {
+    font-size: 16px !important;
+    line-height: 1.85 !important;
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+  }
   .dtoj-problem .typo table { max-width: 100%; }
   /* 客观题：侧栏题号（独立样式，避免 contest-problems 固定 180px + 外边距溢出） */
   .dtoj-problem aside { overflow-x: hidden; min-width: 0; }
@@ -1117,11 +1134,24 @@
     });
   }
 
+  function fixStemInlineFonts() {
+    document.querySelectorAll('.dtoj-problem .typo p, .dtoj-problem .typo li').forEach(function (block) {
+      if (block.closest('label.radiobox')) return;
+      block.querySelectorAll('code, font, span, .token').forEach(function (el) {
+        if (el.closest('pre')) return;
+        el.removeAttribute('size');
+        el.style.setProperty('font-size', '16px', 'important');
+        el.style.setProperty('line-height', '1.85', 'important');
+      });
+    });
+  }
+
   function scheduleFix() {
     clearTimeout(fixTimer);
     fixTimer = setTimeout(function () {
       fixObjectiveAnchors();
       fixRadioboxFonts();
+      fixStemInlineFonts();
     }, 80);
   }
 
