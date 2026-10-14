@@ -16,6 +16,7 @@ import { langs } from '../model/setting';
 import storage from '../model/storage';
 import system from '../model/system';
 import TaskModel from '../model/task';
+import { canViewAllDomainRecords } from '../lib/recordVisibility';
 import user from '../model/user';
 import {
     ConnectionHandler, param, subscribe, Types,
@@ -59,7 +60,13 @@ export class RecordListHandler extends ContestDetailBaseHandler {
             // this.tsdoc is already the team vuser's tsdoc (swapped in __prepare); no extra DB fetch needed
             teamMembers = this.tsdoc?.members?.length ? this.tsdoc.members : null;
         }
-        if (q.uid !== this.user._id && !teamMembers) this.checkPerm(PERM.PERM_VIEW_RECORD);
+        if (!teamMembers) {
+            const canViewAllRecords = canViewAllDomainRecords(this.user);
+            if (!canViewAllRecords) {
+                if (q.uid !== undefined && q.uid !== this.user._id) this.checkPerm(PERM.PERM_VIEW_RECORD);
+                else if (q.uid === undefined) q.uid = this.user._id;
+            }
+        }
         if (tid) {
             tdoc = await contest.get(domainId, tid);
             this.tdoc = tdoc;
@@ -144,7 +151,8 @@ export class RecordDetailHandler extends ContestDetailBaseHandler {
     async prepare(domainId: string, rid: ObjectId) {
         this.rdoc = await record.get(domainId, rid);
         if (!this.rdoc) throw new RecordNotFoundError(rid);
-        if (!(await contest.isOwnOrTeammateRecord(domainId, this.rdoc, this.user._id))) this.checkPerm(PERM.PERM_VIEW_RECORD);
+        if (!(await contest.isOwnOrTeammateRecord(domainId, this.rdoc, this.user._id))
+            && !canViewAllDomainRecords(this.user)) this.checkPerm(PERM.PERM_VIEW_RECORD);
     }
 
     async download() {
@@ -320,7 +328,7 @@ export class RecordMainConnectionHandler extends ConnectionHandler {
         if (this.uid !== this.user._id && !this.teamMembers) {
             const sameTeam = this.tdoc?.allowTeam && typeof this.uid === 'number'
                 && await contest.isSameTeam(domainId, this.tdoc.docId, this.uid, this.user._id);
-            if (!sameTeam) this.checkPerm(PERM.PERM_VIEW_RECORD);
+            if (!sameTeam && !canViewAllDomainRecords(this.user)) this.checkPerm(PERM.PERM_VIEW_RECORD);
         }
         if (pid) {
             const pdoc = await problem.get(domainId, pid);

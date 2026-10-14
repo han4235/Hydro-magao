@@ -1,0 +1,304 @@
+{% import "components/problem.html" as problem with context %}
+{% set page_name = "record_detail" %}
+{% extends "layout/basic.html" %}
+{% block content %}
+{% if typeof(rdoc['status']) === 'number' and not rev %}
+  {{ set(UiContext, 'socketUrl', "record-detail-conn?domainId=" + rdoc.domainId + "&rid=" + rdoc._id) }}
+{% endif %}
+{% include "dtoj_style.html" %}
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-record-detail-page">
+    <div class="dtoj-shell">
+      <header class="dtoj-record-head">
+        <div class="dtoj-record-head-main">
+          <h1><span class="dtoj-record-rid">{{ recordPublicId }}</span> 记录详情</h1>
+          <div class="dtoj-record-stats">
+            <div><span>编程语言</span><strong>{{ langDisplay }}</strong></div>
+            <div><span>代码长度</span><strong>{{ codeLength }}</strong></div>
+            <div><span>用时</span><strong id="dtoj-record-time">{{ totalTime }}</strong></div>
+            <div><span>内存</span><strong id="dtoj-record-mem">{{ totalMemory }}</strong></div>
+          </div>
+        </div>
+      </header>
+
+      <div class="dtoj-record-layout">
+        <div class="dtoj-record-main">
+          <div class="dtoj-record-tabs" role="tablist">
+            <button type="button" class="dtoj-record-tab active" data-tab="info">评测信息</button>
+            {% if showCode %}
+            <button type="button" class="dtoj-record-tab" data-tab="code">源代码</button>
+            {% endif %}
+          </div>
+
+          <section class="dtoj-sheet dtoj-record-panel active" data-panel="info">
+            {% if codeLocked %}
+            <p class="dtoj-record-hint">你尚未在该题取得满分，只能查看评测结果，无法查看他人提交的源代码。满分后可查看。</p>
+            {% endif %}
+            <h2 class="dtoj-record-section-title">测试点信息</h2>
+            {% if typeof(rdoc['status']) === 'number' %}
+              {% include 'dtoj_record_detail_status.html' %}
+            {% endif %}
+            {% if downloads and downloads.length %}
+            <div class="dtoj-record-downloads">
+              <h3>测试数据下载</h3>
+              <ul>
+                {% for item in downloads %}
+                <li>测试点 #{{ item.num }}：<a class="dtoj-btn dtoj-btn--ghost" href="{{ item.url }}" download>下载数据</a></li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if handler.user.hasPerm(perm.PERM_REJUDGE) and not rdoc.files.hack %}
+            <div class="dtoj-record-admin">
+              <form method="post" class="dtoj-actions">
+                <button type="submit" name="operation" value="rejudge" class="dtoj-go">重新评测</button>
+                <button type="submit" name="operation" value="cancel" class="dtoj-alt">取消成绩</button>
+              </form>
+            </div>
+            {% endif %}
+          </section>
+
+          {% if showCode %}
+          <section class="dtoj-sheet dtoj-record-panel dtoj-record-code-panel" data-panel="code" hidden>
+            <div class="dtoj-record-code-head">
+              <h2 class="dtoj-record-section-title">源代码</h2>
+              <div class="dtoj-record-code-actions">
+                <a class="dtoj-btn dtoj-btn--ghost" href="?download=true">下载</a>
+                <button type="button" class="dtoj-btn dtoj-btn--ghost" id="dtoj-record-copy-code">复制</button>
+              </div>
+            </div>
+            <div class="dtoj-record-code-wrap">
+              <pre class="dtoj-record-code line-numbers"><code class="language-{{ codeLang }}">{{ rdoc.code }}</code></pre>
+            </div>
+          </section>
+          {% endif %}
+        </div>
+
+        <aside class="dtoj-record-side dtoj-sheet">
+          <div class="dtoj-record-user">
+            {{ user.render_inline(udoc, modbadge=false) }}
+          </div>
+          <dl class="dtoj-record-meta">
+            {% if pdoc %}
+            <dt>所属题目</dt>
+            <dd>{{ problem.render_problem_title(pdoc, tdoc, show_tags=false, show_invisible_flag=false) }}</dd>
+            {% endif %}
+            <dt>评测状态</dt>
+            <dd><span class="dtoj-record-verdict {{ statusTone }}">{{ statusKey }}</span></dd>
+            <dt>评测分数</dt>
+            <dd><span class="dtoj-record-score" id="dtoj-record-score">{{ scoreText }}</span></dd>
+            <dt>提交时间</dt>
+            <dd>{{ datetimeSpan(rdoc._id, false)|safe }}</dd>
+            {% if rdoc.judgeAt %}
+            <dt>评测完成</dt>
+            <dd>{{ datetimeSpan(rdoc.judgeAt, false)|safe }}</dd>
+            {% endif %}
+          </dl>
+          <div class="dtoj-record-summary-host" hidden aria-hidden="true">
+            {% if typeof(rdoc['status']) === 'number' %}
+              {% include 'dtoj_record_detail_summary.html' %}
+            {% endif %}
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var root = document.querySelector('.dtoj-record-detail-page');
+  if (!root) return;
+  var tabs = root.querySelectorAll('.dtoj-record-tab');
+  var panels = root.querySelectorAll('.dtoj-record-panel');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var name = tab.getAttribute('data-tab');
+      tabs.forEach(function (t) { t.classList.toggle('active', t === tab); });
+      panels.forEach(function (p) {
+        var on = p.getAttribute('data-panel') === name;
+        p.classList.toggle('active', on);
+        p.hidden = !on;
+        if (on && name === 'code' && !p.getAttribute('data-hl') && window.jQuery) {
+          p.setAttribute('data-hl', '1');
+          window.jQuery(p).trigger('vjContentNew');
+        }
+      });
+    });
+  });
+  var copyBtn = document.getElementById('dtoj-record-copy-code');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var code = root.querySelector('[data-panel="code"] pre code')
+        || root.querySelector('[data-panel="code"] pre');
+      var text = code ? (code.textContent || '') : '';
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { copyBtn.textContent = '已复制'; })
+          .catch(function () { window.prompt('复制代码', text); });
+      } else {
+        window.prompt('复制代码', text);
+      }
+    });
+  }
+  function syncSidebarFromSummary() {
+    var summary = document.getElementById('summary');
+    if (!summary) return;
+    var verdict = summary.querySelector('[data-v="verdict"]');
+    var score = summary.querySelector('[data-v="score"]');
+    var time = summary.querySelector('[data-v="time"]');
+    var mem = summary.querySelector('[data-v="memory"]');
+    if (verdict) {
+      var vEl = document.querySelector('.dtoj-record-verdict');
+      if (vEl) {
+        vEl.textContent = verdict.textContent;
+        var tone = verdict.getAttribute('data-tone') || '';
+        vEl.className = 'dtoj-record-verdict' + (tone ? ' ' + tone : '');
+      }
+    }
+    if (score) {
+      var el = document.getElementById('dtoj-record-score');
+      if (el) el.textContent = score.textContent;
+    }
+    if (time) {
+      var t = document.getElementById('dtoj-record-time');
+      if (t) t.textContent = time.textContent;
+    }
+    if (mem) {
+      var m = document.getElementById('dtoj-record-mem');
+      if (m) m.textContent = mem.textContent;
+    }
+  }
+  syncSidebarFromSummary();
+  if (!window.MutationObserver) return;
+  var mo = { childList: true, subtree: true, characterData: true };
+  function fillCaseTips(scope) {
+    (scope || document).querySelectorAll('.dtoj-case').forEach(function (el) {
+      if (el.getAttribute('data-tooltip')) return;
+      var num = (el.querySelector('.dtoj-case-num') || {}).textContent || '';
+      var verdict = (el.querySelector('.dtoj-case-verdict') || {}).textContent || '';
+      var meta = (el.querySelector('.dtoj-case-meta') || {}).textContent || '';
+      var text = [num.trim(), verdict.trim(), meta.trim()].filter(Boolean).join('\n');
+      if (text) el.setAttribute('data-tooltip', text);
+      el.removeAttribute('title');
+    });
+  }
+  fillCaseTips(root);
+  var statusRoot = document.getElementById('status');
+  var selectedCaseEl = null;
+
+  function syncCaseSampleBar(tile) {
+    var bar = document.getElementById('dtoj-case-sample-bar');
+    if (!bar) return;
+    var label = document.getElementById('dtoj-case-sample-label');
+    var btnIn = document.getElementById('dtoj-case-view-in');
+    var btnOut = document.getElementById('dtoj-case-view-out');
+    if (!tile) {
+      bar.hidden = true;
+      selectedCaseEl = null;
+      return;
+    }
+    bar.hidden = false;
+    if (label) label.textContent = tile.getAttribute('data-case-no') || '';
+    if (btnIn) {
+      btnIn.disabled = !tile.getAttribute('data-in-url');
+    }
+    if (btnOut) {
+      btnOut.disabled = !tile.getAttribute('data-out-url');
+    }
+  }
+
+  function closeCaseSampleModal() {
+    var modal = document.querySelector('.dtoj-case-sample-modal');
+    if (modal) modal.remove();
+  }
+
+  function showCaseSampleModal(title, text) {
+    closeCaseSampleModal();
+    var modal = document.createElement('div');
+    modal.className = 'dtoj-case-sample-modal';
+    modal.innerHTML = '<div class="dtoj-case-sample-modal__panel" role="dialog" aria-modal="true">'
+      + '<div class="dtoj-case-sample-modal__head"><span></span>'
+      + '<button type="button" class="dtoj-btn dtoj-btn--ghost" data-close>关闭</button></div>'
+      + '<pre class="dtoj-case-sample-modal__body"></pre></div>';
+    modal.querySelector('.dtoj-case-sample-modal__head span').textContent = title;
+    modal.querySelector('.dtoj-case-sample-modal__body').textContent = text || '（空文件）';
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal || e.target.closest('[data-close]')) closeCaseSampleModal();
+    });
+    document.body.appendChild(modal);
+  }
+
+  function fetchTestdataText(url) {
+    if (window.jQuery) {
+      return window.jQuery.getJSON(url).then(function (data) {
+        if (data && data.url) return window.jQuery.get(data.url, null, 'text');
+        return window.jQuery.get(url, null, 'text');
+      });
+    }
+    return fetch(url, { credentials: 'same-origin' }).then(function (res) {
+      var ct = res.headers.get('content-type') || '';
+      if (ct.indexOf('json') >= 0) {
+        return res.json().then(function (data) {
+          if (data && data.url) return fetch(data.url).then(function (r) { return r.text(); });
+          return '';
+        });
+      }
+      if (res.redirected) return fetch(res.url).then(function (r) { return r.text(); });
+      return res.text();
+    });
+  }
+
+  function openCaseSample(kind) {
+    if (!selectedCaseEl) return;
+    var url = kind === 'in' ? selectedCaseEl.getAttribute('data-in-url') : selectedCaseEl.getAttribute('data-out-url');
+    if (!url) return;
+    var title = (selectedCaseEl.getAttribute('data-case-no') || '') + (kind === 'in' ? ' 样例输入' : ' 样例输出');
+    fetchTestdataText(url).then(function (text) {
+      showCaseSampleModal(title, text);
+    }).catch(function () {
+      window.open(url, '_blank');
+    });
+  }
+
+  function onCaseTileClick(tile) {
+    if (!tile || !tile.classList.contains('dtoj-case--pickable')) return;
+    var scope = tile.closest('.dtoj-case-grid');
+    if (!scope) return;
+    var already = tile.classList.contains('is-selected');
+    scope.querySelectorAll('.dtoj-case.is-selected').forEach(function (el) { el.classList.remove('is-selected'); });
+    if (already) {
+      syncCaseSampleBar(null);
+      return;
+    }
+    tile.classList.add('is-selected');
+    selectedCaseEl = tile;
+    syncCaseSampleBar(tile);
+  }
+
+  if (statusRoot) {
+    statusRoot.addEventListener('click', function (e) {
+      if (e.target.closest('#dtoj-case-view-in')) {
+        openCaseSample('in');
+        return;
+      }
+      if (e.target.closest('#dtoj-case-view-out')) {
+        openCaseSample('out');
+        return;
+      }
+      var tile = e.target.closest('.dtoj-case--pickable');
+      if (tile) onCaseTileClick(tile);
+    });
+  }
+
+  if (statusRoot && window.MutationObserver) {
+    new MutationObserver(function () {
+      fillCaseTips(statusRoot);
+      if (selectedCaseEl && !statusRoot.contains(selectedCaseEl)) syncCaseSampleBar(null);
+    }).observe(statusRoot, { childList: true, subtree: true });
+  }
+  var summaryRoot = document.getElementById('summary');
+  if (statusRoot) new MutationObserver(syncSidebarFromSummary).observe(statusRoot, mo);
+  if (summaryRoot) new MutationObserver(syncSidebarFromSummary).observe(summaryRoot, mo);
+})();
+</script>
+{% endblock %}

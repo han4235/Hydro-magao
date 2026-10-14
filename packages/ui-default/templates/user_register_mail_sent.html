@@ -1,9 +1,38 @@
-{% extends "layout/immersive.html" %}
+{% set page_name = "user_register" %}
+{% extends "layout/basic.html" %}
 {% block content %}
-<div class="immersive--content immersive--center">
-  <h1>{{ _('Sign Up') }}</h1>
-  <div class="text-center">
-    {{ _('Sign up mail has been sent to your email.') }}
+{% include "dtoj_style.html" %}
+{% include "partials/dtoj_auth_style.html" %}
+<div class="row">
+  <div class="medium-12 columns dtoj-auth-page">
+    <div class="dtoj-auth-shell">
+      <aside class="dtoj-auth-brand">
+        <div class="dtoj-auth-logo">
+          <img src="{{ ctx.setting.get('ui-default.nav_logo_dark') }}" alt="{{ model.system.get('server.name') }}">
+          <span>{{ model.system.get('server.name') }}</span>
+        </div>
+        <div class="dtoj-auth-hero">
+          <h1>去邮箱确认</h1>
+          <p>打开邮件里的链接，即可继续设置用户名和密码。</p>
+        </div>
+      </aside>
+      <section class="dtoj-auth-panel">
+        <div class="dtoj-auth-panel-head">
+          <nav class="dtoj-auth-tabs" aria-label="账号">
+            <a href="{{ url('user_login') }}">登录</a>
+            <a class="is-on" href="{{ url('user_register') }}">注册</a>
+          </nav>
+        </div>
+        <h2>验证邮件已发送</h2>
+        <p class="dtoj-auth-sub">{{ _('Sign up mail has been sent to your email.') }}</p>
+        <ol class="dtoj-auth-steps">
+          <li class="is-on"><span>1</span>验证邮箱</li>
+          <li><span>2</span>设置账号</li>
+          <li><span>3</span>开始使用</li>
+        </ol>
+        <p class="dtoj-auth-bottom">已有账号？<a href="{{ url('user_login') }}">直接登录</a></p>
+      </section>
+    </div>
   </div>
 </div>
 {% endblock %}

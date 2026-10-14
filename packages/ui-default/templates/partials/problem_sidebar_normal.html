@@ -145,12 +145,19 @@
         <span class="icon icon-comment--text"></span> {{ _('Solutions') }}{% if solutionCount !== undefined %} ({{ solutionCount }}){% endif %}
       </a></li>
     {% endif %}
+    {% if page_name == 'problem_detail' and handler.user.hasPerm(perm.PERM_VIEW_PROBLEM) %}
+      <li class="menu__item"><a class="menu__link" href="{{ url('record_main', query={pid: pdoc.pid|default(pdoc.docId)}) }}">
+        <span class="icon icon-statistics"></span> 提交记录
+      </a></li>
+    {% endif %}
+    {% if handler.user.hasPerm(perm.PERM_EDIT_DOMAIN) %}
       <li class="menu__item"><a class="menu__link{% if page_name == 'problem_files' %} active{% endif %}" href="{{ url('problem_files', pid=pdoc.pid|default(pdoc.docId)) }}">
         <span class="icon icon-file"></span> {{ _('Files') }}
       </a></li>
       <li class="menu__item"><a class="menu__link{% if page_name == 'problem_statistics' %} active{% endif %}" href="{{ url('problem_statistics', pid=pdoc.pid|default(pdoc.docId)) }}">
         <span class="icon icon-statistics"></span> {{ _('Statistics') }}
       </a></li>
+    {% endif %}
     {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
       <li class="menu__seperator"></li>
       <li class="menu__item"><a class="menu__link{% if page_name == 'problem_edit' %} active{% endif %}" href="{{ url('problem_edit', pid=pdoc.pid|default(pdoc.docId)) }}">
@@ -162,18 +169,14 @@
         </a></li>
       {% endif %}
     {% endif %}
-    {% if page_name == 'problem_detail' %}
+    {% if page_name == 'problem_detail' and handler.user.hasPerm(perm.PERM_EDIT_DOMAIN) %}
       <li class="menu__seperator nojs--hide"></li>
-      {% if handler.user.own(pdoc) or handler.user.hasPriv(PRIV.PRIV_READ_PROBLEM_DATA) or handler.user.hasPerm(perm.PERM_READ_PROBLEM_DATA) %}
-        <li class="menu__item nojs--hide"><a class="menu__link" href="javascript:;" name="problem-sidebar__download">
-          <span class="icon icon-download"></span> {{ _('Download') }}
-        </a></li>
-      {% endif %}
-      {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
-        <li class="menu__item nojs--hide"><a class="menu__link" href="javascript:;" name="problem-sidebar__copy">
-          <span class="icon icon-copy"></span> {{ _('Copy') }}
-        </a></li>
-      {% endif %}
+      <li class="menu__item nojs--hide"><a class="menu__link" href="javascript:;" name="problem-sidebar__download">
+        <span class="icon icon-download"></span> {{ _('Download') }}
+      </a></li>
+      <li class="menu__item nojs--hide"><a class="menu__link" href="javascript:;" name="problem-sidebar__copy">
+        <span class="icon icon-copy"></span> {{ _('Copy') }}
+      </a></li>
     {% endif %}
     </ol>
   </div>

@@ -226,7 +226,7 @@ export const SystemSetting = (...settings: _Setting[] | Schema<any>[]) => {
 const LangSettingNode = {
     family: 'setting_usage',
     key: 'codeLang',
-    value: '',
+    value: 'cc.cc11o2',
     name: 'codeLang',
     desc: 'Default Code Language',
     flag: 0,
@@ -237,7 +237,7 @@ const LangSettingNode = {
 const ServerLangSettingNode = {
     family: 'setting_server',
     key: 'preference.codeLang',
-    value: '',
+    value: 'cc.cc11o2',
     name: 'preference.codeLang',
     desc: 'Default Code Language',
     flag: 0,
@@ -247,7 +247,7 @@ const ServerLangSettingNode = {
 };
 
 PreferenceSetting(
-    Setting('setting_display', 'viewLang', null, langRange, 'UI Language'),
+    Setting('setting_display', 'viewLang', 'zh_CN', langRange, 'UI Language'),
     Setting('setting_display', 'timeZone', 'Asia/Shanghai', timezones, 'Timezone'),
     LangSettingNode,
     Setting('setting_usage', 'codeTemplate', '', 'textarea', 'Default Code Template',
@@ -315,7 +315,7 @@ SystemSetting(Schema.object({
     }).extra('family', 'setting_smtp'),
     server: Schema.object({
         allowInvite: Schema.boolean().default(true).description('Allow invite users'),
-        showDefaultRole: Schema.boolean().default(false).description('Show default role users in domain user management'),
+        showDefaultRole: Schema.boolean().default(true).description('Show default role users in domain user management'),
         center: Schema.string().default('https://hydro.ac/center').description('Server Center').role('url').hidden(),
         name: Schema.string().default('Hydro').description('Server Name'),
         url: Schema.string().default('/').description('Server BaseURL'),
@@ -336,6 +336,7 @@ SystemSetting(Schema.object({
 }));
 // We will keep the old settings as-is until new setting ui is ready.
 SystemSetting(
+    Setting('setting_server', 'server.showDefaultRole', true, 'boolean', 'server.showDefaultRole', 'Show default role users in domain user management'),
     Setting('setting_server', 'server.language', 'zh_CN', langRange, 'server.language', 'Default display language'),
     ServerLangSettingNode,
     Setting('setting_limits', 'limit.by_user', false, 'boolean', 'limit.by_user', 'Use per-user limits instead of per ip limits'),
@@ -352,6 +353,18 @@ SystemSetting(
     Setting('setting_limits', 'limit.codelength', 128 * 1024, 'number', 'limit.codelength', 'Max code length'),
     Setting('setting_basic', 'avatar.gravatar_url', '//cn.gravatar.com/avatar/', 'text', 'avatar.gravatar_url', 'Gravatar URL Prefix'),
     Setting('setting_basic', 'default.priv', builtin.PRIV.PRIV_DEFAULT, 'number', 'default.priv', 'Default Privilege', FLAG_HIDDEN),
+    Setting(
+        'setting_basic', 'default.userRole', '学生',
+        { 学生: '学生', 教师: '教师', default: 'default', root: 'root' },
+        'default.userRole',
+        '用户自助注册并加入本域时赋予的域角色。选项来自当前域「管理角色」中的角色名。',
+    ),
+    Setting(
+        'setting_basic', 'default.teacherRole', '教师',
+        { 学生: '学生', 教师: '教师', default: 'default', root: 'root' },
+        'default.teacherRole',
+        '在域内将用户设为教师时使用的默认角色（如批量导入、手动改角色时的参考）。选项来自当前域「管理角色」。',
+    ),
     Setting('setting_basic', 'discussion.nodes', builtin.DEFAULT_NODES, 'yaml', 'discussion.nodes', 'Discussion Nodes'),
     Setting('setting_basic', 'problem.categories', builtin.CATEGORIES, 'yaml', 'problem.categories', 'Problem Categories'),
     Setting('setting_basic', 'training.enrolled-users', true, 'boolean', 'training.enrolled-users', 'Show enrolled users for training'),

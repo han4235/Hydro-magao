@@ -267,3 +267,17 @@
     });
   }());
 </script>
+<script>
+  function dtojGoLogin() {
+    var link = document.querySelector('[name="nav_login"]');
+    if (link && link.href) window.location.href = link.href;
+  }
+  document.addEventListener('click', function (ev) {
+    var link = ev.target && ev.target.closest && ev.target.closest('[name="nav_login"]');
+    if (!link) return;
+    ev.stopImmediatePropagation();
+  }, true);
+  window.addEventListener('load', function () {
+    window.showSignInDialog = dtojGoLogin;
+  });
+</script>

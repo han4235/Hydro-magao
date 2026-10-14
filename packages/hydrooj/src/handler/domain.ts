@@ -13,7 +13,6 @@ import avatar, { validate as validateAvatar } from '../lib/avatar';
 import { PERM, PERMS_BY_FAMILY, PRIV } from '../model/builtin';
 import * as discussion from '../model/discussion';
 import domain from '../model/domain';
-import MessageModel from '../model/message';
 import * as oplog from '../model/oplog';
 import { DOMAIN_SETTINGS, DOMAIN_SETTINGS_BY_KEY } from '../model/setting';
 import system from '../model/system';
@@ -125,10 +124,15 @@ class DomainDashboardHandler extends ManageHandler {
     }
 }
 
+const DOMAIN_USER_PAGE_SIZE = 30;
+const HIDDEN_DOMAIN_USER_IDS = new Set([1, 2]);
+
 class DomainUserHandler extends ManageHandler {
     @requireSudo
     @param('format', Types.Range(['default', 'raw']), true)
-    async get({ domainId }, format = 'default') {
+    @query('page', Types.PositiveInt, true)
+    @query('sortRole', Types.Range(['asc', 'desc']), true)
+    async get({ domainId }, format = 'default', page = 1, sortRole?: 'asc' | 'desc') {
         const showDefault = system.get('server.showDefaultRole') || domainId !== 'system';
         const [dudocs, roles] = await Promise.all([
             domain.collUser.aggregate([
@@ -186,8 +190,29 @@ class DomainUserHandler extends ManageHandler {
         const rudocs = {};
         for (const role of roles) rudocs[role._id] = users.filter((udoc) => (udoc.role || 'default') === role._id);
         this.response.template = format === 'raw' ? 'domain_user_raw.html' : 'domain_user.html';
+        if (format === 'raw') {
+            this.response.body = {
+                roles, rudocs, domain: this.domain,
+            };
+            return;
+        }
+        const visibleUsers = users
+            .filter((udoc) => !HIDDEN_DOMAIN_USER_IDS.has(udoc._id))
+            .sort((a, b) => {
+                const byRole = (a.role || 'default').localeCompare(b.role || 'default', 'zh-CN');
+                if (sortRole) {
+                    if (byRole !== 0) return sortRole === 'asc' ? byRole : -byRole;
+                    return a._id - b._id;
+                }
+                if (byRole !== 0) return byRole;
+                return a._id - b._id;
+            });
+        const ucount = visibleUsers.length;
+        const upcount = Math.max(1, Math.ceil(ucount / DOMAIN_USER_PAGE_SIZE) || 1);
+        page = Math.min(Math.max(1, page), upcount);
+        const udocs = visibleUsers.slice((page - 1) * DOMAIN_USER_PAGE_SIZE, page * DOMAIN_USER_PAGE_SIZE);
         this.response.body = {
-            roles, rudocs, domain: this.domain,
+            roles, rudocs, domain: this.domain, udocs, page, upcount, ucount, sortRole,
         };
     }
 
@@ -212,21 +237,27 @@ class DomainUserHandler extends ManageHandler {
 
     @requireSudo
     @param('uids', Types.NumericArray)
+    async postInitPassword(_: string, uids: number[]) {
+        const protectedIds = new Set([1, 2]);
+        const targets = [...new Set(uids)].filter((uid) => !protectedIds.has(uid));
+        if (!targets.length) throw new ForbiddenError();
+        const password = '123456';
+        await Promise.all(targets.map((uid) => user.setPassword(uid, password)));
+        await oplog.log(this, 'domain.initPassword', { uids: targets });
+        this.back();
+    }
+
+    @requireSudo
+    @param('uids', Types.NumericArray)
     async postKick({ domainId }, uids: number[]) {
-        const original = await domain.getMultiUserInDomain(domainId, { uid: { $in: uids } }).toArray();
-        const needUpdate = uids.filter((uid) => original.find((i) => i.uid === uid)?.join);
-        if (!needUpdate.length) return;
-        const target = needUpdate.length > 1 ? needUpdate : needUpdate[0];
-        await Promise.all([
-            domain.setJoin(domainId, target, false),
-            domain.setUserRole(domainId, target, 'guest'),
-            oplog.log(this, 'domain.kick', { uids: needUpdate }),
-        ]);
-        const msg = JSON.stringify({
-            message: 'You have been kicked from domain {0} by {1}.',
-            params: [this.domain.name, this.user.uname],
-        });
-        await Promise.all(needUpdate.map((i) => MessageModel.send(1, i, msg, MessageModel.FLAG_RICHTEXT | MessageModel.FLAG_UNREAD)));
+        const protectedIds = new Set([1, 2, this.user._id, this.domain.owner]);
+        if (uids.some((uid) => protectedIds.has(uid))) {
+            throw new ForbiddenError('Cannot delete system accounts, yourself, or the domain owner.');
+        }
+        const targets = [...new Set(uids)];
+        if (!targets.length) return;
+        await Promise.all(targets.map((uid) => user.deleteAccount(uid)));
+        await oplog.log(this, 'domain.deleteUsers', { uids: targets, domainId });
         this.back();
     }
 }

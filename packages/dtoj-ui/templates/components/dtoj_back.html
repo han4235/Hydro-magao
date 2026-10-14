@@ -1,0 +1,3 @@
+{% macro link(label, fallback_url, wrapper_class='dtoj-back', escape_prefix='') %}
+<p class="{{ wrapper_class }}"><a href="{{ fallback_url }}" data-dtoj-back-fallback="{{ fallback_url }}"{% if escape_prefix %} data-dtoj-back-escape="{{ escape_prefix }}"{% endif %}>{{ label }}</a></p>
+{% endmacro %}

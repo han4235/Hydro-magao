@@ -207,7 +207,7 @@
                   {% if item.missing %}
                   {{ item.show }} 题库里没有这道题
                   {% else %}
-                  <a href="{{ url('problem_detail', pid=item.pid) }}">{{ item.show }} {{ item.title }}</a>
+                  <a href="{{ url('problem_detail', pid=item.pid, query={tid: contest.id}) }}">{{ item.show }} {{ item.title }}</a>
                   {% endif %}
                 </li>
                 {% else %}

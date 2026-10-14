@@ -146,6 +146,7 @@
   .dtoj-col-id { width: 120px; }
   .dtoj-col-diff { width: 160px; }
   .dtoj-col-rate { width: 132px; }
+  .dtoj-name .is-locked { color: var(--muted); font-weight: 600; cursor: default; }
   .dtoj-sheet th {
     padding: 10px 12px;
     border-bottom: 1px solid var(--line);
@@ -429,8 +430,10 @@
                         <td class="dtoj-name">
                           {% if item.missing %}
                           {{ item.show }} 题库里没有这道题
+                          {% elif enrolled or canEdit %}
+                          <a class="{% if item.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=item.pid, query={trid: course.id}) }}" data-dtoj-training-return="{{ url('dtoj_training_detail', tid=course.id) }}?part={{ part }}">{{ item.title }}</a>
                           {% else %}
-                          <a class="{% if item.hang %}is-hang{% endif %}" href="{{ url('problem_detail', pid=item.pid) }}" data-dtoj-training-return="{{ url('dtoj_training_detail', tid=course.id) }}?part={{ part }}">{{ item.title }}</a>
+                          <span class="is-locked" title="请先点击「参加训练计划」">{{ item.title }}</span>
                           {% endif %}
                         </td>
                         <td>{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>

@@ -18,6 +18,7 @@ import * as opcount from '../model/opcount';
 import * as OplogModel from '../model/oplog';
 import system from '../model/system';
 import db from './db';
+import { isDomainAdminPath } from '../lib/adminPaths';
 import baseLayer from './layers/base';
 import domainLayer from './layers/domain';
 import userLayer from './layers/user';
@@ -204,17 +205,23 @@ export async function apply(ctx: Context) {
             async onerror(error: HydroError) {
                 error.msg ||= () => error.message;
                 if (error instanceof UserFacingError && !process.env.DEV) error.stack = '';
-                if (!(error instanceof NotFoundError) && !('nolog' in error)) {
+                const reqPath = this.context.originalPath || this.request.path;
+                const silentHome = this.user?._id > 0
+                    && error instanceof PermissionError
+                    && isDomainAdminPath(reqPath)
+                    && !String(this.request.headers.accept || '').includes('application/json');
+                if (!(error instanceof NotFoundError) && !('nolog' in error) && !silentHome) {
                     // eslint-disable-next-line max-len
                     logger.error(`User: ${this.user._id}(${this.user.uname}) ${this.request.method}: /d/${this.domain._id}${this.request.path}`, error.msg(), error.params);
                     if (error.stack) logger.error(error.stack);
                 }
                 if (this.user?._id === 0 && (error instanceof PermissionError || error instanceof PrivilegeError)) {
-                    this.response.redirect = this.url('user_login', {
-                        query: {
-                            redirect: (this.context.originalPath || this.request.path) + this.context.search,
-                        },
-                    });
+                    const query: Record<string, string> = {};
+                    const fullPath = reqPath + this.context.search;
+                    if (!isDomainAdminPath(reqPath)) query.redirect = fullPath;
+                    this.response.redirect = this.url('user_login', { query });
+                } else if (silentHome) {
+                    this.response.redirect = this.url('homepage');
                 } else if (!this.user._dudoc.join && error instanceof PermissionError) {
                     this.response.redirect = this.url('domain_join', {
                         domainId: 'system',
