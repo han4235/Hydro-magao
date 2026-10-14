@@ -234,8 +234,7 @@
         </header>
         {% for item in announcements %}
         <div>
-          <h3>{{ item.title }}</h3>
-          <p>{{ item.body }}</p>
+          <div class="typo">{{ item.body|markdown|safe }}</div>
         </div>
         {% endfor %}
       </section>

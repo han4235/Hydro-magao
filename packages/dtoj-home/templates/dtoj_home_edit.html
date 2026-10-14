@@ -78,6 +78,15 @@
     cursor: pointer;
   }
   .dtoj-count-row-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+  .dtoj-news-row .dtoj-fields { grid-template-columns: 1fr; }
+  .dtoj-news-body-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    grid-column: 1 / -1;
+  }
+  .dtoj-news-body-edit > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
+  .dtoj-news-body-edit .md-editor { min-height: 220px; }
   .dtoj-layout-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
   .dtoj-layout-item {
     display: flex;
@@ -788,7 +797,7 @@
           </script>
           {% elif section == 'news' %}
           {% include "dtoj_home_edit_card_size.html" %}
-          <p class="dtoj-hint">留空标题的行不会出现在首页。可添加或删除条目，最多 20 条。</p>
+          <p class="dtoj-hint">正文留空的行不会出现在首页。可添加或删除条目，最多 20 条。</p>
           <input type="hidden" name="rowCount" id="dtoj-news-count" value="{{ news|length }}">
           <div class="dtoj-count-rows" id="dtoj-news-rows">
             {% for item in news %}
@@ -798,8 +807,9 @@
                 <button type="button" class="dtoj-count-row-del">删除</button>
               </div>
               <div class="dtoj-fields">
-                <label>标题<input class="textbox dtoj-f-news_title" value="{{ item.title }}"></label>
-                <label>正文<textarea class="textbox dtoj-f-news_body" rows="3">{{ item.body }}</textarea></label>
+                <div class="dtoj-news-body-edit">
+                  <textarea class="textbox dtoj-f-news_body" data-markdown rows="3">{{ item.body }}</textarea>
+                </div>
               </div>
             </div>
             {% endfor %}
@@ -820,8 +830,8 @@
               return '<div class="dtoj-block dtoj-count-row dtoj-news-row">'
                 + '<div class="dtoj-count-row-head"><h3>新公告</h3><button type="button" class="dtoj-count-row-del">删除</button></div>'
                 + '<div class="dtoj-fields">'
-                + '<label>标题<input class="textbox dtoj-f-news_title" value=""></label>'
-                + '<label>正文<textarea class="textbox dtoj-f-news_body" rows="3"></textarea></label>'
+                + '<div class="dtoj-news-body-edit">'
+                + '<textarea class="textbox dtoj-f-news_body" data-markdown rows="3"></textarea></div>'
                 + '</div></div>';
             }
 
@@ -839,9 +849,7 @@
                 var row = rows[i];
                 var title = row.querySelector('.dtoj-count-row-head h3');
                 if (title) title.textContent = '公告 ' + (i + 1);
-                var t = row.querySelector('.dtoj-f-news_title');
                 var b = row.querySelector('.dtoj-f-news_body');
-                if (t) t.setAttribute('name', 'news' + i + '_title');
                 if (b) b.setAttribute('name', 'news' + i + '_body');
               }
               if (countInput) countInput.value = String(rows.length);
@@ -859,6 +867,7 @@
               list.appendChild(row);
               bindRow(row);
               renumber();
+              if (window.jQuery) window.jQuery(row).trigger('vjContentNew');
             });
 
             form.addEventListener('submit', function () { renumber(); });
