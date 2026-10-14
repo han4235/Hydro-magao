@@ -14,6 +14,7 @@ import { randomstring, sortFiles, streamToBuffer } from '@hydrooj/utils/lib/util
 import type { Context } from '../context';
 import {
     BadRequestError, ContestNotAttendedError, ContestNotEndedError, ContestNotFoundError, ContestNotLiveError,
+    TrainingNotEnrolledError, TrainingNotFoundError,
     FileLimitExceededError, FileTooLargeError, HackFailedError, NoProblemError, NotFoundError,
     PermissionError, ProblemAlreadyExistError, ProblemAlreadyUsedByContestError, ProblemConfigError,
     ProblemIsReferencedError, ProblemNotAllowCopyError, ProblemNotAllowLanguageError, ProblemNotAllowPretestError,
@@ -33,6 +34,7 @@ import * as setting from '../model/setting';
 import solution from '../model/solution';
 import storage from '../model/storage';
 import system from '../model/system';
+import * as training from '../model/training';
 import user from '../model/user';
 import {
     Handler, param, post, Query, query, route, Types,
@@ -300,19 +302,36 @@ export class ProblemDetailHandler extends ContestDetailBaseHandler {
 
     @route('pid', Types.ProblemId, true)
     @query('tid', Types.ObjectId, true)
-    async _prepare(domainId: string, pid: number | string, tid?: ObjectId) {
+    @query('trid', Types.ObjectId, true)
+    async _prepare(domainId: string, pid: number | string, tid?: ObjectId, trid?: ObjectId) {
         this.pdoc = await problem.get(domainId, pid);
         if (!this.pdoc) throw new ProblemNotFoundError(domainId, pid);
         if (tid) {
             if (!this.tdoc?.pids?.includes(this.pdoc.docId)) throw new ContestNotFoundError(domainId, tid);
             if (contest.isNotStarted(this.tdoc)) throw new ContestNotLiveError(tid);
-            if (!contest.isDone(this.tdoc, this.tsdoc) && (!this.tsdoc?.attend || !this.tsdoc.startAt)) throw new ContestNotAttendedError(tid);
+            if (!contest.isDone(this.tdoc, this.tsdoc)) {
+                if (!this.tsdoc?.attend) throw new ContestNotAttendedError(tid);
+                if (this.tsdoc.attend && !this.tsdoc.startAt && contest.isOngoing(this.tdoc)) {
+                    await contest.setStatus(domainId, tid, this.team ?? this.user._id, { startAt: new Date() });
+                    this.tsdoc.startAt = new Date();
+                }
+            }
             // Delete problem-related info in contest mode
             if (this.pdoc.tag) this.pdoc.tag.length = 0;
             delete this.pdoc.nAccept;
             delete this.pdoc.nSubmit;
             delete this.pdoc.difficulty;
             delete this.pdoc.stats;
+        } else if (trid) {
+            const tdoc = await training.get(domainId, trid);
+            const inPlan = training.getPids(tdoc.dag).includes(this.pdoc.docId);
+            if (!inPlan) throw new TrainingNotFoundError(domainId, trid);
+            const canBypass = this.user.own(tdoc) || this.user.hasPerm(PERM.PERM_EDIT_TRAINING);
+            if (!canBypass) {
+                this.checkPriv(PRIV.PRIV_USER_PROFILE);
+                const tsdoc = await training.getStatus(domainId, trid, this.user._id);
+                if (!tsdoc?.enroll) throw new TrainingNotEnrolledError(trid);
+            }
         } else if (!problem.canViewBy(this.pdoc, this.user)) {
             throw new PermissionError(PERM.PERM_VIEW_PROBLEM_HIDDEN);
         }

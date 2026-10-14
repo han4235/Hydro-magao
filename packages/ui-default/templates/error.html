@@ -1,25 +1,103 @@
 {% extends "layout/basic.html" %}
 {% block content %}
-<div class="error__container clearfix">
-  <div class="error__icon-container">
-    <div class="error__twd2"></div>
-  </div>
-  <div class="error__text-container">
-    <h1>{{ _('Oops!') }}</h1>
-    <p>{{ _(error.message).formatFromArray(error.params) }}</p>
-    <p>{{ _('Technical Information') }}:</p>
-    <p>{{ _('Type') }}: {{ error.name }}</p>
-    <p>{{ _('Arguments') }}:
-      <ol>
-      {%- for param in error.params -%}
-        {% if instanceof(param, UserFacingError) %}
-          <li>{{ _(param.message).formatFromArray(param.params)}}</li>
-        {% else %}
-          <li>{{ param }}</li>
-        {% endif %}
-      {%- endfor -%}
-      </ol>
-    </p>
+{% include "dtoj_style.html" %}
+{% include "partials/dtoj_auth_style.html" %}
+{% set errMsg = _(error.message).formatFromArray(error.params) %}
+<style>
+  .dtoj-error-page { min-height: calc(100vh - 120px); display: flex; align-items: center; justify-content: center; padding: 28px 20px 48px; background: #e8eef5; }
+  .dtoj-error-card {
+    width: min(100%, 520px);
+    padding: 36px 32px 32px;
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 28px 70px rgba(28, 39, 64, 0.1);
+    text-align: center;
+  }
+  .dtoj-error-card h1 {
+    margin: 0 0 12px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: #111827;
+  }
+  .dtoj-error-card .dtoj-error-msg {
+    margin: 0 0 28px;
+    font-size: 15px;
+    line-height: 1.75;
+    color: #111827;
+  }
+  .dtoj-error-actions { display: flex; flex-direction: column; gap: 10px; }
+  .dtoj-error-actions a, .dtoj-error-actions button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border-radius: 11px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .dtoj-error-primary { background: #1d4ed8; color: #ffffff; }
+  .dtoj-error-secondary { background: #ffffff; color: #111827; border: 2px solid #334155; }
+  .dtoj-error-tech { margin-top: 24px; text-align: left; font-size: 13px; color: #111827; }
+  .dtoj-error-tech summary { cursor: pointer; font-weight: 600; color: #111827; }
+  .dtoj-error-tech pre { margin: 8px 0 0; padding: 12px; border-radius: 8px; background: #e2e8f0; color: #111827; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-error-page">
+    <div class="dtoj-error-card">
+      {% if error.name == 'UserAlreadyExistError' %}
+      <h1>该账号已存在</h1>
+      <p class="dtoj-error-msg">{{ errMsg }}<br>请使用已有账号登录，或换一个邮箱重新注册。</p>
+      <div class="dtoj-error-actions">
+        <a class="dtoj-error-primary" href="{{ url('user_login') }}">去登录</a>
+        <a class="dtoj-error-secondary" href="{{ url('user_register') }}">换一个邮箱注册</a>
+      </div>
+      {% elif error.name == 'TrainingNotEnrolledError' %}
+      <h1>尚未参加训练</h1>
+      <p class="dtoj-error-msg">{{ errMsg }}<br>请先打开训练计划并点击「参加训练计划」，再浏览题目。</p>
+      <div class="dtoj-error-actions">
+        <button type="button" class="dtoj-error-primary" onclick="history.length > 1 ? history.back() : (location.href = '/')">返回上一页</button>
+        <a class="dtoj-error-secondary" href="{{ url('training_main') }}">前往训练列表</a>
+      </div>
+      {% elif error.name == 'ContestNotAttendedError' %}
+      <h1>尚未参加比赛</h1>
+      <p class="dtoj-error-msg">{{ errMsg }}<br>请先在比赛页点击「参加比赛」，再打开题目。</p>
+      <div class="dtoj-error-actions">
+        <button type="button" class="dtoj-error-primary" onclick="history.length > 1 ? history.back() : (location.href = '/')">返回上一页</button>
+        <a class="dtoj-error-secondary" href="{{ url('contest_main') }}">前往比赛列表</a>
+      </div>
+      {% elif error.name == 'LoginError' or error.name == 'UserNotFoundError' %}
+      <h1>无法登录</h1>
+      <p class="dtoj-error-msg">{{ errMsg }}</p>
+      <div class="dtoj-error-actions">
+        <a class="dtoj-error-primary" href="{{ url('user_login') }}">返回登录</a>
+        <a class="dtoj-error-secondary" href="{{ url('user_lostpass') }}">忘记密码或用户名</a>
+      </div>
+      {% else %}
+      <h1>暂时无法完成操作</h1>
+      <p class="dtoj-error-msg">{{ errMsg }}</p>
+      <div class="dtoj-error-actions">
+        <button type="button" class="dtoj-error-primary" onclick="history.length > 1 ? history.back() : (location.href = '/')">返回上一页</button>
+        <a class="dtoj-error-secondary" href="{{ url('homepage') }}">回到首页</a>
+      </div>
+      {% endif %}
+      {% if process.env.DEV %}
+      <details class="dtoj-error-tech">
+        <summary>{{ _('Technical Information') }}</summary>
+        <pre>{{ _('Type') }}: {{ error.name }}
+{{ _('Arguments') }}:
+{% for param in error.params -%}
+- {% if instanceof(param, UserFacingError) %}{{ _(param.message).formatFromArray(param.params) }}{% else %}{{ param }}{% endif %}
+{% endfor %}</pre>
+      </details>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

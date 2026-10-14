@@ -183,6 +183,61 @@ export default class RecordModel {
         return res.insertedId;
     }
 
+    static submitHeatmapLevel(count: number) {
+        if (count <= 0) return 0;
+        if (count <= 5) return 1;
+        if (count <= 10) return 2;
+        if (count <= 15) return 3;
+        return 4;
+    }
+
+    /** 近 53 周每日提交次数（周一为每周第一行） */
+    static async getSubmitHeatmap(domainId: string, uid: number) {
+        const tz = SystemModel.get('timeZone') || 'Asia/Shanghai';
+        const today = moment.tz(tz).startOf('day');
+        const gridStart = today.clone().startOf('isoWeek').subtract(52, 'weeks');
+        const minId = Time.getObjectID(gridStart);
+        const rows = await RecordModel.coll.aggregate<{ _id: string; count: number }>([
+            { $match: { domainId, uid, _id: { $gte: minId } } },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: {
+                            format: '%Y-%m-%d',
+                            date: { $toDate: '$_id' },
+                            timezone: tz,
+                        },
+                    },
+                    count: { $sum: 1 },
+                },
+            },
+        ]).toArray();
+        const counts: Record<string, number> = {};
+        for (const row of rows) counts[row._id] = row.count;
+        const weeks: { date: string; count: number; level: number }[][] = [];
+        const monthLabels: string[] = [];
+        let prevMonth = -1;
+        for (let w = 0; w < 53; w++) {
+            const week: { date: string; count: number; level: number }[] = [];
+            for (let d = 0; d < 7; d++) {
+                const day = gridStart.clone().add(w * 7 + d, 'days');
+                const key = day.format('YYYY-MM-DD');
+                if (day.isAfter(today)) {
+                    week.push({ date: key, count: -1, level: -1 });
+                } else {
+                    const count = counts[key] || 0;
+                    week.push({ date: key, count, level: RecordModel.submitHeatmapLevel(count) });
+                }
+            }
+            weeks.push(week);
+            const monday = gridStart.clone().add(w * 7, 'days');
+            const m = monday.month();
+            monthLabels.push(m !== prevMonth ? `${m + 1}月` : '');
+            prevMonth = m;
+        }
+        return { weeks, monthLabels };
+    }
+
     static getMulti(domainId: string, query: any, options?: FindOptions) {
         if (domainId) query = { domainId, ...query };
         return RecordModel.coll.find(query, options);

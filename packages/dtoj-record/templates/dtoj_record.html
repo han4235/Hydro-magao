@@ -4,16 +4,28 @@
 {% block content %}
 {% include "dtoj_style.html" %}
 <div class="row">
-  <div class="medium-12 columns dtoj-page dtoj-home">
+  <div class="medium-12 columns dtoj-page dtoj-home dtoj-record-list-page">
     <div class="dtoj-shell">
       <header class="dtoj-page-head">
+        {% if problemRecordList and pdoc %}
+        <h1>提交记录</h1>
+        <p class="dtoj-record-list-problem">
+          <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.title }}</a>
+          <span>· 显示本题全部提交；满分后可查看他人源代码</span>
+        </p>
+        {% else %}
         <h1>评测记录</h1>
-        <p>按题目、提交者、语言和状态查看评测。看别人的记录仍按站内权限。</p>
+        <p>按题目、提交者、语言和状态查看评测。学生默认只看自己；从题目页进入可查看本题全部提交。</p>
+        {% endif %}
       </header>
       <form method="get" class="dtoj-sheet dtoj-sheet-pad">
         <div class="dtoj-fields">
-          <label>提交者<input class="textbox" name="uidOrName" value="{{ uidOrName }}"></label>
+          <label>提交者<input class="textbox" name="uidOrName" value="{{ uidOrName }}" placeholder="用户名或 ID"></label>
+          {% if problemRecordList and pdoc %}
+          <input type="hidden" name="pid" value="{{ pdoc.pid|default(pdoc.docId) }}">
+          {% else %}
           <label>题目<input class="textbox" name="pid" value="{{ pid }}"></label>
+          {% endif %}
           <label>语言
             <select class="select" name="lang">
               <option value="">全部</option>
@@ -33,25 +45,31 @@
         </div>
         <div class="dtoj-actions">
           <button type="submit" class="dtoj-go">筛选</button>
+          {% if problemRecordList and pdoc %}
+          <a class="dtoj-alt" href="{{ url('record_main', query={pid: pdoc.pid|default(pdoc.docId)}) }}">重置</a>
+          {% else %}
           <a class="dtoj-alt" href="{{ url('record_main') }}">重置</a>
+          {% endif %}
         </div>
       </form>
-      <section class="dtoj-sheet">
+      <section class="dtoj-sheet dtoj-record-list-table">
         <table>
           <thead>
             <tr>
+              <th>提交者</th>
               <th>状态</th>
               <th>分数</th>
               <th>用时</th>
               <th>内存</th>
               <th>语言</th>
-              <th>题目</th>
-              <th>提交者</th>
+              {% if not problemRecordList %}<th>题目</th>{% endif %}
+              <th>时间</th>
             </tr>
           </thead>
           <tbody>
             {% for row in records %}
             <tr>
+              <td>{{ row.user }}</td>
               <td>
                 <span class="dtoj-status" data-status="{{ row.code }}">
                   <a href="{{ url('record_detail', rid=row.id) }}">{{ row.statusKey }}</a>
@@ -62,6 +80,7 @@
               <td>{{ row.time }}</td>
               <td>{{ row.memory }}</td>
               <td>{{ row.lang }}</td>
+              {% if not problemRecordList %}
               <td>
                 {% if row.problemLink %}
                 <a href="{{ url('problem_detail', pid=row.problemLink) }}">{{ row.problem }}</a>
@@ -69,8 +88,11 @@
                 {{ row.problem }}
                 {% endif %}
               </td>
-              <td>{{ row.user }}</td>
+              {% endif %}
+              <td>{{ datetimeSpan(row.submittedAt, false)|safe }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="{% if problemRecordList %}7{% else %}8{% endif %}">暂无记录</td></tr>
             {% endfor %}
           </tbody>
         </table>

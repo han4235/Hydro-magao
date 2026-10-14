@@ -5,6 +5,7 @@
     "license": "AGPL-3.0-or-later",
     "repository": "https://github.com/hydro-dev/Hydro",
     "dependencies": {
-        "dtoj-ui": "workspace:*"
+        "dtoj-ui": "workspace:*",
+        "hydrooj": "workspace:*"
     }
 }

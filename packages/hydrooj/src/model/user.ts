@@ -24,6 +24,40 @@ export const collV: Collection<VUdoc> = db.collection('vuser');
 export const collGroup: Collection<GDoc> = db.collection('user.group');
 const cache = new LRUCache<string, User>({ max: 10000, ttl: 300 * 1000 });
 
+/** 新注册用户默认显示/使用偏好（与青石练习场设置页一致） */
+export const NEW_USER_PREFERENCE_DEFAULTS: Partial<Udoc> = {
+    viewLang: 'zh_CN',
+    timeZone: 'Asia/Shanghai',
+    codeLang: 'cc.cc11o2',
+    codeTemplate: '',
+    rounded: false,
+    skipAnimate: false,
+    showTimeAgo: true,
+    fontFamily: 'Open Sans',
+    codeFontFamily: 'Source Code Pro',
+    theme: 'light',
+};
+
+function readConfiguredRole(key: 'default.userRole' | 'default.teacherRole', fallback: string): string {
+    const role = system.get(key);
+    return typeof role === 'string' && role.trim() ? role.trim() : fallback;
+}
+
+export function defaultDomainRoleForNewUser(): string {
+    return readConfiguredRole('default.userRole', '学生');
+}
+
+export function defaultTeacherDomainRole(): string {
+    return readConfiguredRole('default.teacherRole', '教师');
+}
+
+/** 注册账号权限；库内 default.priv 配错时仍保证含 PRIV_USER_PROFILE，否则不会出现在域用户列表 */
+export function defaultPrivForNewUser(): number {
+    const priv = system.get('default.priv');
+    if (typeof priv !== 'number' || !(priv & PRIV.PRIV_USER_PROFILE)) return PRIV.PRIV_DEFAULT;
+    return priv;
+}
+
 export function deleteUserCache(udoc: { _id: number, uname: string, mail: string } | string | true | undefined | null, receiver = false) {
     if (!udoc) return false;
     if (!receiver) {
@@ -320,7 +354,7 @@ class UserModel {
     @ArgMethod
     static async create(
         mail: string, uname: string, password: string,
-        uid?: number, regip: string = '127.0.0.1', priv: number = system.get('default.priv'),
+        uid?: number, regip: string = '127.0.0.1', priv: number = defaultPrivForNewUser(),
     ) {
         let autoAlloc = false;
         if (typeof uid !== 'number') {
@@ -333,6 +367,7 @@ class UserModel {
             try {
                 // eslint-disable-next-line no-await-in-loop
                 await coll.insertOne({
+                    ...NEW_USER_PREFERENCE_DEFAULTS,
                     _id: uid,
                     mail,
                     mailLower: handleMailLower(mail),
@@ -349,10 +384,11 @@ class UserModel {
                     priv,
                     avatar: `gravatar:${mail}`,
                 });
+                const defaultRole = defaultDomainRoleForNewUser();
                 // eslint-disable-next-line no-await-in-loop
                 await domain.collUser.updateOne(
                     { uid, domainId: 'system' },
-                    { $set: { join: true } },
+                    { $set: { join: true, role: defaultRole } },
                     { upsert: true },
                 );
                 // make sure user is immediately available after creation
@@ -513,6 +549,26 @@ class UserModel {
             UserModel.setById(uid, { priv: PRIV.PRIV_NONE, banReason: reason }),
             token.delByUid(uid),
         ]);
+    }
+
+    /** 永久删除账号及关联数据（不可恢复） */
+    @ArgMethod
+    static async deleteAccount(uid: number) {
+        const udoc = await coll.findOne({ _id: uid });
+        if (!udoc) return;
+        await Promise.all([
+            db.collection('document').deleteMany({ owner: uid }),
+            db.collection('document.status').deleteMany({ uid }),
+            db.collection('record').deleteMany({ uid }),
+            db.collection('domain.user').deleteMany({ uid }),
+            db.collection('message').deleteMany({ $or: [{ from: uid }, { to: uid }] }),
+            db.collection('oauth').deleteMany({ uid }),
+            db.collection('schedule').deleteMany({ 'args.uid': uid }),
+            collGroup.updateMany({ uids: uid }, { $pull: { uids: uid } }),
+            token.delByUid(uid),
+        ]);
+        await coll.deleteOne({ _id: uid });
+        deleteUserCache(udoc);
     }
 
     static async listGroup(domainId: string, uid?: number, names?: string[], search?: string, limit?: number) {

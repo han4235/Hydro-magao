@@ -1,46 +1,64 @@
-{% extends "layout/immersive.html" %}
+{% set page_name = "user_login" %}
+{% extends "layout/basic.html" %}
 {% block content %}
-<div class="row"><div class="columns">
-  <div class="immersive--content immersive--center">
-    <h1>{{ _('Login') }}</h1>
-    <form method="POST">
-      {% if model.system.get('server.login') %}
-      <div class="row"><div class="columns">
-        <label class="inverse material textbox">
-          {{ _('Username') }}
-          <input name="uname" type="text" autofocus autocomplete="username webauthn">
-        </label>
-      </div></div>
-      <div class="row"><div class="columns">
-        <label class="inverse material textbox">
-          {{ _('Password') }}
-          <input name="password" type="password">
-        </label>
-      </div></div>
-      <div class="row"><div class="columns">
-        <label class="inverse material checkbox" style="color:#fff;">
-          <input type="checkbox" name="rememberme" class="checkbox">{{ _('Remember me') }}
-        </label>
-      </div></div>
-      <div class="row"><div class="columns">
-        <input type="hidden" name="tfa" value="">
-        <input type="hidden" name="authnChallenge" value="">
-        <div class="text-center">
-          <input type="submit" value="{{ _('Login') }}" name="login_submit" class="inverse expanded rounded primary button">
+{% include "dtoj_style.html" %}
+{% include "partials/dtoj_auth_style.html" %}
+<div class="row">
+  <div class="medium-12 columns dtoj-auth-page">
+    <div class="dtoj-auth-shell">
+      <aside class="dtoj-auth-brand">
+        <div class="dtoj-auth-logo">
+          <img src="{{ ctx.setting.get('ui-default.nav_logo_dark') }}" alt="{{ model.system.get('server.name') }}">
+          <span>{{ model.system.get('server.name') }}</span>
         </div>
-      </div></div>
-      {% endif %}
-      {%- for v in loginMethods|default(handler.loginMethods) -%}
-        <div class="row"><div class="columns">
-          <a href="{{ url('user_oauth', type=v.id, query={redirect: redirect}) }}" class="expanded rounded button inverse">{{ _(v.text) }}</a>
-        </div></div>
-      {%- endfor -%}
-      <div class="row"><div class="columns">
-        <div class="text-center supplementary inverse">
-          <a href="{{ url('user_lostpass') }}">{{ _('Forgot password or username?') }}</a>
+        <div class="dtoj-auth-hero">
+          <h1>继续你的训练</h1>
+          <p>使用同一个账号访问题库、课程、比赛和评测记录。</p>
         </div>
-      </div></div>
-    </form>
+      </aside>
+      <section class="dtoj-auth-panel">
+        <div class="dtoj-auth-panel-head">
+          <nav class="dtoj-auth-tabs" aria-label="账号">
+            <a class="is-on" href="{{ url('user_login') }}">登录</a>
+            <a href="{{ url('user_register') }}">注册</a>
+          </nav>
+        </div>
+        <h2>登录</h2>
+        <p class="dtoj-auth-sub">登录后继续你的练习与比赛。</p>
+        <form method="post" action="{{ url('user_login') }}">
+          {% if redirect %}<input type="hidden" name="redirect" value="{{ redirect }}">{% endif %}
+          {% if model.system.get('server.login') %}
+          <label class="dtoj-auth-field">
+            <span>{{ _('Username') }}</span>
+            <input name="uname" type="text" autofocus autocomplete="username webauthn" required>
+          </label>
+          <label class="dtoj-auth-field">
+            <span>{{ _('Password') }}</span>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <div class="dtoj-auth-row">
+            <label>
+              <input type="checkbox" name="rememberme" value="true">
+              {{ _('Remember me') }}
+            </label>
+            <a href="{{ url('user_lostpass') }}">{{ _('Forgot password or username?') }}</a>
+          </div>
+          <input type="hidden" name="tfa" value="">
+          <input type="hidden" name="authnChallenge" value="">
+          <button type="submit" name="login_submit" class="dtoj-auth-submit">{{ _('Login') }}</button>
+          {% endif %}
+          <div class="dtoj-auth-oauth">
+          {%- for v in loginMethods|default(handler.loginMethods) -%}
+            <a href="{{ url('user_oauth', type=v.id, query={redirect: redirect}) }}">{{ _(v.text) }}</a>
+          {%- endfor -%}
+          </div>
+        </form>
+        <p class="dtoj-auth-bottom">还没有账号？<a href="{{ url('user_register') }}">创建账号</a></p>
+      </section>
+    </div>
   </div>
-</div></div>
+</div>
+<script>
+  document.querySelectorAll('.dialog--signin').forEach(function (el) { el.remove(); });
+</script>
 {% endblock %}

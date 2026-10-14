@@ -1,0 +1,40 @@
+<div class="dtoj-record-status" id="status" data-status="{{ rdoc.status }}">
+  {% if rdoc.compilerTexts and rdoc.compilerTexts.length %}
+  <pre class="dtoj-record-compiler">{{ rdoc.compilerTexts|join('\n')|ansi|safe }}</pre>
+  {% endif %}
+  {% if rdoc.testCases and rdoc.testCases.length %}
+  <div class="dtoj-record-cases">
+  <div class="dtoj-case-grid">
+    {% set caseGroups = rdoc.testCases|groupby('subtaskId') %}
+    {% set multiGroup = caseGroups|length > 1 %}
+    {% for subtaskId, cases in rdoc.testCases|sort(false, false, 'subtaskId')|groupby('subtaskId') %}
+    {% for tc in cases|sort(false, false, 'id') %}
+    {% set caseNo = (((subtaskId|int) + 1) ~ '-' ~ (tc.id|default(loop.index))) if multiGroup else (tc.id|default(loop.index)) %}
+    {% set caseName = model.builtin.STATUS_TEXTS[tc.status] or '' %}
+    {% set caseScore = tc.score|default(0) %}
+    {% set caseTime = tc.time|round|int %}
+    {% set caseMem = (tc.memory / 1024)|round(2) ~ 'MB' if tc.memory >= 1024 else (tc.memory|round(0) ~ 'KB') %}
+    {% set caseKey = (tc.subtaskId|default(0)) ~ ':' ~ (tc.id|default(loop.index)) %}
+    {% set caseUrls = caseFiles[caseKey] if caseFiles else null %}
+    <div class="dtoj-case {{ model.builtin.STATUS_CODES[tc.status] }}{% if canViewCaseFiles and caseUrls and (caseUrls.in or caseUrls.out) %} dtoj-case--pickable{% endif %}" data-case-no="#{{ caseNo }}"{% if caseUrls and caseUrls.in %} data-in-url="{{ caseUrls.in }}"{% endif %}{% if caseUrls and caseUrls.out %} data-out-url="{{ caseUrls.out }}"{% endif %} data-tooltip="测试点 #{{ caseNo }}<br>{{ caseName }}<br>得分 {{ caseScore }}<br>用时 {{ caseTime }}ms，内存 {{ caseMem }}">
+      <span class="dtoj-case-num">#{{ caseNo }}</span>
+      <span class="dtoj-case-verdict">{{ model.builtin.STATUS_SHORT_TEXTS[tc.status] or caseName }}</span>
+      <span class="dtoj-case-meta">{{ caseTime }}ms/{{ caseMem }}</span>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  </div>
+  {% if canViewCaseFiles %}
+  <div class="dtoj-case-sample-bar" id="dtoj-case-sample-bar" hidden>
+    <span class="dtoj-case-sample-label" id="dtoj-case-sample-label"></span>
+    <div class="dtoj-case-sample-actions">
+      <button type="button" class="dtoj-btn dtoj-btn--ghost" id="dtoj-case-view-in" disabled>查看样例输入</button>
+      <button type="button" class="dtoj-btn dtoj-btn--ghost" id="dtoj-case-view-out" disabled>查看样例输出</button>
+    </div>
+  </div>
+  {% endif %}
+  </div>
+  {% elif typeof(rdoc['status']) === 'number' %}
+  <p class="dtoj-record-wait">{{ model.builtin.STATUS_TEXTS[rdoc.status] }}{% if rdoc.progress %} {{ rdoc.progress|int }}%{% endif %}</p>
+  {% endif %}
+</div>

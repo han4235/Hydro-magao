@@ -1,0 +1,189 @@
+<script>
+(function () {
+  var STORAGE_KEY = 'dtoj:domain-nav-order:v1';
+  var LONG_PRESS_MS = 380;
+
+  function loadOrder() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveOrder(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function persistList(ul) {
+    var family = ul.getAttribute('data-family') || '_';
+    var data = loadOrder();
+    data[family] = Array.prototype.map.call(
+      ul.querySelectorAll('li[data-nav-id]'),
+      function (li) { return li.getAttribute('data-nav-id'); },
+    );
+    saveOrder(data);
+  }
+
+  function applySavedOrder(ul) {
+    var family = ul.getAttribute('data-family') || '_';
+    var order = loadOrder()[family];
+    if (!order || !order.length) return;
+    var map = {};
+    Array.prototype.forEach.call(ul.querySelectorAll('li[data-nav-id]'), function (li) {
+      map[li.getAttribute('data-nav-id')] = li;
+    });
+    order.forEach(function (id) {
+      if (map[id]) ul.appendChild(map[id]);
+    });
+  }
+
+  function findTargetLi(ul, x, y, skip) {
+    var lists = document.elementsFromPoint(x, y);
+    for (var i = 0; i < lists.length; i++) {
+      var el = lists[i];
+      if (!el || el === skip || skip.contains(el)) continue;
+      var li = el.closest && el.closest('li[data-nav-id]');
+      if (li && li.parentNode === ul) return li;
+    }
+    return null;
+  }
+
+  function initSortable(ul) {
+    var dragLi = null;
+    var dragUl = null;
+    var pressTimer = null;
+    var pressLi = null;
+    var suppressClick = false;
+    var reordered = false;
+    var startY = 0;
+    var activePointerId = null;
+
+    function clearPress() {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+      pressLi = null;
+    }
+
+    function onPointerMove(e) {
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      if (!dragLi) {
+        if (pressTimer && pressLi && Math.abs(e.clientY - startY) > 12) clearPress();
+        return;
+      }
+      e.preventDefault();
+      dragLi.classList.add('is-dragging');
+      dragLi.style.pointerEvents = 'none';
+      var target = findTargetLi(dragUl, e.clientX, e.clientY, dragLi);
+      dragLi.style.pointerEvents = '';
+      if (!target || target === dragLi) return;
+      var rect = target.getBoundingClientRect();
+      var before = e.clientY < rect.top + rect.height / 2;
+      if (before) {
+        if (dragLi.nextSibling !== target) {
+          dragUl.insertBefore(dragLi, target);
+          reordered = true;
+        }
+      } else if (dragLi !== target.nextSibling) {
+        dragUl.insertBefore(dragLi, target.nextSibling);
+        reordered = true;
+      }
+    }
+
+    function endDrag() {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+      if (!dragLi) return;
+      dragLi.classList.remove('is-dragging');
+      try {
+        dragLi.releasePointerCapture(activePointerId);
+      } catch (err) {}
+      if (reordered) {
+        suppressClick = true;
+        persistList(dragUl);
+      }
+      dragLi = null;
+      dragUl = null;
+      activePointerId = null;
+      reordered = false;
+    }
+
+    function onPointerUp(e) {
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+      clearPress();
+      endDrag();
+    }
+
+    function beginDrag(li) {
+      dragLi = li;
+      dragUl = ul;
+      reordered = false;
+      li.classList.add('is-dragging');
+      if (navigator.vibrate) navigator.vibrate(10);
+      try {
+        li.setPointerCapture(activePointerId);
+      } catch (err) {}
+      document.addEventListener('pointermove', onPointerMove, { passive: false });
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+    }
+
+    ul.addEventListener('pointerdown', function (e) {
+      var li = e.target && e.target.closest('li[data-nav-id]');
+      if (!li || li.parentNode !== ul) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      clearPress();
+      pressLi = li;
+      startY = e.clientY;
+      activePointerId = e.pointerId;
+      pressTimer = setTimeout(function () {
+        pressTimer = null;
+        beginDrag(li);
+      }, LONG_PRESS_MS);
+    });
+
+    ul.addEventListener('pointerup', function () {
+      if (!dragLi) {
+        clearPress();
+        activePointerId = null;
+      }
+    });
+
+    ul.addEventListener('pointercancel', function () {
+      if (!dragLi) {
+        clearPress();
+        activePointerId = null;
+      }
+    });
+
+    ul.addEventListener('click', function (e) {
+      if (suppressClick) {
+        suppressClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
+    ul.addEventListener('contextmenu', function (e) {
+      if (dragLi) e.preventDefault();
+    });
+  }
+
+  function boot() {
+    var root = document.querySelector('.dtoj-domain-nav');
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll('.dtoj-domain-tree[data-family]'), function (ul) {
+      applySavedOrder(ul);
+      initSortable(ul);
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>

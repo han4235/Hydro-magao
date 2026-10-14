@@ -150,7 +150,7 @@ Completed: 已完成
 Confirm deleting the selected roles?: 您确定删除所选角色吗？
 Confirm deleting this comment? Its replies will be deleted as well.: 确认删除这个评论吗？回复会被同时删除。
 Confirm deleting this reply?: 确认删除这个回复吗？
-Confirm removing the selected users?: 您确定将所选用户移除吗？
+Confirm removing the selected users?: 确定要删除所选用户的账号吗？
 Confirmation mail has been sent to your new email.: 确认邮件已经发送到您的新电子邮箱。
 Congratulations! Your submission is accepted.: 恭喜！您的递交已评测通过。
 Contact Us: 联系我们
@@ -421,6 +421,9 @@ In Progress: 进行中
 Information: 信息
 Init Discussion Nodes: 初始化讨论结点
 Initialize: 初始化
+Initialize password: 初始化密码
+Confirm initializing password to {0} for user {1}?: 确认将用户 {1} 的密码初始化为 {0} 吗？
+Password has been reset to {0}.: 密码已初始化为 {0}。
 Inline codes: 行内代码
 Inline formulas: 行内公式
 Input Format: 输入格式
@@ -751,7 +754,7 @@ Select Category: 选择标签
 Select User: 选择用户
 Selected categories: 已选标签
 Selected roles have been deleted.: 所选角色已删除。
-Selected users have been removed from the domain.: 所选用户已从此域中移除。
+Selected users have been removed from the domain.: 所选用户账号已删除。
 Send Broadcast Message: 发送公告
 Send Clarification Request: 提问
 Send Code after acceptance: 通过题目后发送源代码
@@ -765,6 +768,8 @@ Set Role: 设置角色
 Set Roles for Selected User: 设置所选用户的角色
 Set Roles for selected users: 为所选用户设置角色
 setting_basic: 基础设置
+default.userRole: 新注册用户默认角色
+default.teacherRole: 教师默认角色
 setting_customize: 个性化
 setting_display: 显示偏好
 setting_domain: 域设置

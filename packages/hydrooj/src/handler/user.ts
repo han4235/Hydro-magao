@@ -12,6 +12,7 @@ import {
     UserNotFoundError, ValidationError, VerifyPasswordError,
 } from '../error';
 import { TokenDoc, Udoc, User } from '../interface';
+import { loginRedirectForUser } from '../lib/adminPaths';
 import avatar from '../lib/avatar';
 import { sendMail } from '../lib/mail';
 import { verifyTFA } from '../lib/verifyTFA';
@@ -21,8 +22,8 @@ import * as ContestModel from '../model/contest';
 import domain from '../model/domain';
 import * as oplog from '../model/oplog';
 import problem, { ProblemDoc } from '../model/problem';
+import RecordModel from '../model/record';
 import ScheduleModel from '../model/schedule';
-import SolutionModel from '../model/solution';
 import system from '../model/system';
 import token from '../model/token';
 import user, { deleteUserCache } from '../model/user';
@@ -104,8 +105,12 @@ class UserLoginHandler extends Handler {
         if (!udoc.hasPriv(PRIV.PRIV_USER_PROFILE)) throw new BlacklistedError(uname, udoc.banReason);
         await successfulAuth.call(this, udoc);
         this.session.save = rememberme;
-        this.response.redirect = redirect || ((this.request.referer || '/login').endsWith('/login')
-            ? this.url('homepage') : this.request.referer);
+        const fallback = (this.request.referer || '/login').endsWith('/login')
+            ? this.url('homepage') : this.request.referer;
+        const target = redirect || fallback;
+        this.response.redirect = loginRedirectForUser(
+            target, this.user.hasPerm(PERM.PERM_EDIT_DOMAIN), this.url('homepage'),
+        );
     }
 }
 
@@ -217,8 +222,12 @@ class UserWebauthnHandler extends Handler {
         if (tdoc.uid === 'login') {
             await successfulAuth.call(this, await user.getById(domainId, udoc._id));
             await token.del(challenge, token.TYPE_WEBAUTHN);
-            this.response.redirect = redirect || ((this.request.referer || '/login').endsWith('/login')
-                ? this.url('homepage') : this.request.referer);
+            const fallback = (this.request.referer || '/login').endsWith('/login')
+                ? this.url('homepage') : this.request.referer;
+            const target = redirect || fallback;
+            this.response.redirect = loginRedirectForUser(
+                target, this.user.hasPerm(PERM.PERM_EDIT_DOMAIN), this.url('homepage'),
+            );
         } else {
             await token.update(challenge, token.TYPE_WEBAUTHN, 60, { verified: true });
             this.back();
@@ -335,7 +344,11 @@ class UserRegisterWithCodeHandler extends Handler {
         }
         if (this.session.viewLang) $set.viewLang = this.session.viewLang;
         if (Object.keys($set).length) await user.setById(uid, $set);
-        if (Object.keys(this.tdoc.setInDomain || {}).length) await domain.setUserInDomain(domainId, uid, this.tdoc.setInDomain);
+        await domain.setUserInDomain(domainId, uid, {
+            join: true,
+            role: user.defaultDomainRoleForNewUser(),
+            ...(this.tdoc.setInDomain || {}),
+        });
         await this.ctx.oauth.set(this.tdoc.identity.platform, this.tdoc.identity.id, uid);
         await successfulAuth.call(this, await user.getById(domainId, uid));
         this.response.redirect = this.tdoc.redirect || this.url('home_settings', { category: 'preference' });
@@ -423,6 +436,14 @@ class UserDetailHandler extends Handler {
                     false, problem.PROJECTION_LIST, true,
                 ),
             ));
+            pdocs.sort((a, b) => {
+                const pa = String(a.pid ?? a.docId);
+                const pb = String(b.pid ?? b.docId);
+                const na = Number(pa);
+                const nb = Number(pb);
+                if (!Number.isNaN(na) && !Number.isNaN(nb) && pa === String(na) && pb === String(nb)) return na - nb;
+                return pa.localeCompare(pb, 'zh-CN', { numeric: true });
+            });
         }
         for (const pdoc of pdocs) {
             for (const tag of pdoc.tag) {
@@ -434,20 +455,11 @@ class UserDetailHandler extends Handler {
         const tsdocs = await ContestModel.getMultiStatus(domainId, { uid, attend: { $exists: true } }).project({ docId: 1 }).toArray();
         const tdocs = await ContestModel.getMulti(domainId, { docId: { $in: tsdocs.map((i) => i.docId) } })
             .project({ docId: 1, title: 1, rule: 1 }).sort({ _id: -1 }).toArray();
+        const submitHeatmap = await RecordModel.getSubmitHeatmap(domainId, uid);
         this.response.template = 'user_detail.html';
         this.response.body = {
-            isSelfProfile, udoc, sdoc, pdocs, tags, tdocs,
+            isSelfProfile, udoc, sdoc, pdocs, tags, tdocs, submitHeatmap,
         };
-        if (this.user.hasPerm(PERM.PERM_VIEW_PROBLEM_SOLUTION)) {
-            const psdocs = await SolutionModel.getByUser(domainId, uid).limit(10).toArray();
-            this.response.body.psdocs = psdocs;
-            if (this.user.hasPerm(PERM.PERM_VIEW_PROBLEM)) {
-                this.response.body.pdict = await problem.getList(
-                    domainId, psdocs.map((i) => i.parentId), canViewHidden,
-                    false, problem.PROJECTION_LIST,
-                );
-            }
-        }
         this.UiContext.extraTitleContent = udoc.uname;
     }
 }

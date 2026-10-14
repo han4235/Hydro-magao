@@ -8,6 +8,55 @@ import {
 } from 'vj/utils';
 
 const page = new NamedPage('domain_user', () => {
+  function filterDomainUsers() {
+    const q = String($('[name="user_search"]').val() || '').trim().toLowerCase();
+    $('.domain-users tbody tr[data-uid]').each((_, el) => {
+      const $row = $(el);
+      const uid = String($row.attr('data-uid') || '');
+      const name = $row.find('.col--user').text().toLowerCase();
+      const hit = !q || uid.includes(q) || name.includes(q);
+      $row.toggle(hit);
+    });
+  }
+
+  function exitRoleEdit($row, revert = false) {
+    const $cell = $row.find('.col--role');
+    const $select = $cell.find('select[name="role"]');
+    if (revert && $select.length) {
+      $select.val($row.attr('data-role') || '');
+    }
+    $cell.find('.domain-user-role__text').show();
+    $cell.find('.domain-user-role__edit').hide();
+    $row.find('.domain-user-role__btn-edit').css('display', 'inline-flex');
+    $row.find('.domain-user-role__btn-cancel').css('display', 'none');
+    $row.removeClass('domain-user-row--editing-role');
+  }
+
+  function enterRoleEdit($row) {
+    $('.domain-user-row--editing-role').each((_, el) => {
+      exitRoleEdit($(el), true);
+    });
+    const $cell = $row.find('.col--role');
+    $cell.find('.domain-user-role__text').hide();
+    $cell.find('.domain-user-role__edit').show();
+    $row.find('.domain-user-role__btn-edit').hide();
+    $row.find('.domain-user-role__btn-cancel').css('display', 'inline-flex');
+    $row.addClass('domain-user-row--editing-role');
+    $cell.find('select[name="role"]').trigger('focus');
+  }
+
+  $('[name="user_search"]').on('input', () => filterDomainUsers());
+
+  $('.domain-users__sort-role').on('click keydown', (ev) => {
+    if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+    if (ev.type === 'keydown') ev.preventDefault();
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('sortRole') === 'asc' ? 'desc' : 'asc';
+    params.set('sortRole', next);
+    params.set('page', '1');
+    window.location.search = params.toString();
+  });
+
   $('.not-joined').data('tooltip', i18n('Click to view detailed instructions.'));
   $('.not-joined').addClass('text-orange');
   $(document).on('click', '.not-joined', () => {
@@ -73,14 +122,14 @@ const page = new NamedPage('domain_user', () => {
   async function handleClickRemoveSelected() {
     const selectedUsers = ensureAndGetSelectedUsers();
     if (selectedUsers === null) return;
-    if (!(await confirm(`${i18n('Confirm removing the selected users?')}
-${i18n('Their account will not be deleted and they will be with the guest role until they re-join the domain.')}`))) return;
+    if (!(await confirm(`${i18n('Confirm deleting the selected user accounts?')}
+${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) return;
     try {
       await request.post('', {
         operation: 'kick',
         uids: selectedUsers,
       });
-      Notification.success(i18n('Selected users have been removed from the domain.'));
+      Notification.success(i18n('Selected user accounts have been deleted.'));
       await delay(2000);
       window.location.reload();
     } catch (error) {
@@ -114,25 +163,57 @@ ${i18n('Their account will not be deleted and they will be with the guest role u
     }
   }
 
+  const INIT_PASSWORD = '123456';
+
+  async function handleClickInitPassword(ev) {
+    const $row = $(ev.currentTarget).closest('tr');
+    const uid = $row.attr('data-uid');
+    const uname = $row.find('.col--user .user-profile__uname, .col--user a').first().text().trim()
+      || $row.find('.col--user').text().trim();
+    if (!uid) return;
+    if (!(await confirm(i18n('Confirm initializing password to {0} for user {1}?', INIT_PASSWORD, uname || uid)))) return;
+    try {
+      await request.post('', {
+        operation: 'init_password',
+        uids: [uid],
+      });
+      Notification.success(i18n('Password has been reset to {0}.', INIT_PASSWORD));
+    } catch (error) {
+      Notification.error(error.message);
+    }
+  }
+
   async function handleChangeUserRole(ev) {
-    const row = $(ev.currentTarget).closest('tr');
-    const role = $(ev.currentTarget).val();
+    const $select = $(ev.currentTarget);
+    const $row = $select.closest('tr');
+    const role = String($select.val());
     try {
       await request.post('', {
         operation: 'set_users',
-        uids: [row.attr('data-uid')],
+        uids: [$row.attr('data-uid')],
         role,
       });
+      $row.attr('data-role', role);
+      $row.find('.domain-user-role__text').text(role);
       Notification.success(i18n('Role has been updated to {0}.', role));
+      exitRoleEdit($row, false);
     } catch (error) {
       Notification.error(error.message);
+      exitRoleEdit($row, true);
     }
   }
 
   $('[name="add_user"]').click(() => handleClickAddUser());
   $('[name="remove_selected"]').click(() => handleClickRemoveSelected());
   $('[name="set_roles"]').click(() => handleClickSetSelected());
-  $('.domain-users [name="role"]').change((ev) => handleChangeUserRole(ev));
+  $('.domain-users').on('click', '.domain-user-role__btn-edit', (ev) => {
+    enterRoleEdit($(ev.currentTarget).closest('tr'));
+  });
+  $('.domain-users').on('click', '.domain-user-role__btn-cancel', (ev) => {
+    exitRoleEdit($(ev.currentTarget).closest('tr'), true);
+  });
+  $('.domain-users').on('change', 'select[name="role"]', (ev) => handleChangeUserRole(ev));
+  $('.domain-users').on('click', '.domain-user-init-pwd', (ev) => handleClickInitPassword(ev));
 });
 
 export default page;

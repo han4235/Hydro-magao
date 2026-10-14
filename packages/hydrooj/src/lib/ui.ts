@@ -1,5 +1,6 @@
 import { UIInjectableFields } from '../interface';
 import { PERM, PRIV } from '../model/builtin';
+import { canViewAllDomainRecords } from './recordVisibility';
 
 const trueChecker = () => true;
 const Checker = (perm: bigint | bigint[], priv: number | number[], checker: Function = trueChecker) => (handler) => (
@@ -52,10 +53,11 @@ inject('Nav', 'discussion_main', { prefix: 'discussion' }, PERM.PERM_VIEW_DISCUS
 inject('Nav', 'record_main', {
     prefix: 'record',
     query: (handler) => (handler.user.hasPriv(PRIV.PRIV_USER_PROFILE)
+        && !canViewAllDomainRecords(handler.user)
         ? ({ uidOrName: handler.user._id })
         : ({})),
 }, (handler) => (handler.user.hasPriv(PRIV.PRIV_USER_PROFILE)
-    ? true : handler.user.hasPerm(PERM.PERM_VIEW_RECORD)));
+    ? true : canViewAllDomainRecords(handler.user)));
 inject('Nav', 'ranking', { prefix: 'ranking' }, PERM.PERM_VIEW_RANKING);
 inject('Nav', 'domain_dashboard', { prefix: 'domain' }, PERM.PERM_EDIT_DOMAIN);
 inject('Nav', 'manage_dashboard', { prefix: 'manage' }, PRIV.PRIV_EDIT_SYSTEM);

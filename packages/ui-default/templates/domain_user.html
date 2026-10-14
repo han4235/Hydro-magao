@@ -1,15 +1,69 @@
 {% extends "domain_base.html" %}
+{% import "components/paginator.html" as paginator with context %}
 {% block domain_content %}
 {{ set(UiContext, 'roles', roles.map(eval('(i) => i._id'))) }}
 {{ set(UiContext, 'canForceJoin', model.system.get('server.allowInvite') or handler.user.hasPriv(PRIV.PRIV_MANAGE_ALL_DOMAIN)) }}
 {% set _rolesSelect = roles.filter(eval("(i) => i._id !== 'guest'")).map(eval('(role) => [role._id, role._id]')) %}
+<style>
+  .page--domain_user .domain-users table.data-table {
+    table-layout: auto;
+    width: 100%;
+  }
+  .page--domain_user .domain-users col.col--actions {
+    width: 300px;
+  }
+  .page--domain_user .domain-users th.col--actions,
+  .page--domain_user .domain-users td.col--actions {
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    vertical-align: middle;
+  }
+  .page--domain_user .domain-user-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+  }
+  .page--domain_user .domain-user-actions .button.rounded.compact {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    white-space: nowrap;
+    min-height: 32px;
+    height: 32px;
+    line-height: 1;
+    padding: 0 11px;
+    font-size: 13px;
+    font-weight: 600;
+    transform: none;
+  }
+  .page--domain_user .domain-user-actions .domain-user-init-pwd {
+    padding: 0 10px;
+  }
+  .page--domain_user .domain-user-actions .button.rounded.compact:hover {
+    transform: none;
+  }
+</style>
 <div class="section">
   <div class="section__header">
     <h1 class="section__title">{{ _('{0}: Users').format(domain.name) }}</h1>
-    <div class="section__tools">
-      <button class="primary rounded button" name="add_user">{{ _('Add User') }}</button>
-    </div>
   </div>
+  <div class="domain-users__toolbar">
+    <input type="search" class="textbox rounded domain-users__search" name="user_search" placeholder="{{ _('Search users') }}" autocomplete="off">
+    <button type="button" class="primary rounded button" name="add_user">{{ _('Add User') }}</button>
+    <span class="domain-users__page-meta">{{ _('{0} users total').format(ucount) }}</span>
+  </div>
+  {% set _userListQs = ('sortRole=' + sortRole) if sortRole else '' %}
   {{ noscript_note.render() }}
   <div class="section__body no-padding domain-users">
     <table class="data-table">
@@ -18,6 +72,7 @@
         <col class="col--uid">
         <col class="col--user">
         <col class="col--role">
+        <col class="col--actions" style="width:280px">
       </colgroup>
       <thead>
         <tr>
@@ -28,28 +83,17 @@
           </th>
           <th class="col--uid">{{ _('User ID') }}</th>
           <th class="col--user">{{ _('Username') }}</th>
-          <th class="col--role">{{ _('Role') }}</th>
+          <th class="col--role domain-users__sort-role" tabindex="0" title="{{ _('Sort by role') }}">
+            {{ _('Role') }}
+            <span class="domain-users__sort-indicator" aria-hidden="true">{% if sortRole == 'asc' %} ↑{% elif sortRole == 'desc' %} ↓{% endif %}</span>
+          </th>
+          <th class="col--actions" style="width:280px;min-width:280px;">{{ _('Actions') }}</th>
         </tr>
       </thead>
       <tbody>
-        {%- for role, udocs in rudocs -%}
-        {%- if udocs|length > 50 -%}
-          <tr>
-            <td colspan="3" style="text-wrap: wrap;"><div style="max-height: 300px; overflow-y: auto">
-              {%- for udoc in udocs -%}
-                {% set is_disabled=(rudoc._id == handler.user._id) %}
-                <input type="checkbox" data-uid="{{udoc._id}}" data-checkbox-group="user" {% if is_disabled %}disabled{% else %}data-checkbox-range{% endif %}>
-                [{{udoc._id}}]{{ user.render_inline(udoc, avatar=false, badge=false) }}{% if not udoc.join %}
-                  <span class="not-joined">({{ _('Not joined yet') }})</span>
-                {% endif %}&nbsp;&nbsp;&nbsp;
-              {%- endfor -%}
-            </div></td>
-            <td>{{ role }}</td>
-          </tr>
-        {%- else -%}
         {%- for rudoc in udocs -%}
         {% set is_disabled=(rudoc._id == handler.user._id) %}
-        <tr data-uid="{{ rudoc._id }}">
+        <tr data-uid="{{ rudoc._id }}" data-role="{{ rudoc.role }}">
           <td class="col--checkbox">
             <label class="compact checkbox">
               <input type="checkbox" data-checkbox-group="user" {% if is_disabled %}disabled{% else %}data-checkbox-range{% endif %}>
@@ -63,24 +107,81 @@
             {% if not rudoc.join %}<span class="text-orange">({{ _('Not joined yet') }})</span>{% endif %}
           </td>
           <td class="col--role">
-            {{ form.select({
-                 options:_rolesSelect,
-                 name:'role',
-                 value:rudoc.role,
-                 extra_class:'compact',
-                 disabled:is_disabled
-               }) }}
+            <span class="domain-user-role__text">{{ rudoc.role }}</span>
+            {% if not is_disabled %}
+            <div class="domain-user-role__edit">
+              <div name="form_item_role" class="select-container compact">
+                <select name="role" class="select">
+                  {%- for k, v in _rolesSelect -%}
+                  <option value="{{ k }}"{% if rudoc.role == k %} selected{% endif %}>{{ _(v) }}</option>
+                  {%- endfor -%}
+                </select>
+              </div>
+            </div>
+            {% endif %}
+          </td>
+          <td class="col--actions" style="width:280px;min-width:280px;max-width:none;white-space:nowrap;vertical-align:middle;">
+            {% if not is_disabled %}
+            <div class="domain-user-actions" style="display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:8px;width:max-content;">
+              <button type="button" class="rounded compact button domain-user-role__btn-edit" style="display:inline-flex;align-items:center;justify-content:center;width:auto;flex:0 0 auto;margin:0;white-space:nowrap;height:32px;min-height:32px;line-height:1;padding:0 12px;font-size:13px;">{{ _('Modify') }}</button>
+              <button type="button" class="rounded compact button domain-user-init-pwd" style="display:inline-flex;align-items:center;justify-content:center;width:auto;flex:0 0 auto;margin:0;white-space:nowrap;height:32px;min-height:32px;line-height:1;padding:0 12px;font-size:13px;">{{ _('Initialize password') }}</button>
+              <button type="button" class="rounded compact button domain-user-role__btn-cancel" style="display:none;align-items:center;justify-content:center;width:auto;flex:0 0 auto;margin:0;white-space:nowrap;height:32px;min-height:32px;line-height:1;padding:0 12px;font-size:13px;">{{ _('Cancel') }}</button>
+            </div>
+            {% endif %}
           </td>
         </tr>
-        {%- endfor -%}
-        {%- endif -%}
         {%- endfor -%}
       </tbody>
     </table>
   </div>
+  {{ paginator.render(page, upcount, add_qs=_userListQs) }}
   <div class="section__body">
-    <button class="rounded button" name="remove_selected">{{ _('Remove Selected User') }}</button>
+    <button class="rounded button" name="remove_selected">{{ _('Delete Selected User Accounts') }}</button>
     <button class="rounded button" name="set_roles">{{ _('Set Roles for Selected User') }}</button>
   </div>
 </div>
+<script>
+(function () {
+  var INIT_PASSWORD = '123456';
+  var table = document.querySelector('.domain-users');
+  if (!table) return;
+  table.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.domain-user-init-pwd');
+    if (!btn) return;
+    var row = btn.closest('tr[data-uid]');
+    if (!row) return;
+    var uid = row.getAttribute('data-uid');
+    var uname = (row.querySelector('.col--user') || {}).textContent || '';
+    uname = uname.replace(/\s+/g, ' ').trim();
+    var msg = '确认将用户 ' + (uname || uid) + ' 的密码初始化为 ' + INIT_PASSWORD + ' 吗？';
+    if (!window.confirm(msg)) return;
+    var url = window.location.pathname + window.location.search;
+    var payload = { operation: 'init_password', uids: [+uid] };
+    var onOk = function () { alert('密码已初始化为 ' + INIT_PASSWORD); };
+    var onErr = function (msg) { alert(msg || '操作失败'); };
+    if (window.jQuery) {
+      window.jQuery.ajax({
+        url: url,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        headers: { Accept: 'application/json' },
+      }).done(onOk).fail(function (xhr) {
+        var m = xhr.responseJSON && xhr.responseJSON.error && xhr.responseJSON.error.message;
+        onErr(m);
+      });
+      return;
+    }
+    fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (res) {
+      if (!res.ok) return res.json().then(function (d) { throw new Error((d.error && d.error.message) || '操作失败'); });
+      onOk();
+    }).catch(function (e) { onErr(e.message); });
+  });
+})();
+</script>
 {% endblock %}

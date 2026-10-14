@@ -1,0 +1,9 @@
+<dl class="dtoj-record-summary-sync" id="summary">
+  <dd data-v="verdict" data-tone="{{ model.builtin.STATUS_CODES[rdoc['status']] }}" hidden>{{ model.builtin.STATUS_TEXTS[rdoc['status']] }}</dd>
+  <dt data-k="score">{{ _('Score') }}</dt>
+  <dd data-v="score">{{ rdoc['score']|default(0) }}</dd>
+  <dt data-k="time">{{ _('Total Time') }}</dt>
+  <dd data-v="time">{% if rdoc['time'] %}{% if rdoc['status'] == STATUS.STATUS_TIME_LIMIT_EXCEEDED or rdoc['status'] == STATUS.STATUS_MEMORY_LIMIT_EXCEEDED or rdoc['status'] == STATUS.STATUS_OUTPUT_LIMIT_EXCEEDED %}≥{% endif %}{{ rdoc.time|round(0) }}ms{% else %}—{% endif %}</dd>
+  <dt data-k="memory">{{ _('Peak Memory') }}</dt>
+  <dd data-v="memory">{% if rdoc['memory'] %}{{ size(rdoc.memory, 1024) }}{% else %}—{% endif %}</dd>
+</dl>

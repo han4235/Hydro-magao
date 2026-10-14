@@ -117,37 +117,90 @@
                     {% endif %}
                   </div>
                 </li>
-                {% if pdocs.length %}
                 <li class="section__tab-item">
                   <h1 class="section__tab-title">{{ _('Accepted Problems') }}</h1>
                   <div class="section__tab-main">
-                    <div class="typo section__body no-media dtoj-user-ac">
-                      {% set _mark = Math.ceil(pdocs.length/4) %}
-                      {% macro col(pdocs) %}
-                        <div class="dtoj-user-ac-col"><ul>
-                          {% for pdoc in pdocs %}
-                            <li>{{ problem.render_problem_title(pdoc, show_tags=false, small=true) }}</li>
-                          {% endfor %}
-                        </ul></div>
-                      {% endmacro %}
-                      <div class="dtoj-user-ac-grid">
-                        {{ col(pdocs.slice(0, _mark)) }}
-                        {{ col(pdocs.slice(_mark, _mark*2)) }}
-                        {{ col(pdocs.slice(_mark*2, _mark*3)) }}
-                        {{ col(pdocs.slice(_mark*3)) }}
-                      </div>
+                    {% if not pdocs.length %}
+                    <div class="dtoj-user-empty dtoj-user-empty--compact">
+                      <p>{{ _('No accepted problems yet.') }}</p>
                     </div>
+                    {% else %}
+                    <div class="section__body dtoj-user-ac dtoj-user-ac--ids">
+                      {% for pdoc in pdocs %}
+                      {% set _pid = pdoc.pid|default(pdoc.docId) %}
+                      <a class="dtoj-user-ac__pid" href="{{ url('problem_detail', { pid: _pid }) }}" title="{{ pdoc.title }}">{% if _pid.includes('-') %}{{ _pid.split('-').join('#') }}{% else %}{{ _pid }}{% endif %}</a>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
                   </div>
                 </li>
-                {% endif %}
                 {% for page in findSubModule('partials/user_detail/') %}{% include page %}{% endfor %}
                 <li class="section__tab-item">
                   <h1 class="section__tab-title">{{ _('Submissions') }}</h1>
                   <div class="section__tab-main">
-                    <div class="dtoj-user-empty dtoj-user-empty--compact">
-                      <p>在评测记录页查看该用户的提交历史。</p>
-                      <a href="{{ url('record_main', query={uidOrName: udoc._id}) }}">{{ _('Submissions') }}</a>
+                    <div class="section__body dtoj-submit-heatmap-wrap">
+                      <div class="dtoj-submit-heatmap" id="submit-heatmap" data-count-label="{{ _('Submission count') }}">
+                        <div class="dtoj-submit-heatmap__head">
+                          <div class="dtoj-submit-heatmap__month-spacer" aria-hidden="true"></div>
+                          <div class="dtoj-submit-heatmap__months">
+                            {%- for label in submitHeatmap.monthLabels -%}
+                            <span class="dtoj-submit-heatmap__month{% if not label %} is-empty{% endif %}">{{ label }}</span>
+                            {%- endfor -%}
+                          </div>
+                        </div>
+                        <div class="dtoj-submit-heatmap__body">
+                          <div class="dtoj-submit-heatmap__weekdays" aria-hidden="true">
+                            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+                          </div>
+                          <div class="dtoj-submit-heatmap__grid">
+                            {%- for week in submitHeatmap.weeks -%}
+                            <div class="dtoj-submit-heatmap__week">
+                              {%- for cell in week -%}
+                              <span
+                                class="dtoj-submit-heatmap__cell{% if cell.level >= 0 %} is-l{{ cell.level }}{% else %} is-future{% endif %}"
+                                {% if cell.level >= 0 %}data-date="{{ cell.date }}" data-count="{{ cell.count }}" tabindex="0"{% endif %}
+                              ></span>
+                              {%- endfor -%}
+                            </div>
+                            {%- endfor -%}
+                          </div>
+                        </div>
+                        <div class="dtoj-submit-heatmap__legend">
+                          <span class="dtoj-submit-heatmap__legend-label">{{ _('Less') }}</span>
+                          <span class="dtoj-submit-heatmap__cell is-l0"></span>
+                          <span class="dtoj-submit-heatmap__cell is-l1"></span>
+                          <span class="dtoj-submit-heatmap__cell is-l2"></span>
+                          <span class="dtoj-submit-heatmap__cell is-l3"></span>
+                          <span class="dtoj-submit-heatmap__cell is-l4"></span>
+                          <span class="dtoj-submit-heatmap__legend-label">{{ _('More') }}</span>
+                          <span class="dtoj-submit-heatmap__legend-hint">0 · 1-5 · 6-10 · 11-15 · 15+</span>
+                        </div>
+                        <p class="dtoj-submit-heatmap__tip" id="submit-heatmap-tip" role="status" aria-live="polite"></p>
+                      </div>
+                      <p class="dtoj-submit-heatmap__link">
+                        <a href="{{ url('record_main', query={uidOrName: udoc._id}) }}">{{ _('View all submissions') }}</a>
+                      </p>
                     </div>
+                    <script>
+                    (function () {
+                      var root = document.getElementById('submit-heatmap');
+                      var tip = document.getElementById('submit-heatmap-tip');
+                      if (!root || !tip) return;
+                      function showTip(el) {
+                        if (!el || !el.getAttribute('data-date')) { tip.textContent = ''; return; }
+                        tip.textContent = el.getAttribute('data-date') + '：' + root.getAttribute('data-count-label') + ' ' + el.getAttribute('data-count');
+                      }
+                      root.addEventListener('mouseover', function (e) {
+                        var cell = e.target.closest('.dtoj-submit-heatmap__cell[data-date]');
+                        showTip(cell);
+                      });
+                      root.addEventListener('focusin', function (e) {
+                        var cell = e.target.closest('.dtoj-submit-heatmap__cell[data-date]');
+                        showTip(cell);
+                      });
+                      root.addEventListener('mouseleave', function () { tip.textContent = ''; });
+                    })();
+                    </script>
                   </div>
                 </li>
               </ul>

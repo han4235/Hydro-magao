@@ -1,4 +1,20 @@
 .page--domain_user
+  .domain-users__tools
+    display flex
+    align-items center
+    gap 8px
+
+  .domain-users__search
+    min-width 200px
+
+  .domain-users__page-meta
+    margin-left: auto
+    font-size: 13px
+    color: var(--muted, #6b7280)
+
+  .domain-users .pager
+    margin: 8px 0 12px
+
   .col--checkbox
     width: 60px
 
@@ -6,4 +22,52 @@
     width: 100px
 
   .col--role
-    width: 160px
+    width: 120px
+
+  .domain-users col.col--actions
+    width: 300px
+
+  .col--actions
+    width: 300px
+    min-width: 300px
+    max-width: 300px
+    white-space: nowrap
+
+  .domain-user-actions
+    display: flex
+    flex-direction: row
+    flex-wrap: nowrap
+    align-items: center
+    gap: 10px
+    width: 100%
+
+  .domain-user-actions .rounded.compact.button
+    display: inline-flex
+    align-items: center
+    justify-content: center
+    flex: 0 0 auto
+    width: auto
+    margin: 0
+    white-space: nowrap
+    min-height: 32px
+    height: 32px
+    padding: 0 11px
+    font-size: 13px
+
+  .domain-user-role__edit
+    display: none
+
+  .domain-user-role__btn-cancel
+    display: none
+    margin-left: 4px
+
+  .domain-users__sort-role
+    cursor: pointer
+    user-select: none
+
+    &:hover
+      color: var(--primary-color, #1976d2)
+
+  .domain-users__sort-indicator
+    font-size: 0.85em
+    opacity: 0.75

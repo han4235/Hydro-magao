@@ -20,6 +20,11 @@ export default class StyledTable extends DOMAttachedObject {
       super(null);
       return;
     }
+    // DTOJ 域管理页：长列表 + 新布局，吸顶表头会错位并遮挡内容
+    if ($dom.closest('.dtoj-domain').length > 0) {
+      super(null);
+      return;
+    }
 
     super($dom);
 
