@@ -267,8 +267,8 @@ export async function loadHomeConfig(domainId: string): Promise<HomeConfig> {
         announcements: Array.isArray(saved.announcements)
             ? saved.announcements.slice(0, 20).map((item) => ({
                 title: clip(item.title, 80),
-                body: clip(item.body, 400),
-            })).filter((item) => item.title)
+                body: clip(item.body, 4000),
+            })).filter((item) => item.title || item.body)
             : announcements.map((item) => ({ ...item })),
         paths: Array.isArray(saved.paths) && saved.paths.length === 4
             ? saved.paths.map((item, i) => ({
@@ -466,10 +466,9 @@ export async function saveHomeSection(domainId: string, section: string, body: R
         const n = Math.min(20, posInt(body.rowCount, 0));
         const rows = [];
         for (let i = 0; i < n; i++) {
-            const title = clip(body[`news${i}_title`], 80);
-            const text = clip(body[`news${i}_body`], 400);
-            if (!title) continue;
-            rows.push({ title, body: text });
+            const text = clip(body[`news${i}_body`], 4000);
+            if (!text) continue;
+            rows.push({ title: '', body: text });
         }
         await mergeSave(domainId, { announcements: rows });
     } else if (section === 'paths') {

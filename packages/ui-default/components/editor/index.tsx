@@ -160,7 +160,8 @@ export default class Editor extends DOMAttachedObject {
     const ele = document.createElement('div');
     const value = $dom.val();
     const { onChange } = this.options;
-    const { MdEditor } = await import('./mdeditor');
+    const { allToolbar, ColorToolbar, MdEditor } = await import('./mdeditor');
+    const toolbars = allToolbar.flatMap((name) => (name === 'title' ? [0, name] : [name]));
 
     const debouncedTrigger = debounce(() => {
       $(document.querySelector('.md-editor-preview')).trigger('vjContentNew');
@@ -187,6 +188,8 @@ export default class Editor extends DOMAttachedObject {
         noKatex
         noHighlight
         autoDetectCode
+        toolbars={toolbars}
+        defToolbars={[<ColorToolbar key="color" />]}
         toolbarsExclude={[
           // 'bold',
           // 'underline',
