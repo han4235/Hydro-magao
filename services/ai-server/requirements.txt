@@ -1,3 +1,5 @@
 fastapi==0.115.6
 uvicorn==0.34.0
 python-multipart==0.0.20
+markitdown==0.0.1a3
+pymongo==4.10.1

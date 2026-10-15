@@ -1,0 +1,5 @@
+{
+  "source": "llm-wiki/raw_sources/GESP_Training_Materials",
+  "generator": "scripts/import_gesp_wiki_to_md.py",
+  "note": "重新生成请在本机执行 sync_ojimport_from_skill.sh 或 import_gesp_wiki_to_md.py"
+}

@@ -166,7 +166,20 @@
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+  .dtoj-chapter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .dtoj-chapter-move,
   .dtoj-chapter-drop { min-height: 36px; padding: 0 12px; }
+  .dtoj-chapter-actions button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    transform: none;
+  }
   .dtoj-note-edit { display: flex; flex-direction: column; gap: 8px; }
   .dtoj-note-edit > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
   .dtoj-plan-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
@@ -328,7 +341,11 @@
               <div class="dtoj-chapter">
                 <div class="dtoj-chapter-head">
                   <p class="dtoj-chapter-title">第 1 章</p>
-                  <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+                  <div class="dtoj-chapter-actions">
+                    <button class="dtoj-plan-quiet dtoj-chapter-move" type="button" data-move-chapter="up">上移</button>
+                    <button class="dtoj-plan-quiet dtoj-chapter-move" type="button" data-move-chapter="down">下移</button>
+                    <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+                  </div>
                 </div>
                 <label>标题<input name="chapterTitle" value=""></label>
                 <div class="dtoj-note-edit">
@@ -342,7 +359,11 @@
             <div class="dtoj-chapter">
               <div class="dtoj-chapter-head">
                 <p class="dtoj-chapter-title">第 {{ loop.index }} 章</p>
-                <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+                <div class="dtoj-chapter-actions">
+                  <button class="dtoj-plan-quiet dtoj-chapter-move" type="button" data-move-chapter="up">上移</button>
+                  <button class="dtoj-plan-quiet dtoj-chapter-move" type="button" data-move-chapter="down">下移</button>
+                  <button class="dtoj-plan-quiet dtoj-chapter-drop" type="button" data-drop-chapter>删除本章</button>
+                </div>
               </div>
               <label>标题<input name="chapterTitle" value="{{ ch.title }}"></label>
               <div class="dtoj-note-edit">
@@ -459,7 +480,40 @@
               form.submit();
             });
           });
+          function renumberChapters() {
+            var stack = document.getElementById('dtoj-chapters');
+            if (!stack) return;
+            var chapters = stack.querySelectorAll(':scope > .dtoj-chapter');
+            chapters.forEach(function (node, i) {
+              var title = node.querySelector('.dtoj-chapter-title');
+              if (title) title.textContent = '第 ' + (i + 1) + ' 章';
+              var up = node.querySelector('[data-move-chapter="up"]');
+              var down = node.querySelector('[data-move-chapter="down"]');
+              if (up) up.disabled = i === 0;
+              if (down) down.disabled = i === chapters.length - 1;
+            });
+          }
           form.addEventListener('click', function (event) {
+            var moveBtn = event.target.closest('[data-move-chapter]');
+            if (moveBtn && !moveBtn.disabled) {
+              var chapter = moveBtn.closest('.dtoj-chapter');
+              var stack = document.getElementById('dtoj-chapters');
+              if (!chapter || !stack) return;
+              var dir = moveBtn.getAttribute('data-move-chapter');
+              if (dir === 'up') {
+                var prev = chapter.previousElementSibling;
+                if (prev && prev.classList.contains('dtoj-chapter')) {
+                  stack.insertBefore(chapter, prev);
+                }
+              } else if (dir === 'down') {
+                var next = chapter.nextElementSibling;
+                if (next && next.classList.contains('dtoj-chapter')) {
+                  stack.insertBefore(next, chapter);
+                }
+              }
+              renumberChapters();
+              return;
+            }
             var btn = event.target.closest('[data-drop-chapter]');
             if (!btn) return;
             var chapter = btn.closest('.dtoj-chapter');
@@ -467,12 +521,10 @@
             if (!chapter || !stack) return;
             var y = window.pageYOffset;
             chapter.remove();
-            stack.querySelectorAll(':scope > .dtoj-chapter').forEach(function (node, i) {
-              var title = node.querySelector('.dtoj-chapter-title');
-              if (title) title.textContent = '第 ' + (i + 1) + ' 章';
-            });
+            renumberChapters();
             window.scrollTo(0, y);
           });
+          renumberChapters();
           var add = form.querySelector('[data-add-chapter]');
           if (add) {
             add.addEventListener('click', function () {
@@ -480,9 +532,8 @@
               var stack = document.getElementById('dtoj-chapters');
               if (!blank || !stack) return;
               var node = blank.content.firstElementChild.cloneNode(true);
-              var count = stack.querySelectorAll('.dtoj-chapter').length;
-              node.querySelector('.dtoj-chapter-title').textContent = '第 ' + (count + 1) + ' 章';
               stack.insertBefore(node, add.parentElement);
+              renumberChapters();
               if (window.jQuery) window.jQuery(node).trigger('vjContentNew');
               node.scrollIntoView({ block: 'nearest' });
             });

@@ -8,3 +8,5 @@ install/docker/data
 coverage
 .nyc_output
 **/*.tsbuildinfo
+**/._*
+**/.DS_Store

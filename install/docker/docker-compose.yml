@@ -50,3 +50,29 @@ services:
     volumes:
       - ./judge/judge.yaml:/root/.hydro/judge.yaml
       - ./judge/mount.yaml:/root/.hydro/mount.yaml
+
+  # AI 导题（dtoj-ai → ai-server）。构建前可运行 services/ai-server/scripts/bench_mirrors.py 核对镜像源
+  oj-ai:
+    build:
+      context: ../../services/ai-server
+      dockerfile: Dockerfile
+    image: docker-oj-ai
+    container_name: oj-ai
+    restart: unless-stopped
+    depends_on:
+      oj-mongo:
+        condition: service_healthy
+    environment:
+      HYDRO_MONGO_URI: mongodb://oj-mongo:27017
+    env_file:
+      - ./oj-ai.runtime.env
+    volumes:
+      - ./data/ai-jobs:/data/jobs
+    expose:
+      - "8090"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

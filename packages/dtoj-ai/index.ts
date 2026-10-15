@@ -3,12 +3,14 @@ import fs from 'fs-extra';
 import { Context, PERM, Types, param } from 'hydrooj';
 import { DtojPageHandler } from 'dtoj-ui';
 
-const SKILLS = [
-    ['mock_pack', '连通测试（生成一道 A+B）'],
-    ['pdf_to_problem_packs', 'PDF 转题包（尚未实现）'],
-    ['url_to_problem_packs', '网页转题包（尚未实现）'],
-    ['doc_to_problem_packs', '文档转题包（尚未实现）'],
+const SKILL = 'pdf_to_problem_packs';
+
+const KINDS = [
+    ['single', '单题'],
+    ['theory', '理论试卷'],
 ];
+
+const FILE_EXT = ['.pdf', '.doc', '.docx', '.txt', '.md', '.markdown'];
 
 function aiConfig() {
     let file: { url?: string, secret?: string } = {};
@@ -21,15 +23,16 @@ function aiConfig() {
     };
 }
 
-function sign(skill: string, digest: string) {
+function sign(skill: string, digest: string, kind = '') {
     const ts = String(Math.floor(Date.now() / 1000));
     const { secret } = aiConfig();
-    const signature = crypto.createHmac('sha256', secret).update(`${ts}\n${skill}\n${digest}`).digest('hex');
+    const payload = kind ? `${ts}\n${skill}\n${digest}\n${kind}` : `${ts}\n${skill}\n${digest}`;
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     return { ts, signature };
 }
 
-async function aiFetch(path: string, skill: string, digest: string, init: RequestInit = {}) {
-    const { ts, signature } = sign(skill, digest);
+async function aiFetch(path: string, skill: string, digest: string, init: RequestInit = {}, kind = '') {
+    const { ts, signature } = sign(skill, digest, kind);
     const res = await fetch(`${aiConfig().url}${path}`, {
         ...init,
         headers: {
@@ -48,6 +51,17 @@ async function aiFetch(path: string, skill: string, digest: string, init: Reques
     return body;
 }
 
+function digestOf(buf: Buffer) {
+    return crypto.createHash('sha256').update(buf).digest('hex');
+}
+
+/** 避免与 Hydro response.status 混淆，详情页轮询用 phase */
+function jobForClient(raw: Record<string, unknown> | null) {
+    if (!raw) return null;
+    const status = raw.status;
+    return { ...raw, phase: status, status };
+}
+
 class DtojAiJobsHandler extends DtojPageHandler {
     async get() {
         this.checkPerm(PERM.PERM_CREATE_PROBLEM);
@@ -55,25 +69,60 @@ class DtojAiJobsHandler extends DtojPageHandler {
         let error = '';
         try {
             const data = await aiFetch('/internal/jobs', 'list', 'list');
-            jobs = data.jobs || [];
+            jobs = (data.jobs || []).map((job) => ({
+                ...job,
+                createdAtText: job.createdAt
+                    ? new Date(job.createdAt * 1000).toLocaleString('zh-CN', { hour12: false })
+                    : '',
+                sourceLabel: job.source === 'url' ? '链接' : job.source === 'text' ? '文本' : '文件',
+            }));
         } catch (e) {
             error = e.message || String(e);
         }
-        this.view('dtoj_ai_jobs', { jobs, skills: SKILLS, error });
+        this.view('dtoj_ai_jobs', { jobs, kinds: KINDS, error });
     }
 
-    @param('skill', Types.String)
-    async post(domainId: string, skill: string) {
+    @param('kind', Types.String)
+    @param('source', Types.String, true)
+    @param('url', Types.String, true)
+    @param('text', Types.String, true)
+    @param('fetchCookie', Types.String, true)
+    async post(domainId: string, kind: string, source = 'file', url = '', text = '', fetchCookie = '') {
         this.checkPerm(PERM.PERM_CREATE_PROBLEM);
-        if (!SKILLS.some(([id]) => id === skill)) throw new Error('未知的处理方式');
-        const file = this.request.files?.file;
-        if (!file?.filepath) throw new Error('请选择文件');
-        const data = await fs.readFile(file.filepath);
-        const digest = crypto.createHash('sha256').update(data).digest('hex');
+        kind = (kind || '').trim();
+        if (!KINDS.some(([id]) => id === kind)) throw new Error('请求不合理：必须标明生成单题还是理论试卷');
+        source = (source || 'file').trim();
         const form = new FormData();
-        form.append('skill', skill);
-        form.append('file', new Blob([data]), file.originalFilename || 'upload.bin');
-        const created = await aiFetch('/internal/jobs', skill, digest, { method: 'POST', body: form });
+        form.append('skill', SKILL);
+        form.append('kind', kind);
+        let digest = '';
+        if (source === 'url') {
+            url = (url || '').trim();
+            if (!url) throw new Error('请填写网页链接');
+            if (!/^https?:\/\//i.test(url)) throw new Error('链接须以 http:// 或 https:// 开头');
+            digest = digestOf(Buffer.from(url, 'utf8'));
+            form.append('url', url);
+            fetchCookie = (fetchCookie || '').trim();
+            if (fetchCookie.length > 8192) throw new Error('Cookie 过长');
+            if (fetchCookie) form.append('fetch_cookie', fetchCookie);
+        } else if (source === 'text') {
+            text = (text || '').trim();
+            if (!text) throw new Error('请填写或粘贴文本');
+            digest = digestOf(Buffer.from(text, 'utf8'));
+            form.append('text', text);
+        } else {
+            const file = this.request.files?.file;
+            if (!file?.filepath) throw new Error('请上传文件');
+            const filename = file.originalFilename || '';
+            const lower = filename.toLowerCase();
+            if (!FILE_EXT.some((ext) => lower.endsWith(ext))) {
+                throw new Error('支持 PDF、Word（doc/docx）、纯文本（txt/md）');
+            }
+            const data = await fs.readFile(file.filepath);
+            digest = digestOf(data);
+            form.append('file', new Blob([data]), filename || 'upload.bin');
+        }
+        const created = await aiFetch('/internal/jobs', SKILL, digest, { method: 'POST', body: form }, kind);
         this.response.redirect = this.url('dtoj_ai_job', { id: created.id });
     }
 }
@@ -89,13 +138,29 @@ class DtojAiJobHandler extends DtojPageHandler {
         } catch (e) {
             error = e.message || String(e);
         }
-        this.view('dtoj_ai_job', { job, error });
+        this.view('dtoj_ai_job', { job: jobForClient(job), error });
+    }
+}
+
+class DtojAiJobPollHandler extends DtojPageHandler {
+    @param('id', Types.String)
+    async get(domainId: string, id: string) {
+        this.checkPerm(PERM.PERM_CREATE_PROBLEM);
+        try {
+            const job = await aiFetch(`/internal/jobs/${id}`, 'get', id);
+            this.response.type = 'application/json';
+            this.response.body = jobForClient(job);
+        } catch (e) {
+            this.response.type = 'application/json';
+            this.response.body = { error: e.message || String(e) };
+        }
     }
 }
 
 export async function apply(ctx: Context) {
     ctx.Route('dtoj_ai_jobs', '/ai/jobs', DtojAiJobsHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job', '/ai/jobs/:id', DtojAiJobHandler, PERM.PERM_CREATE_PROBLEM);
+    ctx.Route('dtoj_ai_job_poll', '/ai/jobs/:id/poll', DtojAiJobPollHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.injectUI('ProblemAdd', 'dtoj_ai_jobs', { icon: 'copy', text: 'Import From AI' });
     ctx.i18n.load('zh', {
         dtoj_ai_jobs: 'AI 导题',

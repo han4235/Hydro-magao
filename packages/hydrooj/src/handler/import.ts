@@ -8,7 +8,7 @@ import { Handler, param, Types } from '../service/server';
 
 class ProblemImportHydroHandler extends Handler {
     async get() {
-        this.response.template = 'problem_import.html';
+        this.response.template = 'problem_import_hydro.html';
     }
 
     @param('keepUser', Types.Boolean)

@@ -1,27 +1,40 @@
-# PDF 转题包 Skill（待单独实现）
+# 材料转题包
 
-`pdf_to_problem_packs` 已在 registry 里占位，`run` 目前直接返回「尚未实现」。
+创建任务时 `kind` 必填：`single`（单题）或 `theory`（理论试卷）。
 
-## 输入
+## 输入（三选一）
 
-- 教师上传的 PDF，单文件不超过 32MB。
-- 可选参数：`preferred_prefix`、是否隐藏题目。阶段 A 的接口还没传这些字段。
+| source | 表单字段 | 说明 |
+|--------|----------|------|
+| file | `file` | PDF、Word（doc/docx）、txt/md，最大 32MB |
+| url | `url`、可选 `fetch_cookie` | http(s) 网页；Cookie 仅当次任务，不落任务 JSON |
+| text | `text` | 纯文本粘贴，最大 512KB |
 
-## 输出
+HMAC 摘要：文件为文件内容的 SHA256；链接与文本为对应 UTF-8 字符串的 SHA256。
 
-每个题目一个目录 `work_<pid>_<简称>/`：
+## markdownify
 
-- `problem.yaml`：`pid`、`title`、`tag`
-- `problem_zh.md`：题面，样例用 Hydro 的 input/output 代码块
-- `testdata/`：至少样例成对的 `.in` / `.out`，以及 `config.yaml`
+与 Cursor **markdownify** MCP 相同引擎（markitdown）。实现见 `app/markdownify.py`：
 
-题号必须匹配 `^(?:[a-z0-9]{1,10}-)?[a-z][0-9a-z]*$`。已有题号不要覆盖。
+- `file_to_markdown`：本地文件
+- `url_to_markdown`：先 `urllib` 抓 HTML 再 markitdown（避免洛谷等对 markitdown 直连返回 418）
+- `text_to_markdown`：写入临时 txt 再转换
 
-## 建议流水线
+可选环境变量（`oj-ai` / `phase_b_local.env` → `oj-ai.runtime.env`，**勿把 Cookie 提交 git**）：
 
-1. 抽出 PDF 文本和页码，保留公式图片路径。
-2. 用 JSON Schema 让模型输出题目数组：标题、题面 markdown、样例、标签、建议题号。
-3. 校验失败则 job 标 `failed`，保留 `/data/jobs/<id>` 供人工看。
-4. 通过后再调用 `hydro_import.make_zip` 和 `post_zip`。
+| 变量 | 作用 |
+|------|------|
+| `FETCH_TIMEOUT` | 抓取超时秒数，默认 60 |
+| `FETCH_USER_AGENT` | 自定义 UA（乱设可能导致洛谷 302 环） |
+| `FETCH_COOKIE` | 任意站点请求附带 `Cookie` 头 |
+| `FETCH_COOKIE_LUOGU` | 仅 `*luogu*` 域名，优先于 `FETCH_COOKIE` |
 
-网页链接、Word 文档走同一个 `Skill.run`，只换抽取步骤。
+中间文件：`extracted.md`、`llm_response.txt`。
+
+## 题包与搬题姬
+
+Skill 名仍为 `pdf_to_problem_packs`（兼容旧配置）。
+
+- **kind=single**：`ojimport/` 含 steps/00–11、gesp 课件、`question` 模板；LLM 一次输出题面+标程+`mkin.h`，再本地跑 step07（`g++ mkdata`）与 step08 导入。见 `FLOW.md`。
+- **kind=theory**：`ojimport/theory/`（`FORMAT.md`、`template/`、`example_*`）+ `theory_llm_system()`。
+- 部署校验：`python -m app.ojimport_spec` 或 `/health` 的 `ojimport.bundle_ok`。

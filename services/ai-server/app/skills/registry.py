@@ -1,9 +1,9 @@
 from app.skills.mock_pack import MockPackSkill
-from app.skills.stubs import DocToPacks, PdfToPacks, UrlToPacks
+from app.skills.pdf_to_packs import PdfToPacks
 
 SKILLS = {
     s.name: s()
-    for s in (MockPackSkill, PdfToPacks, UrlToPacks, DocToPacks)
+    for s in (MockPackSkill, PdfToPacks)
 }
 
 

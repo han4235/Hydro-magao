@@ -1,19 +1,605 @@
 {% extends "layout/basic.html" %}
 {% block content %}
-<div class="row"><div class="medium-9 columns">
-  <div class="section">
-    <div class="section__header"><h1 class="section__title">任务 {{ job.id if job else '' }}</h1></div>
-    <div class="section__body">
-      <p><a href="{{ url('dtoj_ai_jobs') }}">返回列表</a></p>
-      {% if error %}<p>{{ error }}</p>{% endif %}
+<style>
+  .ai-job {
+    max-width: 880px;
+    color: #111827;
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  .ai-job ::selection {
+    background: rgba(37, 99, 235, 0.22);
+    color: #111827;
+  }
+  .ai-job-sheet {
+    background: #ffffff;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    padding: 28px 28px 24px;
+  }
+  .ai-job-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin-bottom: 4px;
+  }
+  .ai-job h1 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 32px;
+    font-weight: 760;
+    letter-spacing: -0.045em;
+    line-height: 1.16;
+    color: #1e40af;
+  }
+  .ai-job-rule {
+    width: 72px;
+    height: 4px;
+    margin: 12px 0 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #6fa7b3);
+  }
+  .ai-job-id {
+    margin: 0;
+    padding: 6px 10px;
+    border-radius: 11px;
+    background: #f4f7fb;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    font-family: "JetBrains Mono", "Cascadia Code", monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #5f6b7a;
+    letter-spacing: 0.02em;
+  }
+  .ai-job-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 16px 0 22px;
+    padding: 8px 0;
+    color: #1e40af;
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .ai-job-back:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .ai-job-back:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .ai-job-banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #e8b4b4;
+    background: #f8e6e6;
+    color: #8a1f1f;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .ai-job-banner[hidden] { display: none; }
+  .ai-job-banner svg { flex-shrink: 0; margin-top: 2px; }
+  .ai-job-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 0 0 24px;
+  }
+  .ai-job-meta-item {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: #f4f7fb;
+    border: 1px solid rgba(30, 41, 59, 0.06);
+  }
+  .ai-job-meta-item dt {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #5f6b7a;
+    text-transform: none;
+  }
+  .ai-job-meta-item dd {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.45;
+    word-break: break-all;
+  }
+  .ai-job-meta-item.is-file dd {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .ai-job-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px 4px;
+    margin: 0 0 20px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #5f6b7a;
+  }
+  .ai-job-stage span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: transparent;
+    transition: background 0.25s ease-out, color 0.25s ease-out;
+  }
+  .ai-job-stage span.is-active {
+    color: #1e40af;
+    background: #e8eef5;
+  }
+  .ai-job-stage span.is-done {
+    color: #145c32;
+  }
+  .ai-job-stage .ai-stage-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(30, 41, 59, 0.2);
+  }
+  .ai-job-stage span.is-active .ai-stage-dot {
+    background: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  }
+  .ai-job-stage span.is-done .ai-stage-dot { background: #145c32; }
+  .ai-job-stage .ai-stage-sep {
+    width: 20px;
+    height: 1px;
+    background: rgba(30, 41, 59, 0.12);
+    flex-shrink: 0;
+  }
+  .ai-job-status-wrap {
+    position: relative;
+    text-align: center;
+    padding: 32px 20px 28px;
+    border-radius: 20px;
+    background: #f8f1dc;
+    margin: 0 0 20px;
+    overflow: hidden;
+  }
+  .ai-job-status-wrap.is-done { background: #e5f2ea; }
+  .ai-job-status-wrap.is-fail { background: #f8e6e6; }
+  .ai-job-status-wrap.is-wait { background: #f4f7fb; }
+  .ai-job-status-wrap.is-run { background: #f8f1dc; }
+  .ai-job-status-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .ai-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .ai-pill-pass { color: #145c32; background: rgba(255, 255, 255, 0.65); }
+  .ai-pill-wait { color: #6a4b00; background: rgba(255, 255, 255, 0.55); }
+  .ai-pill-run { color: #1e40af; background: rgba(255, 255, 255, 0.6); }
+  .ai-pill-fail { color: #8a1f1f; background: rgba(255, 255, 255, 0.65); }
+  .ai-job-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2563eb;
+    opacity: 0;
+  }
+  .ai-job-status-wrap.is-wait .ai-job-pulse,
+  .ai-job-status-wrap.is-run .ai-job-pulse {
+    opacity: 1;
+    animation: ai-pulse 1.4s ease-out infinite;
+  }
+  @keyframes ai-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.45; }
+    50% { transform: scale(1.35); opacity: 1; }
+  }
+  .ai-job-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(30, 41, 59, 0.06);
+    overflow: hidden;
+  }
+  .ai-job-bar span {
+    display: block;
+    height: 100%;
+    width: 38%;
+    background: linear-gradient(90deg, #2563eb, #6fa7b3);
+    border-radius: 0 2px 2px 0;
+    transform: translateX(-100%);
+    animation: ai-bar 2.2s ease-in-out infinite;
+  }
+  .ai-job-status-wrap.is-done .ai-job-bar,
+  .ai-job-status-wrap.is-fail .ai-job-bar { display: none; }
+  .ai-job-status-wrap.is-done .ai-job-pulse,
+  .ai-job-status-wrap.is-fail .ai-job-pulse { display: none; animation: none; opacity: 0; }
+  @keyframes ai-bar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(280%); }
+  }
+  .ai-jump {
+    display: inline-flex;
+    gap: 2px;
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 52px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(26px, 4vw, 32px);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #1e40af;
+  }
+  .ai-jump.is-fail { color: #8a1f1f; }
+  .ai-jump.is-done { color: #145c32; }
+  .ai-jump span {
+    display: inline-block;
+    animation: ai-bounce 0.9s ease-in-out infinite;
+  }
+  .ai-jump span:nth-child(2) { animation-delay: 0.08s; }
+  .ai-jump span:nth-child(3) { animation-delay: 0.16s; }
+  .ai-jump span:nth-child(4) { animation-delay: 0.24s; }
+  .ai-jump span:nth-child(5) { animation-delay: 0.32s; }
+  .ai-jump span:nth-child(6) { animation-delay: 0.4s; }
+  .ai-jump span:nth-child(7) { animation-delay: 0.48s; }
+  .ai-jump span:nth-child(8) { animation-delay: 0.56s; }
+  .ai-jump.paused span { animation: none; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-jump span, .ai-job-pulse, .ai-job-bar span { animation: none !important; }
+    .ai-job-bar span { transform: none; width: 100%; opacity: 0.35; }
+  }
+  @keyframes ai-bounce {
+    0%, 100% { transform: translateY(0); }
+    35% { transform: translateY(-10px); }
+    70% { transform: translateY(2px); }
+  }
+  .ai-job-hint {
+    margin: 14px 0 0;
+    max-width: 42ch;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #5f6b7a;
+  }
+  .ai-job-pids {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #e5f2ea;
+    color: #145c32;
+    font-weight: 600;
+    line-height: 1.55;
+  }
+  .ai-job-pids[hidden] { display: none; }
+  .ai-job-pids svg { flex-shrink: 0; margin-top: 2px; }
+  .ai-job-errors {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(138, 31, 31, 0.25);
+    background: #f8e6e6;
+    color: #8a1f1f;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .ai-job-errors[hidden] { display: none; }
+  .ai-job-errors-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .ai-job-errors-body { margin: 0; font-size: 13px; font-weight: 500; }
+  .ai-job-log {
+    margin: 0;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 16px;
+    background: #f8fafc;
+    overflow: hidden;
+  }
+  .ai-job-log[hidden] { display: none; }
+  .ai-job-log summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #3d4a5c;
+    user-select: none;
+  }
+  .ai-job-log summary::-webkit-details-marker { display: none; }
+  .ai-job-log summary:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: -3px;
+  }
+  .ai-job-log summary::after {
+    content: "展开";
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e40af;
+  }
+  .ai-job-log[open] summary::after { content: "收起"; }
+  .ai-job-log pre {
+    margin: 0;
+    padding: 0 16px 16px;
+    max-height: 280px;
+    overflow: auto;
+    font-family: "JetBrains Mono", "Cascadia Code", monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #334155;
+    scrollbar-color: rgba(30, 41, 59, 0.2) transparent;
+  }
+  .ai-job-empty {
+    margin: 0;
+    color: #5f6b7a;
+    line-height: 1.7;
+  }
+  @media (max-width: 700px) {
+    .ai-job-sheet { padding: 20px 16px; border-radius: 16px; }
+    .ai-job-meta { grid-template-columns: 1fr; }
+    .ai-job h1 { font-size: 28px; }
+    .ai-job-stage .ai-stage-sep { width: 12px; }
+  }
+</style>
+<div class="row"><div class="medium-10 columns">
+  <div class="ai-job">
+    <div class="ai-job-sheet" id="ai-job-root"{% if job %} data-job-id="{{ job.id }}" data-poll="{{ url('dtoj_ai_job_poll', { id: job.id }) }}"{% endif %}>
+      <div class="ai-job-head">
+        <div>
+          <h1>生成任务</h1>
+          <div class="ai-job-rule" aria-hidden="true"></div>
+        </div>
+        {% if job %}<p class="ai-job-id" title="任务 ID">{{ job.id }}</p>{% endif %}
+      </div>
+      <a class="ai-job-back" href="{{ url('dtoj_ai_jobs') }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        返回任务列表
+      </a>
+
+      <div class="ai-job-banner" id="ai-job-page-error" role="alert"{% if not error %} hidden{% endif %}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>{{ error }}</span>
+      </div>
+
       {% if job %}
-      <p>状态：{{ job.status }}</p>
-      <p>技能：{{ job.skill }}</p>
-      {% if job.pids.length %}<p>题号：{{ job.pids|join(', ') }}</p>{% endif %}
-      {% if job.logs.length %}<pre>{{ job.logs|join('\n') }}</pre>{% endif %}
-      {% if job.errors.length %}<pre>{{ job.errors|join('\n') }}</pre>{% endif %}
+      <dl class="ai-job-meta">
+        <div class="ai-job-meta-item">
+          <dt>类型</dt>
+          <dd>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% else %}{{ job.kind }}{% endif %}</dd>
+        </div>
+        <div class="ai-job-meta-item">
+          <dt>来源</dt>
+          <dd>{% if job.source == 'url' %}链接{% elif job.source == 'text' %}文本{% else %}文件{% endif %}</dd>
+        </div>
+        <div class="ai-job-meta-item is-file">
+          <dt>材料</dt>
+          <dd id="ai-job-filename">{{ job.filename }}</dd>
+        </div>
+      </dl>
+
+      <div class="ai-job-stage" id="ai-job-stage" aria-hidden="true">
+        <span data-step="queued"><span class="ai-stage-dot"></span>排队</span>
+        <span class="ai-stage-sep" aria-hidden="true"></span>
+        <span data-step="running"><span class="ai-stage-dot"></span>解析生成</span>
+        <span class="ai-stage-sep" aria-hidden="true"></span>
+        <span data-step="importing"><span class="ai-stage-dot"></span>写入题库</span>
+      </div>
+
+      <div class="ai-job-status-wrap is-wait" id="ai-job-status-wrap">
+        <div class="ai-job-status-top">
+          <span class="ai-pill ai-pill-wait" id="ai-job-pill"></span>
+          <span class="ai-job-pulse" aria-hidden="true"></span>
+        </div>
+        <div class="ai-jump" id="ai-job-jump" aria-live="polite" role="status"></div>
+        <p class="ai-job-hint" id="ai-job-hint">页面会自动刷新进度，请勿关闭本页</p>
+        <div class="ai-job-bar" id="ai-job-bar" aria-hidden="true"><span></span></div>
+      </div>
+
+      <div class="ai-job-pids" id="ai-job-pids"{% if not job.pids or not job.pids.length %} hidden{% endif %}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10.5l4 4 8-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>已导入题号：<span id="ai-job-pids-text">{% if job.pids %}{{ job.pids|join('、') }}{% endif %}</span></div>
+      </div>
+
+      <div class="ai-job-errors" id="ai-job-errors" role="alert"{% if not job.errors or not job.errors.length %} hidden{% endif %}>
+        <p class="ai-job-errors-title">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          任务失败
+        </p>
+        <p class="ai-job-errors-body" id="ai-job-errors-body">{% if job.errors %}{{ job.errors|join('\n') }}{% endif %}</p>
+      </div>
+
+      <details class="ai-job-log" id="ai-job-logs-wrap"{% if not job.logs or not job.logs.length %} hidden{% endif %}>
+        <summary>运行日志</summary>
+        <pre id="ai-job-logs">{% if job.logs %}{{ job.logs|join('\n') }}{% endif %}</pre>
+      </details>
+
+      <script type="application/json" id="ai-job-initial">{{ job|json|safe }}</script>
+      {% else %}
+      <p class="ai-job-empty">任务不存在或无法加载。</p>
       {% endif %}
     </div>
   </div>
 </div></div>
+<script>
+(function () {
+  const root = document.getElementById('ai-job-root');
+  if (!root || !root.dataset.jobId) return;
+  const pollUrl = root.dataset.poll;
+  const initialEl = document.getElementById('ai-job-initial');
+  const wrap = document.getElementById('ai-job-status-wrap');
+  const jump = document.getElementById('ai-job-jump');
+  const hint = document.getElementById('ai-job-hint');
+  const pill = document.getElementById('ai-job-pill');
+  const stageRoot = document.getElementById('ai-job-stage');
+  const errBox = document.getElementById('ai-job-errors');
+  const errBody = document.getElementById('ai-job-errors-body');
+  const pageErr = document.getElementById('ai-job-page-error');
+  let job = null;
+  if (initialEl) {
+    try {
+      job = JSON.parse(initialEl.textContent);
+    } catch (e) {
+      pageErr.hidden = false;
+      pageErr.querySelector('span').textContent = '任务数据解析失败，请刷新页面';
+    }
+  }
+  const logsPre = document.getElementById('ai-job-logs');
+  const logsWrap = document.getElementById('ai-job-logs-wrap');
+  const pidsBox = document.getElementById('ai-job-pids');
+  const pidsText = document.getElementById('ai-job-pids-text');
+
+  const labels = {
+    queued: '排队中',
+    running: '处理中',
+    importing: '导入中',
+    done: '已完成',
+    failed: '失败',
+  };
+
+  const pillText = {
+    queued: '排队',
+    running: '处理中',
+    importing: '导入中',
+    done: '完成',
+    failed: '失败',
+  };
+
+  const order = ['queued', 'running', 'importing'];
+
+  function setJumpText(text, mode) {
+    jump.className = 'ai-jump' + (mode ? ' ' + mode : '');
+    jump.innerHTML = '';
+    for (const ch of text) {
+      const s = document.createElement('span');
+      s.textContent = ch === ' ' ? '\u00a0' : ch;
+      jump.appendChild(s);
+    }
+  }
+
+  function updateStage(st) {
+    if (!stageRoot) return;
+    const idx = order.indexOf(st);
+    stageRoot.querySelectorAll('[data-step]').forEach(function (el) {
+      const step = el.getAttribute('data-step');
+      const si = order.indexOf(step);
+      el.classList.remove('is-active', 'is-done');
+      if (st === 'done') el.classList.add('is-done');
+      else if (st === 'failed' && si <= Math.max(idx, 0)) el.classList.add(si === idx ? 'is-active' : 'is-done');
+      else if (si < idx) el.classList.add('is-done');
+      else if (si === idx) el.classList.add('is-active');
+    });
+  }
+
+  function resolveStatus(job) {
+    const st = (job && (job.phase || job.status)) || '';
+    if (st === 'done' || st === 'failed') return st;
+    if (job.errors && job.errors.length) {
+      if (st !== 'importing' && !(job.pids && job.pids.length)) return 'failed';
+    }
+    return st;
+  }
+
+  function render(job) {
+    const st = resolveStatus(job);
+    const label = labels[st] || st;
+    const active = st === 'queued' || st === 'running' || st === 'importing';
+    const wrapClass =
+      st === 'done' ? ' is-done' :
+      st === 'failed' ? ' is-fail' :
+      st === 'running' || st === 'importing' ? ' is-run' : ' is-wait';
+    wrap.className = 'ai-job-status-wrap' + wrapClass;
+    const tone = st === 'done' ? 'is-done' : st === 'failed' ? 'is-fail' : '';
+    setJumpText(label, active ? tone : (tone ? tone + ' paused' : 'paused'));
+
+    pill.textContent = pillText[st] || st;
+    pill.className = 'ai-pill ' + (
+      st === 'done' ? 'ai-pill-pass' :
+      st === 'failed' ? 'ai-pill-fail' :
+      st === 'queued' ? 'ai-pill-wait' : 'ai-pill-run'
+    );
+    updateStage(st);
+
+    if (st === 'done') hint.textContent = '题目已生成，可到题库查看';
+    else if (st === 'failed') hint.textContent = '请查看下方错误信息，修正材料后重新提交';
+    else if (st === 'importing') hint.textContent = '正在写入青石题库…';
+    else if (st === 'queued') hint.textContent = '等待 ai-server 接单…';
+    else hint.textContent = '正在解析材料并调用模型…';
+
+    if (job.errors && job.errors.length) {
+      errBox.hidden = false;
+      errBody.textContent = job.errors.join('\n');
+    } else if (st !== 'failed') {
+      errBox.hidden = true;
+      errBody.textContent = '';
+    }
+
+    if (job.logs && job.logs.length) {
+      logsWrap.hidden = false;
+      logsPre.textContent = job.logs.join('\n');
+    }
+
+    if (job.pids && job.pids.length) {
+      pidsBox.hidden = false;
+      pidsText.textContent = job.pids.join('、');
+    }
+  }
+
+  render(job);
+
+  async function poll() {
+    try {
+      const res = await fetch(pollUrl, { credentials: 'same-origin' });
+      const data = await res.json();
+      if (data.error) {
+        pageErr.hidden = false;
+        pageErr.querySelector('span').textContent = data.error;
+        return;
+      }
+      pageErr.hidden = true;
+      job = data;
+      render(job);
+      const terminal = resolveStatus(job);
+      if (terminal === 'done' || terminal === 'failed') return;
+      setTimeout(poll, 2500);
+    } catch (e) {
+      pageErr.hidden = false;
+      pageErr.querySelector('span').textContent = e.message || '无法获取任务状态，请确认 ai-server 已在本机 8090 端口运行';
+      setTimeout(poll, 5000);
+    }
+  }
+
+  if (job && resolveStatus(job) !== 'done' && resolveStatus(job) !== 'failed') poll();
+})();
+</script>
 {% endblock %}
