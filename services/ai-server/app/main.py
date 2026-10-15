@@ -82,6 +82,8 @@ async def create(
     url: str = Form(''),
     text: str = Form(''),
     fetch_cookie: str = Form(''),
+    domain_id: str = Form(''),
+    doc_id: str = Form(''),
     x_ai_timestamp: str = Header(''),
     x_ai_signature: str = Header(''),
 ):
@@ -116,5 +118,14 @@ async def create(
     if cookie and source != 'url':
         cookie = ''
     return await enqueue(
-        skill, filename, data, kind, source=source, url=url, text=text, fetch_cookie=cookie,
+        skill,
+        filename,
+        data,
+        kind,
+        source=source,
+        url=url,
+        text=text,
+        fetch_cookie=cookie,
+        domain_id=domain_id,
+        doc_id=doc_id,
     )

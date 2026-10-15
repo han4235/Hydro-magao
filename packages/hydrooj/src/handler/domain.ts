@@ -128,11 +128,11 @@ const DOMAIN_USER_PAGE_SIZE = 30;
 const HIDDEN_DOMAIN_USER_IDS = new Set([1, 2]);
 
 class DomainUserHandler extends ManageHandler {
-    @requireSudo
     @param('format', Types.Range(['default', 'raw']), true)
     @query('page', Types.PositiveInt, true)
     @query('sortRole', Types.Range(['asc', 'desc']), true)
-    async get({ domainId }, format = 'default', page = 1, sortRole?: 'asc' | 'desc') {
+    @query('find', Types.PositiveInt, true)
+    async get({ domainId }, format = 'default', page = 1, sortRole?: 'asc' | 'desc', find?: number) {
         const showDefault = system.get('server.showDefaultRole') || domainId !== 'system';
         const [dudocs, roles] = await Promise.all([
             domain.collUser.aggregate([
@@ -196,7 +196,7 @@ class DomainUserHandler extends ManageHandler {
             };
             return;
         }
-        const visibleUsers = users
+        let visibleUsers = users
             .filter((udoc) => !HIDDEN_DOMAIN_USER_IDS.has(udoc._id))
             .sort((a, b) => {
                 const byRole = (a.role || 'default').localeCompare(b.role || 'default', 'zh-CN');
@@ -207,6 +207,10 @@ class DomainUserHandler extends ManageHandler {
                 if (byRole !== 0) return byRole;
                 return a._id - b._id;
             });
+        if (find) {
+            visibleUsers = visibleUsers.filter((udoc) => udoc._id === find);
+            page = 1;
+        }
         const ucount = visibleUsers.length;
         const upcount = Math.max(1, Math.ceil(ucount / DOMAIN_USER_PAGE_SIZE) || 1);
         page = Math.min(Math.max(1, page), upcount);
@@ -216,26 +220,64 @@ class DomainUserHandler extends ManageHandler {
         };
     }
 
-    @param('uids', Types.NumericArray)
-    async post({ }, uids: number[]) {
+    @param('uids', Types.NumericArray, true)
+    async post({ }, uids: number[] = []) {
         if (uids.includes(this.domain.owner)) throw new ForbiddenError();
     }
 
-    @requireSudo
     @param('uids', Types.NumericArray)
     @param('role', Types.Role)
-    @param('join', Types.Boolean)
-    async postSetUsers(domainId: string, uid: number[], role: string, join = false) {
+    @param('join', Types.Boolean, true)
+    async postSetUsers(domainId: string, uids: number[], role: string, join?: boolean) {
         if (join && !system.get('server.allowInvite')) this.checkPriv(PRIV.PRIV_MANAGE_ALL_DOMAIN);
+        const effectiveJoin = join === undefined
+            ? false
+            : (join ? true : domainId === 'system');
         await Promise.all([
-            domain.setUserRole(domainId, uid, role),
-            oplog.log(this, 'domain.setRole', { uid, role, join }),
+            domain.setUserRole(domainId, uids, role, effectiveJoin),
+            oplog.log(this, 'domain.setRole', { uid: uids, role, join: effectiveJoin }),
         ]);
-        if (join) await domain.setJoin(domainId, uid, true);
-        this.back();
+        this.response.body = { ok: true, uids, role, join: effectiveJoin };
     }
 
-    @requireSudo
+    @param('usernames', Types.ArrayOf(Types.Username))
+    @param('role', Types.Role)
+    @param('join', Types.Boolean, true)
+    async postCreateUsers(domainId: string, usernames: string[], role: string, join?: boolean) {
+        if (join && !system.get('server.allowInvite')) this.checkPriv(PRIV.PRIV_MANAGE_ALL_DOMAIN);
+        const effectiveJoin = join === undefined
+            ? false
+            : (join ? true : domainId === 'system');
+        const DEFAULT_PASSWORD = '123456';
+        const names = [...new Set(usernames.map((i) => i.trim()).filter(Boolean))];
+        if (!names.length) throw new ValidationError('usernames');
+        const uids: number[] = [];
+        const created: string[] = [];
+        const linked: string[] = [];
+        for (const uname of names) {
+            let udoc = await user.getByUname('system', uname);
+            if (!udoc) {
+                let mail = `${uname.toLowerCase().replace(/@/g, '_at_')}@hydro.local`;
+                let suffix = 0;
+                while (await user.getByEmail('system', mail)) {
+                    suffix += 1;
+                    mail = `${uname.toLowerCase().replace(/@/g, '_at_')}.${suffix}@hydro.local`;
+                }
+                const uid = await user.create(mail, uname, DEFAULT_PASSWORD);
+                udoc = await user.getById('system', uid);
+                created.push(uname);
+            } else linked.push(uname);
+            uids.push(udoc._id);
+        }
+        await Promise.all([
+            domain.setUserRole(domainId, uids, role, effectiveJoin),
+            oplog.log(this, 'domain.createUsers', { uid: uids, role, join: effectiveJoin, created, linked }),
+        ]);
+        this.response.body = {
+            ok: true, uids, role, join: effectiveJoin, created, linked, defaultPassword: DEFAULT_PASSWORD,
+        };
+    }
+
     @param('uids', Types.NumericArray)
     async postInitPassword(_: string, uids: number[]) {
         const protectedIds = new Set([1, 2]);
@@ -247,7 +289,6 @@ class DomainUserHandler extends ManageHandler {
         this.back();
     }
 
-    @requireSudo
     @param('uids', Types.NumericArray)
     async postKick({ domainId }, uids: number[]) {
         const protectedIds = new Set([1, 2, this.user._id, this.domain.owner]);

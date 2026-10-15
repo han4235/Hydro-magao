@@ -9,16 +9,18 @@
       <header class="dtoj-page-head">
         {% if problemRecordList and pdoc %}
         <h1>提交记录</h1>
+        <div class="dtoj-rule" aria-hidden="true"></div>
         <p class="dtoj-record-list-problem">
-          <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.title }}</a>
-          <span>· 显示本题全部提交；满分后可查看他人源代码</span>
+          <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.pid|default(pdoc.docId) }} · {{ pdoc.title }}</a>
+          <span>显示本题全部提交；满分后可查看他人源代码</span>
         </p>
         {% else %}
         <h1>评测记录</h1>
+        <div class="dtoj-rule" aria-hidden="true"></div>
         <p>按题目、提交者、语言和状态查看评测。学生默认只看自己；从题目页进入可查看本题全部提交。</p>
         {% endif %}
       </header>
-      <form method="get" class="dtoj-sheet dtoj-sheet-pad">
+      <form method="get" class="dtoj-sheet dtoj-sheet-pad dtoj-record-filter">
         <div class="dtoj-fields">
           <label>提交者<input class="textbox" name="uidOrName" value="{{ uidOrName }}" placeholder="用户名或 ID"></label>
           {% if problemRecordList and pdoc %}

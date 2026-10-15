@@ -26,7 +26,7 @@ import RecordModel from '../model/record';
 import ScheduleModel from '../model/schedule';
 import system from '../model/system';
 import token from '../model/token';
-import user, { deleteUserCache } from '../model/user';
+import user, { defaultDomainRoleForNewUser, deleteUserCache } from '../model/user';
 import {
     Handler, param, post, Query, Types,
 } from '../service/server';
@@ -346,7 +346,7 @@ class UserRegisterWithCodeHandler extends Handler {
         if (Object.keys($set).length) await user.setById(uid, $set);
         await domain.setUserInDomain(domainId, uid, {
             join: true,
-            role: user.defaultDomainRoleForNewUser(),
+            role: defaultDomainRoleForNewUser(),
             ...(this.tdoc.setInDomain || {}),
         });
         await this.ctx.oauth.set(this.tdoc.identity.platform, this.tdoc.identity.id, uid);

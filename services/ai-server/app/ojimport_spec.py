@@ -30,6 +30,7 @@ REQUIRED_FILES = [
     'gesp/README.md',
     'prompts/single_preamble.md',
     'prompts/theory_preamble.md',
+    'prompts/regen_data_preamble.md',
     *_STEP_FILES,
     'question/problem.yaml',
     'question/problem_zh.md',
@@ -68,6 +69,14 @@ THEORY_APPEND = [
     'theory/template/problem.yaml',
     'theory/template/problem_zh.md',
     'theory/template/testdata/config.yaml',
+]
+
+REGEN_DATA_APPEND = [
+    'steps/11-testdata-only.md',
+    'steps/06-std.md',
+    'steps/07-testdata.md',
+    'references/testdata-design.md',
+    'SKILL_AVOID.md',
 ]
 
 
@@ -134,6 +143,11 @@ def single_llm_system() -> str:
 @lru_cache(maxsize=1)
 def theory_llm_system() -> str:
     return _join_prompt(['prompts/theory_preamble.md'] + THEORY_APPEND)
+
+
+@lru_cache(maxsize=1)
+def regen_data_llm_system() -> str:
+    return _join_prompt(['prompts/regen_data_preamble.md'] + REGEN_DATA_APPEND)
 
 
 @lru_cache(maxsize=1)

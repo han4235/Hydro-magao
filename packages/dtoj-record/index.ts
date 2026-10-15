@@ -209,8 +209,8 @@ class DtojRecordDetailConnectionHandler extends RecordDetailConnectionHandler {
             status_html: await this.renderHTML('dtoj_record_detail_status.html', {
                 rdoc,
                 pdoc: this.pdoc,
-                caseFiles: buildCaseFileUrlMap(this, this.pdoc, rdoc),
-                canViewCaseFiles: canViewProblemTestdataFiles(this, this.pdoc),
+                caseFiles: buildCaseFileUrlMap(this as any, this.pdoc, rdoc),
+                canViewCaseFiles: canViewProblemTestdataFiles(this as any, this.pdoc),
             }),
             summary_html: await this.renderHTML('dtoj_record_detail_summary.html', { rdoc, pdoc: this.pdoc }),
         });

@@ -1,0 +1,81 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-problem-sub">
+      {% if vnode.type == model.document.TYPE_PROBLEM %}
+      <p class="dtoj-problem-back">
+        <a href="{{ url('problem_detail', pid=vnode.pid|default(vnode.docId)) }}">返回题目</a>
+      </p>
+      {% endif %}
+      <div class="dtoj-problem-layout">
+        <div class="dtoj-panel dtoj-problem-main dtoj-discuss-main">
+          <header class="dtoj-sub-head">
+            {% if vnode.type == model.document.TYPE_PROBLEM %}
+            <h1>讨论</h1>
+            <div class="dtoj-rule" aria-hidden="true"></div>
+            <p class="dtoj-sub-lead">
+              <a href="{{ url('problem_detail', pid=vnode.pid|default(vnode.docId)) }}">{{ vnode.pid|default(vnode.docId) }} · {{ vnode.title }}</a>
+              <span>在本题下交流思路与疑问</span>
+            </p>
+            {% if handler.user.hasPerm(perm.PERM_CREATE_DISCUSSION) %}
+            <p class="dtoj-sub-actions">
+              <a class="dtoj-sub-primary" href="{{ url('discussion_create', type=model.discussion.typeDisplay[vnode.type], name=vnode.docId) }}">{{ _('Create a Discussion') }}</a>
+            </p>
+            {% elif not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+            <p class="dtoj-sub-actions">
+              <a class="dtoj-sub-primary" href="javascript:showSignInDialog();">{{ _('Login to Create a Discussion') }}</a>
+            </p>
+            {% endif %}
+            {% else %}
+            <h1>{{ vnode['title'] or _('Discussion') }}</h1>
+            <div class="dtoj-rule" aria-hidden="true"></div>
+            {% endif %}
+          </header>
+          <div class="dtoj-discuss-body">
+            {% include "partials/discussion_list.html" %}
+          </div>
+        </div>
+        <aside class="dtoj-problem-aside">
+          {% if vnode.type == model.document.TYPE_PROBLEM %}
+            {% set pdoc = vnode %}
+            {% set owner_udoc = udict[vnode.owner] %}
+            {% include "partials/problem_sidebar.html" %}
+          {% elif vnode.type == model.document.TYPE_CONTEST %}
+            {% set tdoc = vnode %}
+            {%- if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) -%}
+            {% set tsdoc = { attend: tdoc.attend } %}
+            {%- endif -%}
+            {% set owner_udoc = udict[vnode.owner] %}
+            {% include "partials/contest_sidebar.html" %}
+          {% else %}
+            <div class="section side dtoj-panel">
+              {% if vnode.pic %}<div class="discussion-node__bg {{ vnode.pic }}"></div>{% endif %}
+              <div class="section__header">
+                <h1 class="section__title">{{ vnode['title'] or _('Create Discussion') }}</h1>
+              </div>
+              <div class="section__body">
+              {% if vnode._id %}
+                {% if handler.user.hasPerm(perm.PERM_CREATE_DISCUSSION) %}
+                  <p><a href="{{ url('discussion_create', type=model.discussion.typeDisplay[vnode.type], name=vnode.id) }}" class="dtoj-sub-primary">{{ _('Create a Discussion') }}</a></p>
+                {% else %}
+                  {% if not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                    <p><a href="javascript:showSignInDialog();" class="dtoj-sub-primary">{{ _('Login to Create a Discussion') }}</a></p>
+                  {% else %}
+                    <p><span class="dtoj-muted">{{ _('No Permission to Create a Discussion') }}</span></p>
+                  {% endif %}
+                {% endif %}
+              {% else %}
+                <p class="dtoj-muted">{{ _('Select a node to create discussion.') }}</p>
+              {% endif %}
+              </div>
+            </div>
+          {% endif %}
+          {% include 'partials/discussion_nodes_widget.html' %}
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

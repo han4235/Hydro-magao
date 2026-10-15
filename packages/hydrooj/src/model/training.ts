@@ -62,6 +62,16 @@ export function getPids(dag: TrainingNode[]) {
     return Array.from(new Set(flatten(dag.map((node) => node.pids))));
 }
 
+export function chaptersContainingPid(dag: TrainingNode[], pid: number) {
+    const hits: { index: number; title: string }[] = [];
+    for (let i = 0; i < dag.length; i++) {
+        const node = dag[i];
+        const pids = (node.pids || []).map((p) => +p);
+        if (pids.includes(+pid)) hits.push({ index: i + 1, title: node.title || '' });
+    }
+    return hits;
+}
+
 export function isDone(node: TrainingNode, doneNids: Set<number> | number[], donePids: Set<number> | number[]) {
     return new Set(doneNids).isSupersetOf(new Set(node.requireNids))
         && new Set(donePids).isSupersetOf(new Set(node.pids));
@@ -102,6 +112,13 @@ export async function get(domainId: string, tid: ObjectId) {
 export const getMulti = (domainId: string, query: Filter<TrainingDoc> = {}) =>
     document.getMulti(domainId, document.TYPE_TRAINING, query).sort({ pin: -1, _id: -1 });
 
+export async function getRelated(domainId: string, pid: number) {
+    return await document.getMulti(domainId, document.TYPE_TRAINING, { 'dag.pids': pid })
+        .sort({ pin: -1, _id: -1 })
+        .limit(20)
+        .toArray();
+}
+
 export async function getList(domainId: string, tids: ObjectId[]) {
     const tdocs = await getMulti(
         domainId, { _id: { $in: Array.from(new Set(tids)) } },
@@ -113,6 +130,7 @@ export async function getList(domainId: string, tids: ObjectId[]) {
 
 global.Hydro.model.training = {
     getPids,
+    chaptersContainingPid,
     isDone,
     isProgress,
     isOpen,
@@ -124,6 +142,7 @@ global.Hydro.model.training = {
     get,
     getList,
     getMulti,
+    getRelated,
     getMultiStatus,
     getStatus,
     enroll,

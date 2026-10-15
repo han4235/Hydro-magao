@@ -433,13 +433,34 @@ export class ProblemDetailHandler extends ContestDetailBaseHandler {
             if (this.psdoc?.rid) {
                 this.response.body.rdoc = await record.get(this.args.domainId, this.psdoc.rid);
             }
-            [this.response.body.ctdocs, this.response.body.htdocs] = (await Promise.all([
-                contest.getRelated(this.args.domainId, this.pdoc.docId),
-                contest.getRelated(this.args.domainId, this.pdoc.docId, 'homework'),
-            ])).map((tdocs) => tdocs.filter((tdoc) =>
+            const filterRelatedContest = (tdocs: Awaited<ReturnType<typeof contest.getRelated>>) => tdocs.filter((tdoc) =>
                 this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_CONTEST) || !tdoc.assign?.length
                 || new Set(tdoc.assign).intersection(new Set(this.user.group)).size,
-            ));
+            );
+            const [ctdocs, htdocs, trdocs] = await Promise.all([
+                contest.getRelated(this.args.domainId, this.pdoc.docId),
+                contest.getRelated(this.args.domainId, this.pdoc.docId, 'homework'),
+                this.user.hasPerm(PERM.PERM_VIEW_TRAINING)
+                    ? training.getRelated(this.args.domainId, this.pdoc.docId)
+                    : Promise.resolve([]),
+            ]);
+            this.response.body.ctdocs = filterRelatedContest(ctdocs);
+            this.response.body.htdocs = filterRelatedContest(htdocs);
+            const trainRows: { tdoc: typeof trdocs[number]; chapterIndex: number; chapterTitle: string }[] = [];
+            for (const tdoc of trdocs) {
+                const chapters = training.chaptersContainingPid(tdoc.dag || [], this.pdoc.docId);
+                if (!chapters.length) trainRows.push({ tdoc, chapterIndex: 0, chapterTitle: '' });
+                else {
+                    for (const chapter of chapters) {
+                        trainRows.push({
+                            tdoc,
+                            chapterIndex: chapter.index,
+                            chapterTitle: chapter.title,
+                        });
+                    }
+                }
+            }
+            this.response.body.trdocs = trainRows;
         }
     }
 

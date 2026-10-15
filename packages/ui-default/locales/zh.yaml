@@ -87,6 +87,13 @@ Add prefix/suffix: 添加前缀/后缀
 Add suffix: 添加后缀
 Add testcase: 添加测试点
 Add User: 添加用户
+Login username: 登录用户名
+One or more usernames, separated by commas: 可填多个用户名，用逗号或空格分隔
+New accounts use initial password {0}. Existing usernames are added to this domain with the selected role.: 新建账号初始密码为 {0}；若用户名已存在，则加入本域并设为所选角色。
+Please enter at least one username.: 请至少输入一个用户名。
+Created {0} user(s), initial password {1}.: 已新建 {0} 个账号，初始密码：{1}。
+Created {0} user(s), linked {1} existing.: 已新建 {0} 个账号，另有 {1} 个已有账号已加入本域。
+Added {0} user(s) to this domain.: 已将 {0} 个用户加入本域。
 Cancel Registration: 取消报名
 Registration cancelled.: 报名已取消。
 Are you sure to cancel the registration of this user?: 确定要取消该用户的报名吗？

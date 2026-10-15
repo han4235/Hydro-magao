@@ -298,6 +298,11 @@ export interface Tdoc extends Document {
     // For training
     description?: string;
     dag?: TrainingNode[];
+    dtoj?: {
+        overview?: string;
+        direction?: string;
+        kind?: string;
+    };
 }
 
 export interface TrainingDoc extends Omit<Tdoc, 'docType'> {

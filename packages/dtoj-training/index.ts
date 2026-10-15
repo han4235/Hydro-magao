@@ -498,7 +498,7 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
                 ? await UserModel.getListForRender(domainId, uids, this.user.hasPerm(PERM.PERM_VIEW_USER_PRIVATE_INFO))
                 : {};
             members = uids.map((uid) => {
-                const udoc = udict[uid] || {};
+                const udoc = (udict[uid] || {}) as { uname?: string; avatar?: string };
                 return {
                     uid,
                     name: personName(udoc, uid),

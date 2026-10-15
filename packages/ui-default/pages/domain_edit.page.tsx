@@ -49,13 +49,13 @@ const page = new NamedPage('domain_edit', () => {
 
   $browse.on('click', () => $file.trigger('click'));
   $file.on('change', () => {
-    const f = $file[0].files?.[0];
+    const f = ($file[0] as HTMLInputElement).files?.[0];
     if (!f) return;
     $browse.text(`${i18n('Browse local image')} (${f.name})`);
   });
 
   $upload.on('click', async () => {
-    const f = $file[0].files?.[0];
+    const f = ($file[0] as HTMLInputElement).files?.[0];
     if (!f) {
       Notification.error(i18n('Please select a local image first.'));
       return;
