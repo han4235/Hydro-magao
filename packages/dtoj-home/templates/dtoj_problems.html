@@ -351,6 +351,7 @@
           {% if canCreate %}
           <div class="dtoj-bank-imports">
             {% for item in ui.getNodes('ProblemAdd') %}
+            {% if item.name not in ['problem_import_qduoj', 'problem_import_hoj', 'problem_import_fps'] %}
             <a href="{{ url(item.name, item.args) }}">
               {% if item.args.icon == 'add' %}
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -359,6 +360,7 @@
               {% endif %}
               {{ _(item.args.text) }}
             </a>
+            {% endif %}
             {% endfor %}
           </div>
           <p class="dtoj-bank-count">您有权限为此域创建题目。</p>

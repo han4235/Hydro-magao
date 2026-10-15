@@ -26,6 +26,7 @@ const want = [
     'dtoj-community',
     'dtoj-discuss',
     'dtoj-shop',
+    'dtoj-ai',
 ];
 let list = [];
 try {
