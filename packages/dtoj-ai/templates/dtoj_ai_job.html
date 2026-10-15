@@ -1,0 +1,19 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+<div class="row"><div class="medium-9 columns">
+  <div class="section">
+    <div class="section__header"><h1 class="section__title">任务 {{ job.id if job else '' }}</h1></div>
+    <div class="section__body">
+      <p><a href="{{ url('dtoj_ai_jobs') }}">返回列表</a></p>
+      {% if error %}<p>{{ error }}</p>{% endif %}
+      {% if job %}
+      <p>状态：{{ job.status }}</p>
+      <p>技能：{{ job.skill }}</p>
+      {% if job.pids.length %}<p>题号：{{ job.pids|join(', ') }}</p>{% endif %}
+      {% if job.logs.length %}<pre>{{ job.logs|join('\n') }}</pre>{% endif %}
+      {% if job.errors.length %}<pre>{{ job.errors|join('\n') }}</pre>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div></div>
+{% endblock %}

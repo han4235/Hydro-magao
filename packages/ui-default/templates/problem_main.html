@@ -71,10 +71,12 @@
           </div>
           <ol class="menu">
             {%- for item in ui.getNodes('ProblemAdd') -%}
+            {% if item.name not in ['problem_import_qduoj', 'problem_import_hoj', 'problem_import_fps'] %}
               <a href="{{ url(item.name, item.args) }}" class="menu__link">
                 <span class="icon icon-{{ item.args.icon|default('add') }}"></span>
                 {{ _(item.args.text) }}
               </a>
+            {% endif %}
             {%- endfor -%}
           </ol>
           <div class="section__body">
