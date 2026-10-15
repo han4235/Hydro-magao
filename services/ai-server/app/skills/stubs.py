@@ -11,12 +11,6 @@ class _Soon(Skill):
         return SkillResult(errors=[f'{self.name} 尚未实现。见 docs/pdf-skill.md'])
 
 
-class PdfToPacks(_Soon):
-    name = 'pdf_to_problem_packs'
-    accepts = ['application/pdf']
-    hint = 'pdf'
-
-
 class UrlToPacks(_Soon):
     name = 'url_to_problem_packs'
     accepts = ['text/plain']

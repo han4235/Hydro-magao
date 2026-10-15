@@ -1,0 +1,114 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+<style>
+  .hi-import { max-width: 880px; color: #111827; }
+  .hi-sheet {
+    background: #ffffff;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    padding: 28px 28px 22px;
+  }
+  .hi-import h1 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 32px;
+    font-weight: 760;
+    letter-spacing: -0.045em;
+    line-height: 1.16;
+    color: #1e40af;
+  }
+  .hi-rule {
+    width: 72px; height: 4px; margin: 12px 0 16px; border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #1e40af);
+  }
+  .hi-lead { margin: 0 0 22px; max-width: 68ch; color: #3d4a5c; line-height: 1.7; }
+  .hi-file { display: block; margin: 0 0 18px; font-weight: 700; color: #111827; }
+  .hi-file input {
+    display: block; width: 100%; margin-top: 8px; padding: 12px; color: #111827;
+    border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 11px; background: #fff;
+  }
+  .hi-file input:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .hi-field { margin: 0 0 18px; }
+  .hi-field label { display: block; font-weight: 700; color: #111827; margin-bottom: 8px; }
+  .hi-field input[type="text"] {
+    display: block; width: 100%; max-width: 280px; padding: 12px; color: #111827;
+    border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 11px; background: #fff;
+  }
+  .hi-field input[type="text"]:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .hi-field .hi-hint { margin: 8px 0 0; max-width: 68ch; color: #3d4a5c; line-height: 1.65; font-weight: 400; font-size: 14px; }
+  .hi-options { display: grid; gap: 12px; margin: 0 0 20px; }
+  .hi-check {
+    display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 14px 16px;
+    border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 16px; background: #f8fafc; cursor: pointer;
+  }
+  .hi-check:has(input:checked) { border-color: #1e40af; background: #f4f7fb; }
+  .hi-check input { margin: 3px 0 0; accent-color: #1e40af; flex-shrink: 0; }
+  .hi-check span { color: #3d4a5c; line-height: 1.65; }
+  .hi-check strong { display: block; color: #111827; font-weight: 700; margin-bottom: 2px; }
+  .hi-submit {
+    display: block; width: 100%; max-width: 320px; height: 50px; margin-top: 4px;
+    border: 0; border-radius: 11px; color: #ffffff; font-weight: 700; font-size: 14px;
+    background: #1e40af;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    cursor: pointer;
+  }
+  .hi-submit:hover { transform: translateY(-1px); }
+  .hi-submit:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .hi-import h2 {
+    margin: 28px 0 12px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px; font-weight: 800; letter-spacing: -0.04em; color: #111827;
+  }
+  .hi-help { margin: 0; padding: 0; list-style: none; }
+  .hi-help li {
+    padding: 14px 0; border-top: 1px solid rgba(30, 41, 59, 0.09);
+    color: #3d4a5c; line-height: 1.7;
+  }
+  .hi-help li:first-child { border-top: 0; padding-top: 0; }
+  .hi-help b { display: block; margin-bottom: 6px; color: #111827; font-weight: 700; }
+  @media (max-width: 700px) {
+    .hi-sheet { padding: 20px 16px; border-radius: 16px; }
+    .hi-import h1 { font-size: 28px; }
+    .hi-submit { max-width: none; }
+  }
+</style>
+<div class="row"><div class="medium-10 columns">
+  <div class="hi-import">
+    <div class="hi-sheet">
+      <h1>{{ _('Import From Hydro') }}</h1>
+      <div class="hi-rule"></div>
+      <p class="hi-lead">{{ _('With this feature, you can import problems that you can view from a site to here. Their title, content, tags and categories will be imported.') }}</p>
+      <form method="post" enctype="multipart/form-data">
+        <label class="hi-file">题包 zip
+          <input type="file" name="file" accept=".zip,application/zip" required>
+        </label>
+        <div class="hi-field">
+          <label for="hi-preferredPrefix">题号前缀</label>
+          <input id="hi-preferredPrefix" type="text" name="preferredPrefix" placeholder="留空则保持题包内题号" pattern="[A-Za-z]*" autocomplete="off">
+          <p class="hi-hint">{{ _('preferredPrefix_hint') }}</p>
+        </div>
+        <div class="hi-options">
+          <label class="hi-check">
+            <input type="checkbox" name="hidden" value="on">
+            <span><strong>{{ _('Hidden') }}</strong>导入后题目处于隐藏状态，学生默认看不到。</span>
+          </label>
+          {% if handler.user.hasPriv(PRIV.PRIV_EDIT_SYSTEM) %}
+          <label class="hi-check">
+            <input type="checkbox" name="keepUser" value="on">
+            <span><strong>保留原作者</strong>仅当题包从本系统导出时使用，导入后题目标仍归原用户。</span>
+          </label>
+          {% endif %}
+        </div>
+        <button type="submit" class="hi-submit">上传并导入</button>
+      </form>
+      <h2>{{ _('What is this?') }}</h2>
+      <ul class="hi-help">
+        <li><b>题包格式</b>请上传标准 Hydro 题包 zip（含 problem.yaml、题面与 testdata）。搬题姬导出的 work 目录打包即可。</li>
+        <li><b>{{ _('About preferredPrefix option') }}</b>{{ _('preferredPrefix_hint') }}</li>
+        <li><b>导入后</b>题目会出现在当前域题库；大文件上传后若未立刻看到，可在题库页稍候刷新。</li>
+      </ul>
+    </div>
+  </div>
+</div></div>
+{% endblock %}

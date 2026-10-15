@@ -1,0 +1,427 @@
+<!-- source: C++一级05_GESP.pdf method:ocr-chi_sim+eng sha256:d9ba99ca72a3b57a -->
+
+## 第 1 页
+
+Bl ARC++ HEAR EH AMA).
+
+© CCF GESP
+
+© ccfGESP
+
+© CCFgesp
+
+O CCF_GESP
+
+2M C++RiAst 10 - 3 * (2 + 1) % 10MAE().
+
+00
+
+3D RRMESLE AR, RUN (ER) BeR/LAILN, OMA ZO) TRA
+B2AGR, MNGWA4WASALI AR. ALUMAMINAE, MERASMAS IB A().
+
+int N, dayX, hourXx;
+cin >> N;
+dayX = , hourX = ;
+
+if (dayX == 0)
+cout << "4K" << hourx << "sa";
+else
+cout << "3" << (dayX + 1) << "K" << hourx << "si";
+
+WODIHDHBWNH
+
+lo. ao + N) % 24, (10 +N) / 24
+
+0.0 + N) / 24, (LO +N) % 24
+
+(ON%24,N/ 24
+
+lo 10 / 24,10% 24
+
+4G TRWRSBTHNES HER, MAAMINS BS () .
+1 cin >> N;
+#2 if ( )
+3 cout << "jar;
+4 else
+5 cout << "#7";
+
+ON%2==0
+
+ON%2=0
+
+ONK%2
+
+ON%2I=0
+
+## 第 2 页
+
+5 BM PANC++ HBT am, TEM ()
+
+ObWNHEH
+
+cin >> N;
+
+cnt = 0;
+
+feor{int d =— i; i < Ne ive)
+cnt += 1;
+
+cout << cnt;
+
+O RRM ARINA\F 23K, SSTISMHHO.
+
+O RORMAMINEAF SF 29K, SSTISMUN-1,
+
+O PEELS A7IE DE.
+
+[e RORMAMNBAF SF 2BM, BSTISMUWN.
+
+3B 6 WD FAC++ (tiene () .
+
+a ent = 07
+
+2 for(int i = 17 i < 10; i++){
+
+3 cnt += 1;
+
+4 i +=2;
+
+S }
+
+6 cout << cnt;
+
+lo 10
+
+(oe
+
+[o3
+
+ol
+
+387 BW PAC++ HBTS () .
+
+iu cnt = 0;
+
+2 for(int i = 17 i < 207 iff) {
+
+5] if (i%2)
+
+4 continue;
+
+5 else if (i%3==0 && i%5==0)
+
+6 break;
+
+u cnt += i;
+
+8 }
+
+<) cout << cnt;
+
+(090 }
+[oe |
+(020
+(O10
+
+8B PAC++HBiATeimne () .
+
+al N = 10;
+
+2 cnt = 0;
+
+3] while(1){
+
+4 if(N == 0) break;
+5 cnt 1;
+6 N -= 27
+
+7 }
+
+8 cout << cnt;
+[o 11
+
+(010
+
+los
+
+## 第 3 页
+
+9G FAC++ BATA MESA RM (RM) , TRAUMA (
+).
+
+1 cin >> N;
+2 cnt = 0;
+3 for (int i= 1; i<N + 1; i++)
+4 if (N % i == 0)
+5 ;
+6 if (cnt == 2)
+7 cout << N << "#i)H RE. ";
+8 else
+9 cout << N << "ASHER. ";
+Ocnt=1
+O cnt = 2
+Ocnt=+1
+locnt+=1
+
+B 10M WANK, EAE () .
+l#include <stdlib.h>
+
+2
+
+3using namespace std;
+
+4
+
+Sint main() {
+
+6 int arr[] = {2,6,3,5,4,8,1,0,9,10};
+7 for(int i = 0;i < 10;i++)
+8 cout << arr[i] << " ";
+9 cout << i << endl;
+
+10
+
+ial cout << endl;
+
+12 return 0;
+
+ns }
+
+O i266 35481091010
+
+© iti2635481099
+
+O #iti2 6354810910
+
+© fem BRR
+
+## 第 4 页
+
+B11 BATTaC++ haw ().
+
+al ent = 0;
+
+2 for (i = 10; i > 3; i -= 3)
+3} cnt = cnt + i;
+
+4 cout << cnt;
+
+03
+
+O21
+
+027
+
+049
+
+12GB EXE char c, FAY MANET, APSAWA().
+
+O c = (char)66;
+
+O c = (char)(66);
+
+O c = char(66);
+
+O c = char 66;
+
+3 13 @ FRMMNC++KBWASSS 'A' SB) '2' D4, NSTFRRUMRHAS, 3
+ABA 'C' ME BHNBS 2? ().
+
+ali char cj
+2 while (1) {
+
+5 cin: >>" C7
+
+4 if(c=='q') break;
+
+5 switch (c) {
+
+6 case 'A': cout << "1 "; break;
+7 case 'B': cout << "3 ";
+
+8 case 'C': cout << "3";
+
+case 'D': cout << "5 "; break;
+10 case 'E': cout << "5 "; break;
+11 default: cout << "9 ";
+
+12 }
+
+ibs} cout << endl;
+
+14 }
+
+ie)
+
+03
+
+035
+
+0359
+
+jo DLEBAN
+
+## 第 5 页
+
+B14 8 RAMA T—RAASRMWNAS, BUESRESRAR, RBRRARA
+SR, FMAM RBA, ARES RARE. AA TAMAT]S
+WAT RIAB MDA. ()
+
+O BRM
+
+O fase
+
+O THER
+
+O fees
+
+BIS MMA SeR THA, CHB () KAI.
+
+O MAR
+
+© BES
+
+O PBR
+
+O werets- Rel
+
+## 第 6 页
+
+3B 1 C++ RIA int (3.14) M3. ()
+
+O Eh
+
+O iz
+$8 2 HW C++iB6) cout << (2 * 3, 3 % 10, 2+3) AIMWNE,3,5. ()
+
+© TE
+
+O BiR
+
+$ 3M for(int i= 1; i< 10; i += 3;) ; RMIMIAMB1IOBRAMA3, HAT
+1.4.7, 10. ()
+
+O TE
+
+© BIR
+
+38 4 BW C++RiAT010+100+001AHH111, ()
+
+© TE
+
+O iz
+
+BSB if BOPMA+RIAMWARATYN int RB,
+
+O TEA
+
+© BiR
+
+38 6 BEF AC++103 while(1) continue; R, AF AAPA continues RM
+UT, AILSSHTEM. ()
+
+O° TE
+
+O iR
+
+SB 7 BC+ 4+2iAxt (1'4'1'=='2' flag=1:flag=2) ARAM RIA (flag==2)H18
+fa. ()
+
+O TE
+
+O BiR
+
+8M EC++WESH, KAEAscanffFAeBe. ()
+
+O TEA
+
+O IR
+
+9D NMR EBSGESP, fhAAIDev C++RA DMB, AibADev C++thB
+—PINBRIFRS.  ()
+
+O TE
+
+O IR
+
+10 BD I—TwhilePAB AB tnSirnsforew () .
+
+© TE
+
+O iR
+
+## 第 7 页
+
+RESM: ansit Bist
+YIEBRIB: 1.05
+
+AiR: 128.0MB
+
+(aa)
+
+SREB X, ISDA N AMBSUAT, MERRH) SS RRR S SLI?
+(AEA 7 RT LHA)
+
+6A)
+
+MA 247, B—-TI—-TEM X (1 < X <7); BITTER N (
+1<N < 364).
+
+(uta)
+MU-TEA, AIG SRMBAKSL/L.
+(53222)
+
+ERMEF, GA. MUNIHETRATIR. BEADS, HT ARRRE,
+TBE), MHS.
+
+(619A 1)
+
+a
+
+(e684 1)
+
+(4412 1)
+SRHSG 1, RA6 ABWEEHA, SRAEAMA7 RM.
+(GIA 2)
+
+wu
+
+(plait 2)
+
+CF GIARRE 2)
+SRE 5S, RA 3 ARMS 1.
+
+## 第 8 页
+
+RES: Ia S mls
+AYIEIBRI: 1.0s
+
+AERG: 128.0MB
+
+(agai)
+
+AMGREM 1 3) N HE. ERATE, IB M AER. HIRD, WOR
+N=S5, M=2, BAAR BRAORIRH 1, 3.5.
+
+IME, TAMAR MM MAIRAIX.
+1 CPN) |
+
+A 24, B-T-MER N (1 < N < 1,000) > BI7—MER M (
+2<M<100).
+
+(asad)
+RHETT, MRA MRR.
+(sals282)
+
+ERM, MA. MUNIRHENEPIR. PERDSA, HT ASURE,
+BREE), MUNN S.
+
+(HA 1)
+
+Colt 1)
+
+(FEGIGA 2]
+
+Cols 2)
+
+Rowuane

@@ -1,28 +1,207 @@
 {% extends "layout/basic.html" %}
 {% block content %}
-<div class="row"><div class="medium-9 columns">
-  <div class="section">
-    <div class="section__header"><h1 class="section__title">AI 导题</h1></div>
-    <div class="section__body">
-      {% if error %}<p>连不上 ai-server：{{ error }}</p>{% endif %}
-      <form method="post" enctype="multipart/form-data">
-        <label>处理方式
-          <select name="skill">
-            {% for item in skills %}
-            <option value="{{ item[0] }}">{{ item[1] }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>文件<input type="file" name="file" required></label>
-        <button type="submit">提交</button>
+<style>
+  .ai-jobs { max-width: 880px; color: #111827; }
+  .ai-sheet {
+    background: #ffffff;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    padding: 28px 28px 22px;
+  }
+  .ai-jobs h1 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 32px;
+    font-weight: 760;
+    letter-spacing: -0.045em;
+    line-height: 1.16;
+    color: #1e40af;
+  }
+  .ai-rule {
+    width: 72px; height: 4px; margin: 12px 0 16px; border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #1e40af);
+  }
+  .ai-lead { margin: 0 0 22px; max-width: 68ch; color: #3d4a5c; line-height: 1.7; }
+  .ai-kind { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 20px; }
+  .ai-kind label {
+    display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 6px;
+    margin: 0; padding: 16px; border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 16px; background: #fff; cursor: pointer;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .ai-kind label:focus-within { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .ai-kind label:has(input:checked) {
+    border-color: #1e40af;
+    background: #f4f7fb;
+  }
+  .ai-kind input { margin: 4px 0 0; accent-color: #1e40af; }
+  .ai-kind strong {
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.3; color: #111827;
+  }
+  .ai-kind span { grid-column: 2; color: #3d4a5c; line-height: 1.7; }
+  .ai-file { display: block; margin: 0; font-weight: 700; color: #111827; }
+  .ai-file input {
+    display: block; width: 100%; margin-top: 8px; padding: 12px; color: #111827;
+    border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 11px; background: #fff;
+  }
+  .ai-file input:focus, .ai-file textarea:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .ai-source { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 16px; }
+  .ai-source label {
+    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin: 0;
+    padding: 10px 12px; border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 12px; font-weight: 700;
+    cursor: pointer; background: #fff;
+  }
+  .ai-source label:has(input:checked) { border-color: #1e40af; background: #f4f7fb; color: #1e40af; }
+  .ai-source input { accent-color: #1e40af; }
+  .ai-panel { margin: 0 0 4px; }
+  .ai-panel[hidden] { display: none; }
+  .ai-file textarea {
+    display: block; width: 100%; min-height: 140px; margin-top: 8px; padding: 12px; color: #111827;
+    border: 1px solid rgba(30, 41, 59, 0.09); border-radius: 11px; background: #fff; font: inherit; line-height: 1.6;
+    resize: vertical;
+  }
+  .ai-submit {
+    display: block; width: 100%; height: 50px; margin-top: 16px;
+    border: 0; border-radius: 11px; color: #ffffff; font-weight: 700; font-size: 14px;
+    background: #1e40af;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .ai-submit:hover { transform: translateY(-1px); }
+  .ai-submit:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .ai-params { margin: 22px 0 0; }
+  .ai-params div { display: grid; grid-template-columns: 72px 1fr; gap: 8px 12px; padding: 10px 0; border-top: 1px solid rgba(30, 41, 59, 0.09); }
+  .ai-params b { font-weight: 700; color: #111827; }
+  .ai-params span { color: #3d4a5c; line-height: 1.6; }
+  .ai-jobs h2 {
+    margin: 28px 0 12px;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 22px; font-weight: 800; letter-spacing: -0.04em; color: #111827;
+  }
+  .ai-table { overflow-x: auto; }
+  .ai-jobs table { width: 100%; min-width: 560px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .ai-jobs th {
+    padding: 0 8px 8px; text-align: left; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.08em; color: #3d4a5c;
+  }
+  .ai-jobs td { padding: 12px 8px; border-top: 1px solid rgba(30, 41, 59, 0.09); vertical-align: middle; color: #111827; }
+  .ai-jobs td a { color: #1e40af; }
+  .ai-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .ai-pill-pass { color: #145c32; background: #e5f2ea; }
+  .ai-pill-wait { color: #6a4b00; background: #f8f1dc; }
+  .ai-pill-run { color: #1e40af; background: #e8eef5; }
+  .ai-pill-fail { color: #8a1f1f; background: #f8e6e6; }
+  .ai-jobs .ai-error { margin: 0 0 16px; padding: 10px 12px; border-radius: 11px; color: #8a1f1f; background: #f8e6e6; }
+  .ai-empty { margin: 0; color: #3d4a5c; }
+  @media (max-width: 700px) {
+    .ai-sheet { padding: 20px 16px; border-radius: 16px; }
+    .ai-kind, .ai-params div { grid-template-columns: 1fr; }
+    .ai-jobs h1 { font-size: 28px; }
+  }
+</style>
+<div class="row"><div class="medium-10 columns">
+  <div class="ai-jobs">
+    <div class="ai-sheet">
+      <h1>从材料生成题目</h1>
+      <div class="ai-rule"></div>
+      <p class="ai-lead">先选单题或理论试卷，再提供 PDF、Word、网页链接或纯文本。服务端统一用 markdownify 转成 Markdown 后交给模型。</p>
+      {% if error %}<p class="ai-error">{{ error }}</p>{% endif %}
+      <form method="post" enctype="multipart/form-data" id="ai-import-form">
+        <div class="ai-kind">
+          <label>
+            <input type="radio" name="kind" value="single" required>
+            <strong>单题</strong>
+            <span>一道编程题一个题包。题面按搬题姬的小节写，样例单独成对保存。</span>
+          </label>
+          <label>
+            <input type="radio" name="kind" value="theory">
+            <strong>理论试卷</strong>
+            <span>整份试卷作为一道题。选择题、判断题用 select，答案写在 config.yaml。</span>
+          </label>
+        </div>
+        <div class="ai-source">
+          <label><input type="radio" name="source" value="file" checked> 文件</label>
+          <label><input type="radio" name="source" value="url"> 链接</label>
+          <label><input type="radio" name="source" value="text"> 文本</label>
+        </div>
+        <div class="ai-panel" data-panel="file">
+          <label class="ai-file">PDF / Word / 文本文件
+            <input type="file" name="file" id="ai-input-file" accept=".pdf,.doc,.docx,.txt,.md,.markdown,application/pdf">
+          </label>
+        </div>
+        <div class="ai-panel" data-panel="url" hidden>
+          <label class="ai-file">网页链接
+            <input type="url" name="url" id="ai-input-url" placeholder="https://..." inputmode="url">
+          </label>
+          <label class="ai-file">Cookie（可选）
+            <textarea name="fetchCookie" id="ai-input-cookie" rows="2" placeholder="洛谷等需登录或仍 418 时：浏览器 F12 → 网络 → 打开题面 → 复制请求头 Cookie。留空则不用。" autocomplete="off" spellcheck="false"></textarea>
+          </label>
+        </div>
+        <div class="ai-panel" data-panel="text" hidden>
+          <label class="ai-file">粘贴文本
+            <textarea name="text" id="ai-input-text" placeholder="题面、试卷正文等"></textarea>
+          </label>
+        </div>
+        <button type="submit" class="ai-submit">生成并导入</button>
+        <div class="ai-params">
+          <div><b>kind</b><span>必填。single 单题，theory 理论试卷。</span></div>
+          <div><b>source</b><span>file / url / text 三选一，对应文件、链接或文本字段。</span></div>
+          <div><b>markdownify</b><span>文件与链接由 markitdown 转 Markdown；纯文本同样经 markitdown 规范化。</span></div>
+        </div>
       </form>
+      <script>
+      (function () {
+        var form = document.getElementById('ai-import-form');
+        if (!form) return;
+        var file = document.getElementById('ai-input-file');
+        var url = document.getElementById('ai-input-url');
+        var text = document.getElementById('ai-input-text');
+        function mode() {
+          var picked = form.querySelector('input[name="source"]:checked');
+          return picked ? picked.value : 'file';
+        }
+        function sync() {
+          var m = mode();
+          form.querySelectorAll('[data-panel]').forEach(function (el) {
+            el.hidden = el.getAttribute('data-panel') !== m;
+          });
+          file.required = m === 'file';
+          url.required = m === 'url';
+          text.required = m === 'text';
+        }
+        form.querySelectorAll('input[name="source"]').forEach(function (el) {
+          el.addEventListener('change', sync);
+        });
+        sync();
+      })();
+      </script>
       <h2>最近任务</h2>
-      {% if not jobs.length %}<p>还没有任务。</p>{% endif %}
-      <ul>
-        {% for job in jobs %}
-        <li><a href="{{ url('dtoj_ai_job', id=job.id) }}">{{ job.id }}</a> {{ job.skill }} {{ job.status }}</li>
-        {% endfor %}
-      </ul>
+      {% if not jobs.length %}
+      <p class="ai-empty">还没有任务。提交后会出现在这里。</p>
+      {% else %}
+      <div class="ai-table"><table>
+        <thead><tr><th>时间</th><th>类型</th><th>来源</th><th>材料</th><th>状态</th><th></th></tr></thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td>{{ job.createdAtText }}</td>
+            <td>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% else %}未填写{% endif %}</td>
+            <td>{{ job.sourceLabel or '文件' }}</td>
+            <td>{{ job.filename }}</td>
+            <td>
+              {% if job.status == 'done' %}<span class="ai-pill ai-pill-pass">完成</span>
+              {% elif job.status == 'failed' %}<span class="ai-pill ai-pill-fail">失败</span>
+              {% elif job.status == 'queued' %}<span class="ai-pill ai-pill-wait">排队</span>
+              {% elif job.status == 'running' or job.status == 'importing' %}<span class="ai-pill ai-pill-run">{% if job.status == 'running' %}处理中{% else %}导入中{% endif %}</span>
+              {% else %}{{ job.status }}{% endif %}
+            </td>
+            <td><a href="{{ url('dtoj_ai_job', id=job.id) }}">查看</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {% endif %}
     </div>
   </div>
 </div></div>

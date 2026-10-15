@@ -67,3 +67,6 @@ __*
 
 packages/*/public/assets
 node_modules.*
+
+# 本地 Docker ai-server 运行时密钥（由 phase_b_docker_env.sh 生成）
+install/docker/oj-ai.runtime.env

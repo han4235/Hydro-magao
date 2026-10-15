@@ -1,0 +1,769 @@
+<!-- source: C++四级08_GESP.pdf sha256:cf7723b25d8cca6b -->
+
+19
+18
+17
+16
+15
+14
+13
+12
+11
+
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+
+    cout << var << " ";
+    var += 100;
+
+    function();
+
+    cout << var << " ";
+int main() {
+
+}
+
+    cout << ::var <<  " ";
+    cout << var <<  " ";
+
+    int var = 200;
+void function() {
+
+int var = 100;
+
+using namespace std;
+#include <iostream>
+
+第 3 题  运⾏以下代码，屏幕上将输出（  ）。
+
+D. 形参和实参必须是完全相同的类型，不能有任何差异。
+
+C. 形参和实参可以互换
+
+B. 形参在函数定义时指定，实参在函数调⽤时传递
+
+A. 形参在函数调⽤时指定，实参在函数定义时传递
+
+第 2 题  在C++中，形参与实参的关系描述正确的是（ ）。
+
+D.  void add(int a, int b) { return a - b; }
+
+C.  int add(a, b) { return a + b; }
+
+B.  void add(int a, int b) { return a + b; }
+
+A.  int add(int a, int b) { return a + b; }
+
+第 1 题  在 C++ 中，（  ）正确定义了⼀个返回整数值并接受两个整数参数的函数。
+
+1 单选题（每题 2 分，共 30 分）
+
+2024 年 09 ⽉
+C++　四级
+
+20
+21
+22
+
+    return 0;
+}
+
+A. 100 200 100 200
+
+B. 100 200 100 300
+
+C. 100 200 200 200
+
+D. 100 200 200 300
+
+第 4 题  运⾏下⾯代码，屏幕上输出是（  ）。
+
+1
+2
+3
+4
+
+int arr[3] = {24, 9, 7};
+int* p = arr;
+p++;
+cout << *p << endl;
+
+A. 24
+
+B. 9
+
+C. 7
+
+D. 不确定
+
+第 5 题  运⾏下⾯代码⽚段的结果是（  ）。
+
+1
+2
+
+3
+4
+5
+6
+
+int x = 20;
+int y = 24;
+
+int* p = &x;
+int* q = &y;
+
+p = q;
+
+A. 将 赋值为24
+
+B. 将 赋值为20
+
+C. 将 指向 的地址
+
+D. 将 指向 的地址
+
+第 6 题  在 C++ 中，（  ）正确定义⼀个名为 student 的结构体，其中包含⼀个 name 字符数组和⼀个 age 整数？
+
+A.  struct student { char name[20]; int age; };
+
+B.  student struct { char name[20]; int age; };
+
+C.  student struct { string name; int age; };
+
+D.  struct student { char[20] name; int age; };
+
+第 7 题  在 C++ 中，（ ）正确声明了⼀个 3 ⾏ 4 列的⼆维数组。
+
+A.  int arr[3, 4];
+
+B.  int arr[3][4];
+
+C.  int arr[4][3];
+
+D.  int arr(3, 4);
+
+第 8 题  ⼀个⼆维数组定义为  int arr[3][4]; （假设⼀个int变量占4个字节），则 int arr[0] 占⽤（ ）个字节
+
+的内存。
+
+A. 3
+
+B. 4
+
+C. 12
+
+D. 16
+
+第 9 题  下⾯代码采⽤递推算法来实现整数 的阶乘（
+
+），则横线上应填写（  ）。
+
+1
+2
+3
+4
+5
+6
+7
+
+int factorial(int n) {
+    int result = 1;
+    for (int i = 2; i <= n; i++) {
+        ________________________________     // 在此处填入代码
+    }
+    return result;
+}
+
+A.  result *= i;
+
+B.  result += i;
+
+C.  result *= result;
+
+D.  result += result;
+
+第 10 题  在排序算法中，稳定性指的是（ ）。
+
+A. 排序后数据不会丢失
+
+B. 排序后相同元素的相对顺序保持不变
+
+C. 排序后数据不会被修改
+
+D. 排序后数据的时间复杂度不变
+
+第 11 题  下⾯代码实现了冒泡排序函数，则横线上应填写（    ）。
+
+1
+
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+//交换数组arr的第i个元素和第j个元素
+void swap(vector<int> &arr, int i, int j) {
+    int tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+}
+
+int bubble_sort(vector<int> &arr) {
+    for (int i = arr.size() - 1; i > 0; i--) {
+        bool flag = false; // 标志位
+        ________________________________ {    // 在此处填入代码
+
+12
+13
+14
+15
+16
+17
+
+18
+19
+20
+21
+
+            if (arr[j] > arr[j + 1]) {
+                swap(arr, i, j);
+                flag = true;
+            }
+        }
+
+        if (!flag)
+            break; // 此轮“冒泡”未交换任何元素
+    }
+}
+
+A.  for (int j = 0; j < arr.size() - 1; j++)
+
+B.  for (int j = arr.size() - 1; j > 0; j--)
+
+C.  for (int j = 0; j < i; j++)
+
+D.  for (int j = i-1; j <=0; j--)
+
+第 12 题  上⼀题算法的时间复杂度为（  ）。
+
+A.
+
+B.
+
+C.
+
+D.
+
+第 13 题  下⾯代码实现了插⼊排序函数（升序），则横线上应填写（  ）。
+
+1
+2
+3
+4
+5
+6
+
+7
+8
+9
+10
+11
+
+void insertion_sort(vector<int> &nums) {
+    for (int i = 1; i < nums.size(); i++) {
+        int base = nums[i], j = i - 1;
+
+        ________________________________ {    // 在此处填入代码
+            nums[j + 1] = nums[j];
+
+            j--;
+        }
+        nums[j + 1] = base;
+    }
+}
+
+A.  while (j >= 0 && nums[j] > base)
+
+B.  while (j > 0 && nums[j] > base)
+
+C.  while (j >= 0 && nums[j] < base)
+
+D.  while (j > 0 && nums[j] < base)
+
+第 14 题  ⼩杨⽤⽂件重定向实现在 log.txt ⽂件中输出⽇志，则下⾯横线上应填写（  ）。
+
+1
+2
+
+3
+4
+
+#include <iostream>
+#include <fstream>
+
+#include <string>
+using namespace std;
+
+5
+6
+7
+8
+9
+10
+
+11
+12
+13
+14
+15
+16
+
+int main() {
+    ofstream log_file("log.txt");
+
+    streambuf* original_cout = cout.rdbuf();
+    cout.rdbuf(log_file.rdbuf());
+
+    ___________________________________     // 在此处填入代码
+
+    cout.rdbuf(original_cout);  // 恢复原始的标准输出缓冲区
+    return 0;
+}
+
+A.  cout << "This output will go to the log file." << endl;
+
+B.  log_file << "This output will go to the log file." << endl;
+
+C.  cout >> "This output will go to the log file." >> endl;
+
+D.  log_file >> "This output will go to the log file." >> endl;
+
+第 15 题  运⾏下⾯的代码，屏幕上将输出（  ）。
+
+1
+
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+
+23
+
+#include <iostream>
+
+using namespace std;
+
+int divide(int a, int b) {
+    if (b == 0) {
+        throw runtime_error("division by zero error ");
+    }
+    return a / b;
+}
+
+int main() {
+
+    int x = 10;
+    int y = 0;  // 设为 0 会导致除零错误
+
+    try {
+        int result = divide(x, y);
+        cout << "result: " << result << endl;
+    } catch (const runtime_error& e) {
+        cout << "caught an exception: " << e.what() << endl;
+    }
+
+    return 0;
+
+}
+
+A.  division by zero error result: caught an exception:
+
+B.  result: caught an exception: division by zero error
+
+C.  caught an exception: division by zero error
+
+D.  division by zero error caught an exception: division by zero error
+
+10
+
+}
+
+    cout << *p << endl;
+
+    *p = point(p);
+
+    int* p = &a;
+
+    int a = 10;
+
+int main() {
+
+    return *p * 2;
+
+int point(int* p){
+
+第 10 题  执⾏下⾯C++代码后，输出的是20。
+
+    return current
+
+;
+
+}
+
+f1 = current;
+
+f0 = f1;
+
+    int current;
+
+    int f1 = 1; // F(1)
+
+    int f0 = 0; // F(0)
+
+    if (n == 1) return 1;
+
+    if (n == 0) return 0;
+
+int fibonacci(int n) {
+
+}
+
+}
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+16
+
+15
+
+14
+
+13
+
+12
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+current = f0+ f1; // F(n) = F(n-1) + F(n-2)
+
+    for (int i = 2; i <= n; i++) {
+
+第 9 题  以下代码⽤递推法求斐波那契数列的第 项，时间复杂度为指数级。
+
+第 8 题  在 C++ 中，如果没有捕获到异常（没有匹配的 catch 块），程序会继续执⾏⽽不会终⽌。
+
+第 7 题  插⼊排序的时间复杂度总是⽐冒泡排序低。
+
+第 6 题  选择排序是稳定的排序算法。
+
+第 5 题  递推算法通过逐步求解当前状态和前⼀个或⼏个状态之间的关系来解决问题。
+
+第 4 题  ⼆维数组的⾏的⼤⼩的必须在定义时确定，列的⼤⼩可以动态变化。
+
+第 3 题  指针的⼤⼩与其所指向的变量的数据类型的⼤⼩相同。
+
+第 2 题  在 C++ 中，引⽤传递允许函数修改传递给它的参数的值。
+
+第 1 题  代码 int a = 10; int* p = &a; 可以正确定义指针和初始化指针。
+
+2 判断题（每题 2 分，共 20 分）
+
+3 编程题（每题 25 分，共 50 分）
+
+3.1 编程题 1
+
+试题名称：⿊⽩⽅块
+
+时间限制：1.0 s
+
+内存限制：512.0 MB
+
+3.1.1 题面描述
+
+⼩杨有⼀个
+
+ ⾏
+
+ 列的⽹格图，其中每个格⼦要么是⽩⾊，要么是⿊⾊。
+
+⼩杨想知道⽹格图中是否存在⼀个满⾜如下条件的⼦矩形：
+
+⼦矩形由
+
+ ⾏
+
+ 列组成；
+
+⼦矩形的第
+
+ ⾏ 和第
+
+ ⾏只包含⽩⾊格⼦；
+
+对于⼦矩形的第
+
+ ⾏ 和第
+
+ ⾏，只有第
+
+ 个和第
+
+ 个格⼦是⽩⾊的，其余格⼦都是⿊⾊的；
+
+请你编写程序帮助⼩杨判断。
+
+3.1.2 输入格式
+
+第⼀⾏包含⼀个正整数  ，代表测试⽤例组数。
+
+接下来是   组测试⽤例。对于每组测试⽤例，⼀共
+
+ ⾏。
+
+第⼀⾏包含两个正整数  ，含义如题⾯所⽰。
+
+之后
+
+ ⾏，每⾏⼀个长度为
+
+ 的
+
+ 串，代表⽹格图第   ⾏格⼦的颜⾊，如果为  ，则对应格⼦为⽩⾊，否则为⿊
+
+⾊。
+
+3.1.3 输出格式
+
+对于每组测试⽤例，如果存在，输出 Yes，否则输出 No。
+
+3.1.4 样例1
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+9
+10
+11
+12
+13
+14
+15
+
+3
+1 4
+0110
+5 5
+00000
+01100
+01100
+00001
+
+01100
+5 5
+00000
+01100
+01110
+00001
+01100
+
+对于全部数据，保证有
+
+。
+
+4
+
+3
+
+2
+
+1
+
+3
+
+2
+
+1
+
+0000
+
+0110
+
+0110
+
+0000
+
+No
+
+Yes
+
+No
+
+满⾜条件的⼦矩形形如：
+
+对于全部数据，保证有
+
+。
+
+第三次升序排序后，序列为
+
+第⼆次升序排序后，序列为
+
+第⼀次升序排序后，序列为
+
+1 3 4 5 2
+
+；
+
+；
+
+；
+
+输出⼀⾏包含
+
+ 个正整数，代表多次升序排序后的序列。
+
+之后   ⾏，每⾏包含两个正整数
+
+，
+
+，代表将区间
+
+ 内所有数字进⾏升序排序。
+
+1
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+1 3
+
+3 4
+
+4 5
+
+3
+
+5
+
+3 4 5 2 1
+
+3.2.4 样例1
+
+3.2.3 输出格式
+
+第三⾏包含⼀个正整数  ，代表排序次数。
+
+第⼆⾏包含
+
+ 个正整数
+
+，代表序列。
+
+第⼀⾏包含⼀个正整数  ，含义如题⾯所⽰。
+
+3.2.2 输入格式
+
+⼩杨想请你计算出多次升序排序后的序列。
+
+⼩杨有⼀个包含
+
+ 个正整数的序列  。
+
+3.2.1 题面描述
+
+内存限制：512.0 MB
+
+时间限制：1.0 s
+
+试题名称：区间排序
+
+3.2 编程题 2
+
+ 进⾏升序排序。每次升序排序会在上⼀次升序排序的结果上进⾏。
+
+⼩杨计划对序列进⾏多次升序排序，每次升序排序⼩杨会选择⼀个区间  （
+
+）并对区间内所有数字，即

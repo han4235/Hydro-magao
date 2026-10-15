@@ -8,6 +8,7 @@ class SkillContext:
     job_id: str
     work_root: Path
     options: dict
+    llm: object = None
 
 
 @dataclass

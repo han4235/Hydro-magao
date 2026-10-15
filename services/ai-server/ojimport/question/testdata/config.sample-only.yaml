@@ -1,0 +1,3 @@
+# ai-server 单题导入：仅写入样例 .in/.out 时使用（完整 25 组见 config.full.yaml）
+time: 1s
+memory: 128m

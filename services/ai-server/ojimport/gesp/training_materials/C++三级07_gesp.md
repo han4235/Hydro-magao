@@ -1,0 +1,726 @@
+<!-- source: C++三级07_gesp.pdf sha256:235a755b20d249bf -->
+
+第 3 题  ⼀般默认64位计算机系统中整型变量（int）还是32位，则整数能够表⽰的数据范围是(  )。
+
+D.  (yr%400==0) && (yr%4==0 && yr%100!=0)
+
+C.  (yr%400==0) && (yr%4==0)
+
+B.  (yr%400==0) || (yr%4==0 && yr%100!=0)
+
+A.  (yr%400==0) || (yr%4==0)
+
+第 2 题  下⾯流程图在yr输⼊2024时，可以判定yr代表闰年，并输出 2月是29天 ，则图中菱形框中应该填⼊（  ）。
+
+D. 4
+
+C. 3
+
+B. 2
+
+A. 1
+
+）种。
+
+第 1 题  ⼩杨⽗母带他到某培训机构给他报名参加CCF组织的GESP认证考试的第1级，那他可以选择的认证语⾔有（
+
+1 单选题（每题 2 分，共 30 分）
+
+2024 年 06 ⽉
+C++　三级
+
+A.
+
+ ~
+
+B.
+
+ ~
+
+C.
+
+D.
+
+ ~
+
+ ~
+
+第 4 题  下列代码将⼗进制转化成⼋进制，则横线上应填⼊（　）。
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+10
+11
+12
+13
+14
+15
+16
+17
+18
+
+#include <iostream>
+
+using namespace  std;
+
+void decimal2octal(int decimal) {
+    int oct_number[100];
+    int i = 0;
+
+    while (decimal > 0) {
+        __________________________   //在此处填入代码
+
+    }
+
+    for (int j = i - 1; j >= 0; j--) {
+        cout << oct_number[j];
+    }
+    cout << endl;
+}
+
+A.  oct_number[i] = decimal % 8;    decimal /= 8;
+
+B.  oct_number[i] = decimal / 8;    decimal %/= 8;
+
+C.  oct_number[i++] = decimal % 8;    decimal /= 8;
+
+D.  oct_number[i++] = decimal / 8;    decimal %= 8;
+
+第 5 题  ⼆进制数101.11对应的⼗进制数是（   ）。
+
+A. 6.5
+
+B. 5.5
+
+C. 5.75
+
+D. 5.25
+
+第 6 题  下列流程图的输出结果是（  ） 。
+
+A. 5
+
+B. 10
+
+C. 20
+
+D. 30
+
+第 7 题  下列代码的输出结果是（  ）。
+
+1
+
+2
+3
+4
+5
+6
+7
+8
+9
+
+#include <iostream>
+
+using namespace std;
+
+int main() {
+    int a = 12;
+    int result = a >> 2;
+    cout << result << endl;
+    return 0;
+}
+
+A. 12
+
+B. 6
+
+C. 3
+
+D. 1
+
+第 8 题  下列代码的输出结果是（  ）。
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+10
+11
+12
+13
+14
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 5;
+    int b = 10;
+
+    a = a ^ b;
+    b = a ^ b;
+
+    a = a ^ b;
+
+    cout << "a = " << a << ", b = " << b << endl;
+    return 0;
+}
+
+A. a = 5, b = 10
+
+B. a = 5, b = 5
+
+C. a = 10, b = 5
+
+D. a = 10, b = 10
+
+第 9 题  如果字符串定义为 char str[] = "GESP"; ，则字符数组 str 的长度为( )。
+
+A. 0
+
+B. 4
+
+C. 5
+
+D. 6
+
+第 10 题  在下列代码的横线处填写(  )，可以使得输出是“7”。
+
+1
+
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+
+13
+14
+
+#include <iostream>
+
+using namespace std;
+
+int main() {
+    int array[5] = {3，7，5，2，4};
+
+    int max = 0;
+    for(int i=0; i<5; i++)
+        if(______________)  // 在此处填入代码
+            max = array[i];
+
+    cout << max << endl;
+
+    return 0;
+}
+
+A.  max > array[i]
+
+B.  max < array[i]
+
+C.  max = array[i]
+
+D. 以上均不对
+
+第 11 题  ⼩杨在做数学题，题⽬要求找出从1到35中能被7整除的数字，即[7, 14, 21, 28, 35]，则横线处应填⼊哪个代
+
+码？（  ）
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+11
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    int arr[35];
+
+    int count = 0;
+    for (int i = 1; i <= 35; i++) {
+        if (i % 7 == 0)
+            __________________________  // 在此处填入代码
+    }
+
+12
+13
+14
+15
+16
+17
+
+    for (int i = 0; i < count; i++)
+        cout << arr[i] << endl;
+
+    return 0;
+}
+
+A.  arr[count++] = i;
+
+B.  arr[i] = count++;
+
+C.  arr[i] = count;
+
+D.  arr[count] = count++;
+
+第 12 题  已知字符 '0' 的ASCII编码的⼗进制表⽰为48，则执⾏下⾯C++代码后，输出是( )。
+
+1
+2
+3
+4
+5
+6
+7
+
+8
+9
+10
+11
+12
+13
+14
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    string s = "0629";
+
+    int n = s.length();
+
+    int x = 0;
+    for(int i = 0; i < n; i++)
+        x += s[i];
+
+    cout << x << endl;
+    return 0;
+}
+
+A. 17
+
+B. 158
+
+C. 209
+
+D. 316
+
+第 13 题  某⼩学男⼦篮球队招募新成员，要求加⼊球队的成员⾝⾼在135厘⽶以上（不含135厘⽶）。本次报名的⼈
+
+员有10⼈，他们的⾝⾼分别是125、127、136、134、137、138、126、135、140、145。完善以下代码，求出本次球
+
+队能够招募到新成员的⼈数？（ ）
+
+1
+2
+3
+4
+5
+6
+
+7
+8
+9
+10
+11
+12
+13
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    int arr[10] = {125, 127, 136, 134, 137, 138, 126, 135, 140, 145};
+
+    int count = 0;
+    for(int i=0; i<10; i++)
+        __________________________  // 在此处填入代码
+
+    cout << count << endl;
+    return 0;
+}
+
+A.  count = arr[i]>135? 1: 0;
+
+B.  count += arr[i]>135? 1: 0;
+
+C.  count++;
+
+D. 以上都不对
+
+第 14 题  下⾯可以正确输出  They're planning a party for their friend's birthday.  的C++语句是？
+
+（　）
+
+A.  cout << 'They\'re planning a party for their friend'\s birthday." << endl;
+
+B.  cout << "They\'re planning a party for their friend's birthday.'<< endl;
+
+C.  cout << 'They're planning a party for their friend's birthday.'<< endl;
+
+D.  cout << "They\'re planning a party for their friend\'s birthday." << endl;
+
+第 15 题  如果执⾏下⾯C++代码后，输出的结果是“gesp ccf org cn ”，则横线上应填⼊哪个代码？（  ）
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    string str = "gesp.ccf.org.cn";
+
+    string delimiter = ".";
+    string result="";
+
+    string token;
+    size_t found = str.find(delimiter);
+    while (found != string::npos)  {
+        token = str.substr(0, found);
+        result += token;
+        result += " ";
+        __________________________  // 在此处填入代码
+        found = str.find(delimiter);
+    }
+
+    //最后一部分
+    result += str;
+        result += " ";
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+
+20
+21
+22
+
+第 7 题  如果 为 int 类型的变量，且表达式 ((a | 3) == 3) 的值为 true ，则说明  在从0到3之间（可能为0、可
+
+        int a = rand() % 10;
+
+    {
+
+    while(i <= 5)
+
+    int s[5];
+
+    int i = 1;
+
+    srand(time(NULL));
+
+    // 设置随机种子
+
+int main() {
+
+using namespace std;
+
+15
+
+14
+
+13
+
+12
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+#include <ctime>    // 为了使用 time()
+
+#include <cstdlib>  // 为了使用 rand() 和 srand()
+
+#include <iostream>
+
+第 9 题  执⾏下⾯C++代码后，输出的结果不可能是89781。（ ）
+
+4
+
+3
+
+2
+
+1
+
+cout << c <<endl;
+
+int c = a & b;
+
+int b = 01100;
+
+int a = 0b1010;
+
+第 8 题  执⾏下⾯C++代码后，输出的结果是8。
+
+能为3）。
+
+第 6 题  C++中可以对数组和数组的每个基础类型的元素赋值。
+
+第 5 题  数组的所有元素在内存中可以不连续存放。
+
+第 4 题  字符常量'\0'常⽤来表⽰字符串结束，和字符常量'0'相同。
+
+第 3 题  补码的优点是可以将减法运算转化为加法运算，从⽽简化计算机的硬件设计。
+
+第 2 题  整数-6的16位补码可⽤⼗六进制表⽰为FFFA。
+
+第 1 题  GESP测试是对认证者的编程能⼒进⾏等级认证，同⼀级别的能⼒基本上与编程语⾔⽆关。
+
+2 判断题（每题 2 分，共 20 分）
+
+D. 以上都不对
+
+C.  str = str.substr(found, str.length() -1);
+
+B.  str = str.substr(found, str.length() );
+
+A.  str = str.substr(found + delimiter.length(), str.length() - 1);
+
+}
+
+25
+
+24
+
+23
+
+    return 0;
+
+    cout << result << endl;
+
+16
+17
+18
+19
+20
+21
+
+22
+23
+
+        if(a % 3 == (i + 1) % 3)
+            s[i++] = a;
+    }
+    for(int i = 1; i <= 5; i++)
+        cout << s[i];
+    cout << endl;
+
+    return 0;
+}
+
+第 10 题  把整数3025从中剪开分为30和25两个数，此时再将这两数之和平⽅，计算结果⼜等于原数。(30 + 25) × (30
+
++ 25) = 55 × 55 = 3025，这样的数叫“雷劈数”。可以使⽤枚举的⽅法求出所有符合这样条件的四位数。（ ）
+
+3 编程题（每题 25 分，共 50 分）
+
+3.1 编程题 1
+
+试题名称：移位
+
+时间限制：1.0 s
+
+内存限制：512.0 MB
+
+3.1.1 题面描述
+
+⼩杨学习了加密技术移位，所有⼤写字母都向后按照⼀个固定数⽬进⾏偏移。偏移过程会将字母表视作⾸尾相接的
+
+环，例如，当偏移量是3的时候，⼤写字母 A 会替换成 D，⼤写字母 Z 会替换成 C，总体来看，⼤写字母表
+
+ABCDEFGHIJKLMNOPQRSTUVWXYZ 会被替换成 DEFGHIJKLMNOPQRSTUVWXYZABC。
+
+注：当偏移量是26的倍数时，每个⼤写字母经过偏移后会恰好回到原来的位置，即⼤写字母表
+
+ABCDEFGHIJKLMNOPQRSTUVWXYZ 经过偏移后会保持不变。
+
+3.1.2 输入格式
+
+第⼀⾏包含⼀个正整数  。
+
+3.1.3 输出格式
+
+输出在偏移量为
+
+ 的情况下，⼤写字母表 ABCDEFGHIJKLMNOPQRSTUVWXYZ 移位替换后的结果。
+
+3.1.4 样例1
+
+1
+
+1
+
+3
+
+DEFGHIJKLMNOPQRSTUVWXYZABC
+
+3.1.5 样例解释
+
+当偏移量是3的时候，⼤写字母 A 会替换成 D，⼤写字母 Z 会替换成 C，总体来看，⼤写字母表
+
+ABCDEFGHIJKLMNOPQRSTUVWXYZ 会被替换成 DEFGHIJKLMNOPQRSTUVWXYZABC。
+
+3.1.6 数据范围
+
+对于全部数据，保证有
+
+。
+
+1 2 3 4 5
+
+2
+
+1
+
+5
+
+4
+
+3
+
+2
+
+1
+
+No
+
+Yes
+
+1 2 4
+
+5
+
+3
+
+2
+
+3.2.4 样例1
+
+3.2.3 输出格式
+
+3.2.2 输入格式
+
+的倍数。
+
+3.2.1 题面描述
+
+内存限制：512.0 MB
+
+时间限制：1.0 s
+
+试题名称：寻找倍数
+
+3.2 编程题 2
+
+对于每组测试⽤例，如果存在   (
+
+)满⾜对于所有
+
+ (
+
+)
+
+ 是
+
+ 的倍数，输出 Yes，否则输出 No。
+
+对于每组测试⽤例，⼀共两⾏。其中，第⼀⾏包含⼀个正整数  ；第⼆⾏包含
+
+ 个正整数，代表序列  。
+
+接下来是   组测试⽤例。
+
+第⼀⾏包含⼀个正整数  ，代表测试⽤例组数。
+
+⼩杨有⼀个包含
+
+ 个正整数的序列
+
+，他想知道是否存在   (
+
+) 使得
+
+ 是序列
+
+ 中所有数
+
+对于全部数据，保证有
+
+。
+
+3.2.6 数据范围
+
+3.2.5 样例解释
+
+对于第⼀组数据，对于
+
+，满⾜
+
+ 是
+
+ 和
+
+ 的倍数。

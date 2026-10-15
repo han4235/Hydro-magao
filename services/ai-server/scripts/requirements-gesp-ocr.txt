@@ -1,0 +1,4 @@
+# 仅在本机同步 GESP 课件 md 时需要（ai-server 运行时不必装）
+pymupdf>=1.24
+pytesseract>=0.3
+Pillow>=10.0
