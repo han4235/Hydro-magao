@@ -51,6 +51,7 @@
       _htmlNode.className = _htmlNode.className.replace(' nojs', ' hasjs');
       window.UiContext = '{{ UiContext|json|jsesc|safe }}';
       window.UserContext = '{{ UserContext|json|jsesc|safe }}';
+      try { localStorage.setItem('polyhedron-hint', 'dismiss'); } catch (e) {}
     </script>
   {% endif %}
   {% set UiContext = Object.create(UiContext) %}
@@ -59,8 +60,8 @@
 <body>
   {% if not isIE(handler.request.headers['user-agent']) and not handler.session.legacy %}
     <script type="text/javascript" src="{{ UiContext.cdn_prefix if UiContext.cdn_dynamic else '/' }}resource/{{ UiContext.constantVersion }}/entry.js"></script>
-    <script type="text/javascript" src="{{ UiContext.cdn_prefix }}resource/{{ global.Hydro.version['ui-default'] }}/lang-{{ _('__id') }}.js"></script>
-    <script type="text/javascript" src="{{ UiContext.cdn_prefix }}hydro-{{ global.Hydro.version['ui-default'] }}.js{% if process.env.DEV %}?version=dev{% endif %}"></script>
+    <script type="text/javascript" src="{{ UiContext.cdn_prefix }}resource/{{ global.Hydro.version['ui-default'] }}/lang-{{ _('__id') }}.js?v={{ UiContext.constantVersion }}"></script>
+    <script type="text/javascript" src="{{ UiContext.cdn_prefix }}hydro-{{ global.Hydro.version['ui-default'] }}.js{% if process.env.DEV %}?version=dev{% else %}?v={{ UiContext.constantVersion }}{% endif %}"></script>
   {% endif %}
   {% block body %}{% endblock %}
   {% block script %}{% endblock %}

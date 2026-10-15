@@ -1,9 +1,10 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
-import { Context, PERM, Types, param } from 'hydrooj';
+import { Context, PERM, ProblemModel, Types, param } from 'hydrooj';
 import { DtojPageHandler } from 'dtoj-ui';
 
 const SKILL = 'pdf_to_problem_packs';
+const SAMPLE_SKILL = 'problem_sample_regen';
 
 const KINDS = [
     ['single', '单题'],
@@ -142,6 +143,75 @@ class DtojAiJobHandler extends DtojPageHandler {
     }
 }
 
+class DtojAiProblemSampleHandler extends DtojPageHandler {
+    @param('pid', Types.PositiveInt)
+    async post(domainId: string, pid: number) {
+        const pdoc = await ProblemModel.get(domainId, pid);
+        if (!pdoc) throw new Error('题目不存在');
+        if (!this.user.hasPerm(PERM.PERM_EDIT_PROBLEM) && !this.user.own(pdoc, PERM.PERM_EDIT_PROBLEM_SELF)) {
+            this.checkPerm(PERM.PERM_EDIT_PROBLEM);
+        }
+        // 签名须覆盖 ai-server 实际收到的字节：text 源即该字符串本身
+        const text = `regen:${domainId}:${pid}`;
+        const digest = digestOf(Buffer.from(text, 'utf8'));
+        const form = new FormData();
+        form.append('skill', SAMPLE_SKILL);
+        form.append('kind', 'sample_regen');
+        form.append('domain_id', domainId);
+        form.append('doc_id', String(pid));
+        form.append('text', text);
+        const created = await aiFetch('/internal/jobs', SAMPLE_SKILL, digest, { method: 'POST', body: form }, 'sample_regen');
+        this.response.redirect = this.url('dtoj_ai_job', { id: created.id });
+    }
+}
+
+class DtojAiJobApplyHandler extends DtojPageHandler {
+    @param('id', Types.String)
+    async post(domainId: string, id: string) {
+        this.checkPerm(PERM.PERM_EDIT_PROBLEM);
+        const job = await aiFetch(`/internal/jobs/${id}`, 'get', id);
+        if (job.skill !== SAMPLE_SKILL || !job.payload) {
+            throw new Error('该任务不支持写入题库');
+        }
+        const docId = Number(job.payload.docId || job.meta?.docId);
+        if (!docId) throw new Error('任务缺少题号');
+        const pdoc = await ProblemModel.get(domainId, docId);
+        if (!pdoc) throw new Error('题目不存在');
+        const contentZh = String(job.payload.contentZh || '');
+        const samples = job.payload.samples || [];
+        const files = job.payload.testdataFiles as Record<string, string> | undefined;
+        const hasFiles = files && typeof files === 'object' && Object.keys(files).length > 0;
+        if (!contentZh || (!hasFiles && (!Array.isArray(samples) || !samples.length))) {
+            throw new Error('样例或测试数据不完整');
+        }
+        await ProblemModel.edit(domainId, docId, {
+            content: JSON.stringify({ zh: contentZh }),
+        });
+        if (hasFiles) {
+            for (const [name, body] of Object.entries(files!)) {
+                if (!name || body == null) continue;
+                await ProblemModel.addTestdata(
+                    domainId,
+                    docId,
+                    name,
+                    Buffer.from(String(body), 'utf8'),
+                    this.user._id,
+                );
+            }
+        } else {
+            for (let i = 0; i < samples.length; i++) {
+                const inp = String(samples[i].input ?? '');
+                const out = String(samples[i].output ?? '');
+                const n = i + 1;
+                await ProblemModel.addTestdata(domainId, docId, `${n}.in`, Buffer.from(inp, 'utf8'), this.user._id);
+                await ProblemModel.addTestdata(domainId, docId, `${n}.out`, Buffer.from(out, 'utf8'), this.user._id);
+            }
+        }
+        this.response.type = 'application/json';
+        this.response.body = { ok: true, docId, url: this.url('problem_detail', { pid: docId }) };
+    }
+}
+
 class DtojAiJobPollHandler extends DtojPageHandler {
     @param('id', Types.String)
     async get(domainId: string, id: string) {
@@ -161,10 +231,13 @@ export async function apply(ctx: Context) {
     ctx.Route('dtoj_ai_jobs', '/ai/jobs', DtojAiJobsHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job', '/ai/jobs/:id', DtojAiJobHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job_poll', '/ai/jobs/:id/poll', DtojAiJobPollHandler, PERM.PERM_CREATE_PROBLEM);
+    ctx.Route('dtoj_ai_job_apply', '/ai/jobs/:id/apply-samples', DtojAiJobApplyHandler, PERM.PERM_EDIT_PROBLEM);
+    ctx.Route('dtoj_ai_problem_sample', '/ai/problem/:pid/sample-regen', DtojAiProblemSampleHandler, PERM.PERM_EDIT_PROBLEM);
     ctx.injectUI('ProblemAdd', 'dtoj_ai_jobs', { icon: 'copy', text: 'Import From AI' });
     ctx.i18n.load('zh', {
         dtoj_ai_jobs: 'AI 导题',
         dtoj_ai_job: 'AI 任务',
+        dtoj_ai_problem_sample: 'AI 样例再生',
         'Import From AI': '从 AI 导入',
     });
 }

@@ -374,18 +374,25 @@
 </style>
 <div class="row"><div class="medium-10 columns">
   <div class="ai-job">
-    <div class="ai-job-sheet" id="ai-job-root"{% if job %} data-job-id="{{ job.id }}" data-poll="{{ url('dtoj_ai_job_poll', { id: job.id }) }}"{% endif %}>
+    <div class="ai-job-sheet" id="ai-job-root"{% if job %} data-job-id="{{ job.id }}" data-poll="{{ url('dtoj_ai_job_poll', { id: job.id }) }}" data-apply="{{ url('dtoj_ai_job_apply', { id: job.id }) }}" data-skill="{{ job.skill }}"{% if job.meta and job.meta.docId %} data-problem-url="{{ url('problem_detail', pid=job.meta.docId) }}"{% endif %}{% endif %}>
       <div class="ai-job-head">
         <div>
-          <h1>生成任务</h1>
+          <h1>{% if job and job.kind == 'sample_regen' %}AI 样例再生{% else %}生成任务{% endif %}</h1>
           <div class="ai-job-rule" aria-hidden="true"></div>
         </div>
         {% if job %}<p class="ai-job-id" title="任务 ID">{{ job.id }}</p>{% endif %}
       </div>
+      {% if job and job.meta and job.meta.docId %}
+      <a class="ai-job-back" href="{{ url('problem_detail', pid=job.meta.docId) }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        返回题目 P{{ job.meta.docId }}
+      </a>
+      {% else %}
       <a class="ai-job-back" href="{{ url('dtoj_ai_jobs') }}">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         返回任务列表
       </a>
+      {% endif %}
 
       <div class="ai-job-banner" id="ai-job-page-error" role="alert"{% if not error %} hidden{% endif %}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -396,7 +403,7 @@
       <dl class="ai-job-meta">
         <div class="ai-job-meta-item">
           <dt>类型</dt>
-          <dd>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% else %}{{ job.kind }}{% endif %}</dd>
+          <dd>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% elif job.kind == 'sample_regen' %}AI 样例再生{% else %}{{ job.kind }}{% endif %}</dd>
         </div>
         <div class="ai-job-meta-item">
           <dt>来源</dt>
@@ -456,6 +463,10 @@
   const root = document.getElementById('ai-job-root');
   if (!root || !root.dataset.jobId) return;
   const pollUrl = root.dataset.poll;
+  const applyUrl = root.dataset.apply || '';
+  const jobSkill = root.dataset.skill || '';
+  const problemUrl = root.dataset.problemUrl || '';
+  let applyOnce = false;
   const initialEl = document.getElementById('ai-job-initial');
   const wrap = document.getElementById('ai-job-status-wrap');
   const jump = document.getElementById('ai-job-jump');
@@ -550,10 +561,13 @@
     );
     updateStage(st);
 
-    if (st === 'done') hint.textContent = '题目已生成，可到题库查看';
+    if (st === 'done' && jobSkill === 'problem_sample_regen') {
+      hint.textContent = job.applied ? '题面样例与 25 组 testdata 已写入本题' : '正在写入题面与全部测试数据…';
+    } else if (st === 'done') hint.textContent = '题目已生成，可到题库查看';
     else if (st === 'failed') hint.textContent = '请查看下方错误信息，修正材料后重新提交';
     else if (st === 'importing') hint.textContent = '正在写入青石题库…';
     else if (st === 'queued') hint.textContent = '等待 ai-server 接单…';
+    else if (st === 'running' && jobSkill === 'problem_sample_regen') hint.textContent = '搬题姬流程：模型生成标程与 mkin.h，随后 mkdata 编译生成 25 组数据…';
     else hint.textContent = '正在解析材料并调用模型…';
 
     if (job.errors && job.errors.length) {
@@ -575,7 +589,25 @@
     }
   }
 
+  async function applySamples() {
+    if (!applyUrl || applyOnce || jobSkill !== 'problem_sample_regen') return;
+    if (!job || !job.payload) return;
+    applyOnce = true;
+    try {
+      const res = await fetch(applyUrl, { method: 'POST', credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || '写入失败');
+      job.applied = true;
+      render(job);
+    } catch (e) {
+      applyOnce = false;
+      pageErr.hidden = false;
+      pageErr.querySelector('span').textContent = e.message || '写入题库失败';
+    }
+  }
+
   render(job);
+  if (job && resolveStatus(job) === 'done') applySamples();
 
   async function poll() {
     try {
@@ -590,7 +622,11 @@
       job = data;
       render(job);
       const terminal = resolveStatus(job);
-      if (terminal === 'done' || terminal === 'failed') return;
+      if (terminal === 'done') {
+        await applySamples();
+        return;
+      }
+      if (terminal === 'failed') return;
       setTimeout(poll, 2500);
     } catch (e) {
       pageErr.hidden = false;

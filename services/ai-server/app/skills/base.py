@@ -16,6 +16,7 @@ class SkillResult:
     work_dirs: list[Path] = field(default_factory=list)
     logs: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    payload: dict | None = None
 
 
 class Skill:

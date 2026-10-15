@@ -35,6 +35,8 @@ async def enqueue(
     url: str = '',
     text: str = '',
     fetch_cookie: str = '',
+    domain_id: str = '',
+    doc_id: str = '',
 ) -> dict:
     global QUEUE
     if QUEUE is None:
@@ -47,6 +49,9 @@ async def enqueue(
     src.write_bytes(data)
     if source == 'url' and (fetch_cookie or '').strip():
         (work / '.fetch_cookie').write_text(fetch_cookie.strip(), encoding='utf-8')
+    meta = {}
+    if (domain_id or '').strip() and (doc_id or '').strip():
+        meta = {'domainId': domain_id.strip(), 'docId': int(doc_id.strip())}
     job = {
         'id': job_id,
         'skill': skill,
@@ -59,6 +64,8 @@ async def enqueue(
         'logs': [],
         'errors': [],
         'pids': [],
+        'meta': meta,
+        'payload': None,
         'createdAt': int(time.time()),
     }
     JOBS[job_id] = job
@@ -74,6 +81,34 @@ async def _worker():
             continue
         job['status'] = 'running'
         try:
+            if job['skill'] == 'problem_sample_regen':
+                miss = bundle_missing()
+                if miss:
+                    job['status'] = 'failed'
+                    job['errors'].append(f'搬题姬材料缺失: {", ".join(miss[:5])}')
+                    continue
+                skill = get_skill(job['skill'])
+                src = ROOT / job_id / job['filename']
+                meta = job.get('meta') or {}
+                opts = {
+                    'kind': job['kind'],
+                    'domain_id': meta.get('domainId', ''),
+                    'doc_id': meta.get('docId', ''),
+                }
+                ctx = SkillContext(job_id, ROOT / job_id, opts, LlmClient())
+                result = await skill.run(ctx, src)
+                job['logs'].extend(result.logs)
+                if result.errors:
+                    job['status'] = 'failed'
+                    job['errors'].extend(result.errors)
+                    continue
+                if not result.payload:
+                    job['status'] = 'failed'
+                    job['errors'].append('未生成样例 payload')
+                    continue
+                job['payload'] = result.payload
+                job['status'] = 'done'
+                continue
             if job['skill'] == 'pdf_to_problem_packs':
                 miss = bundle_missing()
                 if miss:

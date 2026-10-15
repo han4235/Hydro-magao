@@ -1,75 +1,250 @@
 {% extends "layout/basic.html" %}
 {% block content %}
 <style>
-  .dtoj-diff { margin: 8px 0 16px; }
-  .dtoj-diff-label { display: block; margin: 0 0 8px; font-weight: 700; }
-  .dtoj-diff-bar { display: flex; flex-wrap: wrap; gap: 8px; }
-  .dtoj-diff-bar button {
+  .qs-problem-page { color: #111827; }
+  .qs-problem-sheet {
+    background: #ffffff;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    padding: 28px 28px 24px;
+    margin-bottom: 20px;
+  }
+  .qs-problem-hero { margin: 0 0 22px; }
+  .qs-problem-hero h1 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 32px;
+    font-weight: 760;
+    letter-spacing: -0.045em;
+    line-height: 1.16;
+    color: #1e40af;
+  }
+  .qs-problem-hero--edit h1 { font-size: 26px; }
+  .qs-rule {
+    width: 72px; height: 4px; margin: 12px 0 14px; border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #1e40af);
+  }
+  .qs-lead {
+    margin: 0; max-width: 68ch; color: #1e293b; line-height: 1.7; font-size: 14px;
+  }
+  .qs-problem-sheet .section { margin: 0; border: 0; box-shadow: none; background: transparent; }
+  .qs-problem-sheet .section__body { padding: 0; }
+  .qs-meta {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.9fr) minmax(0, 2.2fr) auto;
+    gap: 16px 20px;
+    align-items: end;
+    margin-bottom: 18px;
+  }
+  .qs-field { display: block; margin: 0; }
+  .qs-field > span,
+  .qs-problem-sheet .form__label {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #1e293b;
+  }
+  .qs-problem-sheet .textbox {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    border-radius: 11px;
+    padding: 10px 12px;
+    color: #111827;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .qs-problem-sheet .textbox:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  }
+  .qs-hidden {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding-bottom: 2px;
+  }
+  .qs-hidden .checkbox {
+    margin: 0;
+    font-weight: 600;
+    color: #111827;
+    cursor: pointer;
+  }
+  .qs-problem-sheet .form__row { margin: 0 0 18px; }
+  .qs-problem-sheet .form__help { color: #1e293b; }
+  .qs-diff { margin: 0 0 20px; }
+  .qs-diff-label {
+    display: block;
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #1e293b;
+  }
+  .qs-diff-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .qs-diff-bar button {
     min-height: 36px;
     padding: 0 14px;
     border: 1px solid rgba(30, 41, 59, 0.12);
     border-radius: 999px;
     background: #f4f7fb;
-    color: #243044;
+    color: #111827;
     font-weight: 700;
+    font-size: 13px;
     cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
-  .dtoj-diff-bar button[data-diff="1"] { background: #fe4c61; color: #1a1a1a; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="2"] { background: #f39c11; color: #1a1a1a; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="3"] { background: #ffc116; color: #1a1a1a; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="4"] { background: #52c41a; color: #1a1a1a; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="5"] { background: #3498db; color: #1a1a1a; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="6"] { background: #9d3dcf; color: #fff; border-color: transparent; }
-  .dtoj-diff-bar button[data-diff="7"] { background: #0e1d69; color: #fff; border-color: transparent; }
-  .dtoj-diff-bar button.is-on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a1a1a; }
+  .qs-diff-bar button:hover { transform: translateY(-1px); }
+  .qs-diff-bar button:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .qs-diff-bar button[data-diff="1"] { background: #e11d48; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="2"] { background: #c2410c; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="3"] { background: #a16207; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="4"] { background: #15803d; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="5"] { background: #1d4ed8; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="6"] { background: #7e22ce; color: #fff; border-color: transparent; }
+  .qs-diff-bar button[data-diff="7"] { background: #0e1d69; color: #fff; border-color: transparent; }
+  .qs-diff-bar button.is-on {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1e40af;
+  }
+  .qs-editor-block {
+    margin: 0 0 20px;
+    padding: 16px;
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 16px;
+    background: #f4f7fb;
+  }
+  .qs-problem-sheet .section__tab-container { margin: 0 0 12px; }
+  .qs-problem-sheet .section__tab-header-item {
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  .qs-problem-sheet .section__tab-header-item.tab--active {
+    color: #1e40af;
+    border-bottom-color: #1e40af;
+  }
+  .qs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 4px;
+  }
+  .qs-actions .button.primary,
+  .qs-actions .button.rounded.primary {
+    min-height: 48px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 11px;
+    background: #1e40af;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.22);
+  }
+  .qs-actions .button.primary:hover,
+  .qs-actions .button.rounded.primary:hover { transform: translateY(-1px); }
+  .qs-actions .button.primary:focus,
+  .qs-actions .button.rounded.primary:focus {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+  .qs-actions .button.rounded:not(.primary) {
+    min-height: 48px;
+    border-radius: 11px;
+    border: 1px solid rgba(30, 41, 59, 0.12);
+    background: #fff;
+    color: #1e40af;
+    font-weight: 700;
+  }
+  .qs-side .section.side {
+    border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(28, 39, 64, 0.06);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .qs-side .section__header {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.09);
+    background: #f4f7fb;
+  }
+  .qs-side .section__title {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #111827;
+  }
+  .qs-side .section__body { padding: 16px 18px; }
+  .qs-side .section__tools .button.primary {
+    border-radius: 11px;
+    background: #1e40af;
+    border: 0;
+    font-weight: 700;
+    color: #fff;
+  }
+  @media (max-width: 860px) {
+    .qs-meta { grid-template-columns: 1fr; }
+    .qs-hidden { min-height: 0; padding: 0; }
+    .qs-problem-sheet { padding: 20px 16px; border-radius: 16px; }
+    .qs-problem-hero h1 { font-size: 28px; }
+  }
 </style>
-<div class="row">
+<div class="row qs-problem-page">
   <div class="medium-9 columns">
-    <div class="section">
-      <div class="section__body">
-        <form method="post">
-          <div class="row">
-            <div class="medium-3 columns">
-              <label>
-                {{ _('pid') }}
-                <br>
-                <label>
-                  <input name="pid" placeholder="P1000" value="{{ pdoc['pid']|default('') }}" class="textbox">
-                </label>
+    <div class="qs-problem-sheet">
+      <header class="qs-problem-hero{% if page_name == 'problem_edit' %} qs-problem-hero--edit{% endif %}">
+        {% if page_name == 'problem_create' %}
+          <h1>创建题目</h1>
+          <div class="qs-rule"></div>
+          <p class="qs-lead">填写题目 ID、标题与 Markdown 题面。留空题目 ID 可由系统分配；保存后可在题目管理中上传测试数据。</p>
+        {% else %}
+          <h1>编辑题目</h1>
+          <div class="qs-rule"></div>
+        {% endif %}
+      </header>
+      <div class="section">
+        <div class="section__body">
+          <form method="post">
+            <div class="qs-meta">
+              <label class="qs-field">
+                <span>{{ _('pid') }}</span>
+                <input name="pid" placeholder="P1000" value="{{ pdoc['pid']|default('') }}" class="textbox">
               </label>
-            </div>
-            <div class="medium-7 columns">
-              <label>
-                {{ _('Title') }}
+              <label class="qs-field">
+                <span>{{ _('Title') }}</span>
                 <input name="title" placeholder="{{ _('title') }}" value="{{ pdoc['title']|default('') }}" class="textbox"{% if page_name == 'problem_create' %} autofocus{% endif %}>
               </label>
-            </div>
-            <div class="medium-2 columns">
-              <label>
-                <br>
+              <div class="qs-hidden">
                 <label class="checkbox">
                   <input type="checkbox" name="hidden" value="on"{% if pdoc['hidden'] %} checked{% endif %} class="checkbox">{{ _('Hidden') }}
                 </label>
-              </label>
+              </div>
             </div>
-          </div>
-          <div class="row">
-          {{ form.form_text({
-               row:false,
-               columns:12,
-               label:'Tags',
-               help_text:'Split by \', \'.',
-               name:'tag',
-               value:pdoc['tag']|default([])|join(', ')
-             }) }}
-          </div>
-          {% set d = pdoc['difficulty'] or 0 %}
-          {% set pick = d if d == 1 or d == 2 or d == 3 or d == 4 or d == 5 or d == 6 or d == 7 else '' %}
-          <div class="row">
-            <div class="medium-12 columns dtoj-diff">
-              <label class="dtoj-diff-label">难度</label>
+            <div class="row">
+            {{ form.form_text({
+                 row:false,
+                 columns:12,
+                 label:'Tags',
+                 help_text:'Split by \', \'.',
+                 name:'tag',
+                 value:pdoc['tag']|default([])|join(', ')
+               }) }}
+            </div>
+            {% set d = pdoc['difficulty'] or 0 %}
+            {% set pick = d if d == 1 or d == 2 or d == 3 or d == 4 or d == 5 or d == 6 or d == 7 else '' %}
+            <div class="qs-diff">
+              <span class="qs-diff-label">难度</span>
               <input type="hidden" name="difficulty" value="{{ pick }}">
-              <div class="dtoj-diff-bar" data-diff-bar>
+              <div class="qs-diff-bar" data-diff-bar>
                 <button type="button" data-diff="" class="{{ 'is-on' if pick == '' else '' }}">不设定</button>
                 <button type="button" data-diff="1" class="{{ 'is-on' if pick == 1 else '' }}">入门</button>
                 <button type="button" data-diff="2" class="{{ 'is-on' if pick == 2 else '' }}">普及−</button>
@@ -80,40 +255,42 @@
                 <button type="button" data-diff="7" class="{{ 'is-on' if pick == 7 else '' }}">NOI/NOI+/CTSC</button>
               </div>
             </div>
-          </div>
-          <div class="section__tab-container nojs--hide">
-          <div class="section__tab-header-wrapper">
-            <ul class="section__tab-header">
-              <li class="section__tab-header-item tab--active" data-lang="{{ _('__id') }}">{{ _('__langname') }}</li>
-              {% for k, v in statementLangs %}{% if k != handler.user.viewLang %}
-                <li class="section__tab-header-item" data-lang="{{ k }}">{{ v }}</li>
-              {% endif %}{% endfor %}
-            </ul>
-          </div>
-          </div>
-          <div><textarea data-editor{% if page_name == 'problem_edit' %} autofocus{% endif %} class="textbox auto-resize nojs--hide"></textarea></div>
-          <textarea name="content" class="textbox hasjs--hide" data-markdown-upload style="height: 500px">{% if pdoc %}{{ pdoc['content']|toString }}{% else %}{% include 'partials/problem_default.md' %}{% endif %}</textarea>
-          <div class="row"><div class="columns">
-          {% if page_name == 'problem_edit' %}
-            <button type="submit" class="rounded primary button">
-              {{ _('Update') }}
-            </button>
-            {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
-              <button name="operation" value="delete" type="submit" class="rounded button">
-                {{ _('Delete') }}
+            <div class="qs-editor-block">
+              <div class="section__tab-container nojs--hide">
+                <div class="section__tab-header-wrapper">
+                  <ul class="section__tab-header">
+                    <li class="section__tab-header-item tab--active" data-lang="{{ _('__id') }}">{{ _('__langname') }}</li>
+                    {% for k, v in statementLangs %}{% if k != handler.user.viewLang %}
+                      <li class="section__tab-header-item" data-lang="{{ k }}">{{ v }}</li>
+                    {% endif %}{% endfor %}
+                  </ul>
+                </div>
+              </div>
+              <div><textarea data-editor{% if page_name == 'problem_edit' %} autofocus{% endif %} class="textbox auto-resize nojs--hide"></textarea></div>
+              <textarea name="content" class="textbox hasjs--hide" data-markdown-upload style="height: 500px">{% if pdoc %}{{ pdoc['content']|toString }}{% else %}{% include 'partials/problem_default.md' %}{% endif %}</textarea>
+            </div>
+            <div class="qs-actions">
+            {% if page_name == 'problem_edit' %}
+              <button type="submit" class="rounded primary button">
+                {{ _('Update') }}
+              </button>
+              {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
+                <button name="operation" value="delete" type="submit" class="rounded button">
+                  {{ _('Delete') }}
+                </button>
+              {% endif %}
+            {% else %}
+              <button type="submit" class="rounded primary button">
+                {{ _('Create') }}
               </button>
             {% endif %}
-          {% else %}
-            <button type="submit" class="rounded primary button">
-              {{ _('Create') }}
-            </button>
-          {% endif %}
-          </div></div>
-        </form>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-  <div class="medium-3 columns">
+  <div class="medium-3 columns qs-side">
     <div class="section side visiable nojs--hide section--problem-sidebar-tags">
       <div class="section__header">
         <h1 class="section__title">{{ _('Categories') }} ({{ _('click to add') }})</h1>

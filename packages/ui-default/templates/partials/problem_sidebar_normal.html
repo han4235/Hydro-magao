@@ -160,6 +160,15 @@
     {% endif %}
     {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
       <li class="menu__seperator"></li>
+      {% if page_name == 'problem_detail' %}
+      <li class="menu__item">
+        <form method="post" action="{{ url('dtoj_ai_problem_sample', pid=pdoc.docId) }}">
+          <button type="submit" class="menu__link" name="problem-sidebar__ai-sample">
+            <span class="icon icon-refresh"></span> AI样例再生
+          </button>
+        </form>
+      </li>
+      {% endif %}
       <li class="menu__item"><a class="menu__link{% if page_name == 'problem_edit' %} active{% endif %}" href="{{ url('problem_edit', pid=pdoc.pid|default(pdoc.docId)) }}">
         <span class="icon icon-edit"></span> {{ _('Edit') }}
       </a></li>
@@ -191,29 +200,29 @@
 {% endif %}
 {% set contests = ctdocs or [] %}
 {% set homes = htdocs or [] %}
-{% set trains = tdocs or [] %}
+{% set trains = trdocs or [] %}
 {% if page_name == 'problem_detail' and (contests.length or homes.length or trains.length) %}
 <section class="section side dtoj-side-related">
   <div class="dtoj-side-related-head">
     <h2>相关</h2>
     <span>{{ contests.length + homes.length + trains.length }} 项</span>
   </div>
-  {% if trains.length %}
-    <p class="dtoj-side-relgroup">训练 <b>{{ trains.length }}</b></p>
-    {% for tdoc in trains %}
-      <a class="dtoj-side-rel" href="{{ url('dtoj_training_detail', tid=tdoc.docId) }}">
-        <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.5A2.5 2.5 0 0 0 8 9"/><path d="M16 6h2.5A2.5 2.5 0 0 1 16 9"/><path d="M12 14v3M9 20h6"/></svg></i>
-        <span>{{ tdoc.title }}</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-      </a>
-    {% endfor %}
-  {% endif %}
   {% if contests.length %}
     <p class="dtoj-side-relgroup">比赛 <b>{{ contests.length }}</b></p>
     {% for tdoc in contests %}
       <a class="dtoj-side-rel" href="{{ url('dtoj_contest_detail', tid=tdoc.docId) }}">
         <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 6H5.5A2.5 2.5 0 0 0 8 9"/><path d="M16 6h2.5A2.5 2.5 0 0 1 16 9"/><path d="M12 14v3M9 20h6"/></svg></i>
         <span>{{ tdoc.title }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
+  {% endif %}
+  {% if trains.length %}
+    <p class="dtoj-side-relgroup">训练 <b>{{ trains.length }}</b></p>
+    {% for item in trains %}
+      <a class="dtoj-side-rel" href="{{ url('dtoj_training_detail', tid=item.tdoc.docId) }}{% if item.chapterIndex %}#chapter-{{ item.chapterIndex }}{% endif %}">
+        <i class="dtoj-side-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M4 19h16M6 16l3-9 3 5 3-7 3 11"/></svg></i>
+        <span>{{ item.tdoc.title }}{% if item.chapterIndex %} · 第 {{ item.chapterIndex }} 章{% if item.chapterTitle %} {{ item.chapterTitle }}{% endif %}{% endif %}</span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
       </a>
     {% endfor %}

@@ -148,6 +148,7 @@ export async function prompt<T extends string, R extends Record<T, Field>>(title
         if (Array.isArray(field.options)) firstOption = field.options[0];
         else firstOption = Object.keys(field.options)[0];
       }
+      if (field.type === 'checkbox') return [name, field.default === 'true'];
       return [name, field.default || firstOption || ''];
     })) as Result<T, R>;
 
@@ -237,7 +238,7 @@ export async function prompt<T extends string, R extends Record<T, Field>>(title
           {field.type === 'checkbox' && <label className="checkbox">
             <input
               type="checkbox"
-              defaultChecked={field.default === 'true'}
+              checked={!!values[name]}
               onChange={(e) => setValues({ ...values, [name]: !!e.target.checked })}
             />
             {field.label}

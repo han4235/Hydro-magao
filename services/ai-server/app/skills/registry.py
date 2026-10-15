@@ -1,9 +1,10 @@
 from app.skills.mock_pack import MockPackSkill
 from app.skills.pdf_to_packs import PdfToPacks
+from app.skills.problem_sample_regen import ProblemSampleRegenSkill
 
 SKILLS = {
     s.name: s()
-    for s in (MockPackSkill, PdfToPacks)
+    for s in (MockPackSkill, PdfToPacks, ProblemSampleRegenSkill)
 }
 
 

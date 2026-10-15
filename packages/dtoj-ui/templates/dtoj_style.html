@@ -1599,6 +1599,184 @@
   .dtoj-record-admin .dtoj-go { color: #fff; background: #2f5d82; border: 0; box-shadow: none; }
   .dtoj-record-admin .dtoj-alt { color: #1c2833; background: #fff; border: 1px solid var(--line); box-shadow: none; }
   .dtoj-record-wait { color: var(--muted); margin: 0; }
+
+  .dtoj-rule {
+    width: 72px;
+    height: 4px;
+    margin: 10px 0 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--brand), var(--brand-deep));
+  }
+  .dtoj-record-list-page .dtoj-sheet {
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-record-list-page .dtoj-record-filter .dtoj-actions .dtoj-go {
+    min-width: 104px;
+    height: 44px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 12px;
+    color: #fff;
+    background: var(--brand-deep);
+    box-shadow: 0 10px 22px rgba(30, 64, 175, 0.16);
+    cursor: pointer;
+  }
+  .dtoj-record-list-page .dtoj-record-filter .dtoj-actions .dtoj-alt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 104px;
+    height: 44px;
+    padding: 0 22px;
+    border-radius: 12px;
+    color: var(--brand-deep);
+    background: #fff;
+    border: 1px solid #c5d4e8;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-record-list-page .dtoj-sheet th { letter-spacing: 0.06em; text-transform: none; }
+  .dtoj-record-list-page .dtoj-sheet td a { color: var(--brand-deep); }
+  .dtoj-record-list-problem span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; font-weight: 400; }
+
+  .dtoj-problem-sub { max-width: 1180px; }
+  .dtoj-problem-sub .dtoj-problem-back { margin: 0 0 4px; }
+  .dtoj-problem-sub .dtoj-problem-back a {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .dtoj-problem-sub .dtoj-problem-back a:hover { color: var(--brand-deep); }
+  .dtoj-problem-sub .dtoj-problem-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 332px;
+    gap: 22px;
+    align-items: start;
+  }
+  .dtoj-problem-sub .dtoj-problem-main {
+    padding: 24px 24px 28px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-problem-sub .dtoj-sub-head h1 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(28px, 3.2vw, 36px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    color: var(--brand-deep);
+  }
+  .dtoj-problem-sub .dtoj-sub-lead {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #3d4a5c;
+  }
+  .dtoj-problem-sub .dtoj-sub-lead a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-problem-sub .dtoj-sub-lead span { display: block; margin-top: 4px; color: var(--muted); font-weight: 400; }
+  .dtoj-problem-sub .dtoj-sub-actions { margin: 16px 0 0; }
+  .dtoj-problem-sub .dtoj-sub-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 12px;
+    background: var(--brand-deep);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 10px 22px rgba(30, 64, 175, 0.14);
+  }
+  .dtoj-problem-sub .dtoj-sub-primary:hover { transform: translateY(-1px); }
+  .dtoj-problem-sub .dtoj-problem-aside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .dtoj-problem-sub .section.side {
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 12px 28px rgba(28, 39, 64, 0.06);
+  }
+  .dtoj-problem-sub .discussion__list {
+    list-style: none;
+    margin: 20px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dtoj-problem-sub .discussion__item {
+    margin: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+  }
+  .dtoj-problem-sub .discussion__item.highlight { border-color: rgba(37, 99, 235, 0.35); background: #f4f7fb; }
+  .dtoj-problem-sub .discussion__title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+  .dtoj-problem-sub .discussion__title a { color: var(--ink); text-decoration: none; }
+  .dtoj-problem-sub .discussion__title a:hover { color: var(--brand-deep); }
+  .dtoj-problem-sub .discussion__replies.numbox {
+    min-width: 56px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: #f4f7fb;
+    text-align: center;
+  }
+  .dtoj-problem-sub .discussion__replies .numbox__num { color: var(--brand-deep); font-weight: 800; }
+  .dtoj-problem-sub .discussion__replies .numbox__text { color: var(--muted); font-size: 11px; font-weight: 700; }
+  .dtoj-problem-sub .supplementary.list { color: var(--muted); font-size: 13px; }
+  .dtoj-problem-sub .discussion-node-tag { color: var(--brand-deep); font-weight: 600; }
+  .dtoj-problem-sub .pager { margin: 16px 0 0; padding: 0; }
+
+  .dtoj-solution-body { margin-top: 20px; }
+  .dtoj-problem-sub .dczcomments__list.view--solution {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .dtoj-problem-sub .dczcomments__item {
+    margin: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+  }
+  .dtoj-problem-sub .dczcomments__box .textbox,
+  .dtoj-problem-sub textarea[name="dczcomments__dummy-box"] {
+    border-radius: 12px;
+    border-color: var(--line);
+  }
+  .dtoj-problem-sub .dczcomments__box .button.primary,
+  .dtoj-problem-sub .dczcomments__box .rounded.primary.button {
+    border-radius: 12px;
+    background: var(--brand-deep);
+    border-color: var(--brand-deep);
+    font-weight: 700;
+  }
+  .dtoj-solution-pager .pager { margin: 18px 0 0; padding: 0; }
+  .dtoj-solution-all { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+  .dtoj-solution-all a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
+  .dtoj-solution-empty { margin-top: 12px; color: var(--muted); }
+  @media (max-width: 900px) {
+    .dtoj-problem-sub .dtoj-problem-layout { grid-template-columns: 1fr; }
+    .dtoj-problem-sub .dtoj-problem-main { padding: 18px 16px 22px; }
+  }
 </style>
 <button type="button" class="dtoj-scroll-top" id="dtoj-scroll-top" hidden aria-label="返回页面顶部">
   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5 3.5 8h3v4.5h3V8h3L8 3.5z" fill="currentColor"/></svg>

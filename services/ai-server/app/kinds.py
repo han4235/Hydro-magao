@@ -3,6 +3,7 @@
 KINDS = {
     'single': '单题',
     'theory': '理论试卷',
+    'sample_regen': 'AI 样例再生',
 }
 
 

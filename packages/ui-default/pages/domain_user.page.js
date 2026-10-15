@@ -1,11 +1,17 @@
 import $ from 'jquery';
 import _ from 'lodash';
-import { confirm, InfoDialog, prompt } from 'vj/components/dialog';
+import { ActionDialog, confirm, InfoDialog, prompt } from 'vj/components/dialog';
 import Notification from 'vj/components/notification';
 import { NamedPage } from 'vj/misc/Page';
 import {
   delay, i18n, request, tpl,
 } from 'vj/utils';
+
+const INIT_PASSWORD = '123456';
+
+function parseUsernames(raw) {
+  return [...new Set(String(raw || '').split(/[,，;；\s]+/).map((s) => s.trim()).filter(Boolean))];
+}
 
 const page = new NamedPage('domain_user', () => {
   function filterDomainUsers() {
@@ -45,6 +51,70 @@ const page = new NamedPage('domain_user', () => {
     $cell.find('select[name="role"]').trigger('focus');
   }
 
+  async function postDomainUser(data) {
+    const res = await request.post('', data);
+    if (res?.url) {
+      const destPath = new URL(res.url, window.location.origin).pathname;
+      if (destPath.includes('/user/sudo') || destPath.includes('/user/login')) {
+        window.location.href = res.url;
+        return null;
+      }
+    }
+    return res;
+  }
+
+  const addUserDialogContent = $(tpl`
+    <div>
+      <div class="row"><div class="columns">
+        <h1>${i18n('Add User')}</h1>
+      </div></div>
+      <div class="row"><div class="columns">
+        <label>
+          ${i18n('Login username')}
+          <input name="add_domain_user_unames" type="text" class="textbox" autocomplete="off" data-autofocus
+            placeholder="${i18n('One or more usernames, separated by commas')}">
+        </label>
+        <p class="text-muted" style="margin-top:8px;font-size:13px;">
+          ${i18n('New accounts use initial password {0}. Existing usernames are added to this domain with the selected role.', INIT_PASSWORD)}
+        </p>
+      </div></div>
+      <div class="row"><div class="columns">
+        <label>
+          Role
+          <select name="add_domain_user_role" class="select"></select>
+        </label>
+      </div></div>
+    </div>
+  `);
+  addUserDialogContent.appendTo(document.body);
+  const addUserNameInput = addUserDialogContent.find('[name="add_domain_user_unames"]');
+  const addUserRoleSelect = addUserDialogContent.find('[name="add_domain_user_role"]');
+  UiContext.roles
+    .filter((r) => !['default', 'guest'].includes(r))
+    .forEach((r) => addUserRoleSelect.append($('<option>').attr('value', r).text(r)));
+  const addUserDialog = new ActionDialog({
+    $body: addUserDialogContent,
+    onDispatch(action) {
+      if (action === 'ok') {
+        const names = parseUsernames(addUserNameInput.val());
+        if (!names.length) {
+          addUserNameInput.trigger('focus');
+          Notification.error(i18n('Please enter at least one username.'));
+          return false;
+        }
+        if (!addUserRoleSelect.val()) {
+          addUserRoleSelect.trigger('focus');
+          return false;
+        }
+      }
+      return true;
+    },
+  });
+  addUserDialog.clear = function clear() {
+    addUserNameInput.val('');
+    return this;
+  };
+
   $('[name="user_search"]').on('input', () => filterDomainUsers());
 
   $('.domain-users__sort-role').on('click keydown', (ev) => {
@@ -72,36 +142,35 @@ const page = new NamedPage('domain_user', () => {
   });
 
   async function handleClickAddUser() {
-    const res = await prompt(i18n('Add User'), {
-      user: {
-        type: 'userId',
-        required: true,
-        autofocus: true,
-        multi: true,
-        label: i18n('Username / UID'),
-      },
-      role: {
-        type: 'text',
-        required: true,
-        label: 'Role',
-        options: UiContext.roles.filter((i) => !['default', 'guest'].includes(i)),
-      },
-      ...((UiContext.canForceJoin && UiContext.domainId !== 'system') ? {
-        join: {
-          type: 'checkbox',
-          label: i18n('Mark user as joined using admin privilege'),
-        },
-      } : {}),
-    });
-    if (!res?.user?.length || !res?.role) return;
+    const action = await addUserDialog.clear().open();
+    if (action !== 'ok') return;
+    const usernames = parseUsernames(addUserNameInput.val());
+    const role = String(addUserRoleSelect.val() || '');
+    const join = UiContext.domainId === 'system' || UiContext.canForceJoin;
     try {
-      await request.post('', {
-        operation: 'set_users',
-        uids: res.user,
-        role: res.role,
-        join: res.join,
+      const posted = await postDomainUser({
+        operation: 'create_users',
+        usernames,
+        role,
+        join,
       });
-      window.location.reload();
+      if (!posted?.ok) return;
+      const { created = [], linked = [] } = posted;
+      if (created.length && linked.length) {
+        Notification.success(i18n('Created {0} user(s), linked {1} existing.', created.length, linked.length));
+      } else if (created.length) {
+        Notification.success(i18n('Created {0} user(s), initial password {1}.', created.length, INIT_PASSWORD));
+      } else {
+        Notification.success(i18n('Added {0} user(s) to this domain.', linked.length || usernames.length));
+      }
+      const reloadUrl = new URL(window.location.href);
+      reloadUrl.searchParams.set('page', '1');
+      reloadUrl.searchParams.delete('noTemplate');
+      reloadUrl.searchParams.delete('pjax');
+      if (posted.uids?.length === 1) reloadUrl.searchParams.set('find', String(posted.uids[0]));
+      else reloadUrl.searchParams.delete('find');
+      await delay(400);
+      window.location.replace(reloadUrl.pathname + reloadUrl.search);
     } catch (error) {
       Notification.error(error.message);
     }
@@ -125,10 +194,11 @@ const page = new NamedPage('domain_user', () => {
     if (!(await confirm(`${i18n('Confirm deleting the selected user accounts?')}
 ${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) return;
     try {
-      await request.post('', {
+      const posted = await postDomainUser({
         operation: 'kick',
         uids: selectedUsers,
       });
+      if (posted === null) return;
       Notification.success(i18n('Selected user accounts have been deleted.'));
       await delay(2000);
       window.location.reload();
@@ -150,11 +220,12 @@ ${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) retu
     const selectedUsers = ensureAndGetSelectedUsers();
     if (selectedUsers === null) return;
     try {
-      await request.post('', {
+      const posted = await postDomainUser({
         operation: 'set_users',
         uids: selectedUsers,
         role: res.role,
       });
+      if (posted === null) return;
       Notification.success(i18n('Role has been updated to {0} for selected users.', res.role));
       await delay(2000);
       window.location.reload();
@@ -162,8 +233,6 @@ ${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) retu
       Notification.error(error.message);
     }
   }
-
-  const INIT_PASSWORD = '123456';
 
   async function handleClickInitPassword(ev) {
     const $row = $(ev.currentTarget).closest('tr');
@@ -173,10 +242,11 @@ ${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) retu
     if (!uid) return;
     if (!(await confirm(i18n('Confirm initializing password to {0} for user {1}?', INIT_PASSWORD, uname || uid)))) return;
     try {
-      await request.post('', {
+      const posted = await postDomainUser({
         operation: 'init_password',
         uids: [uid],
       });
+      if (posted === null) return;
       Notification.success(i18n('Password has been reset to {0}.', INIT_PASSWORD));
     } catch (error) {
       Notification.error(error.message);
@@ -188,11 +258,12 @@ ${i18n('Accounts will be permanently deleted and cannot be restored.')}`))) retu
     const $row = $select.closest('tr');
     const role = String($select.val());
     try {
-      await request.post('', {
+      const posted = await postDomainUser({
         operation: 'set_users',
         uids: [$row.attr('data-uid')],
         role,
       });
+      if (posted === null) return;
       $row.attr('data-role', role);
       $row.find('.domain-user-role__text').text(role);
       Notification.success(i18n('Role has been updated to {0}.', role));

@@ -1,55 +1,70 @@
 {% extends "layout/basic.html" %}
 {% import "components/comments_solution.html" as comments with context %}
+{% import "components/paginator.html" as paginator with context %}
+{% import "components/nothing.html" as nothing with context %}
 {% block content %}
+{% include "dtoj_style.html" %}
 <div class="row">
-  <div class="medium-9 columns">
-    <div class="section">
-      <div class="section__header">
-        <h1 class="section__title">{{ _('{0} solutions').format(pscount) }}</h1>
-      </div>
-      <div class="section__body">
-        {{ comments.render(
-          view = 'solution',
-          docs = psdocs,
-          udict = udict,
-          comment_ref = 'psid',
-          reply_ref = 'psrid',
-          comment_placeholder = 'Write Your Solution',
-          comment_post_op = 'submit',
-          comment_edit_op = 'edit_solution',
-          comment_post_text = 'Share',
-          reply_post_op = 'reply',
-          reply_edit_op = 'edit_reply',
-          comment_delete_op = 'delete_solution',
-          reply_delete_op = 'delete_reply',
-          comment_post_perm = perm.PERM_CREATE_PROBLEM_SOLUTION,
-          comment_edit_perm = perm.PERM_NEVER,
-          comment_edit_self_perm = perm.PERM_EDIT_PROBLEM_SOLUTION_SELF,
-          comment_delete_perm = perm.PERM_DELETE_PROBLEM_SOLUTION,
-          comment_delete_self_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_SELF,
-          reply_post_perm = perm.PERM_REPLY_PROBLEM_SOLUTION,
-          reply_edit_perm = perm.PERM_NEVER,
-          reply_edit_self_perm = perm.PERM_EDIT_PROBLEM_SOLUTION_REPLY_SELF,
-          reply_delete_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_REPLY,
-          reply_delete_self_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_REPLY_SELF
-        ) }}
-        {% if not sid %}
-          {{ paginator.render(page, pcount) }}
-        {% endif %}
-      {% if drcount == 0 %}
-        {{ nothing.render('No solutions so far...') }}
-      {% endif %}
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-problem-sub">
+      <p class="dtoj-problem-back">
+        <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">返回题目</a>
+      </p>
+      <div class="dtoj-problem-layout">
+        <div class="dtoj-panel dtoj-problem-main dtoj-solution-main">
+          <header class="dtoj-sub-head">
+            <h1>题解</h1>
+            <div class="dtoj-rule" aria-hidden="true"></div>
+            <p class="dtoj-sub-lead">
+              <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.pid|default(pdoc.docId) }} · {{ pdoc.title }}</a>
+              <span>共 {{ pscount }} 篇题解，欢迎分享思路（请勿直接贴可提交代码）</span>
+            </p>
+          </header>
+          <div class="dtoj-solution-body">
+            {{ comments.render(
+              view = 'solution',
+              docs = psdocs,
+              udict = udict,
+              comment_ref = 'psid',
+              reply_ref = 'psrid',
+              comment_placeholder = 'Write Your Solution',
+              comment_post_op = 'submit',
+              comment_edit_op = 'edit_solution',
+              comment_post_text = 'Share',
+              reply_post_op = 'reply',
+              reply_edit_op = 'edit_reply',
+              comment_delete_op = 'delete_solution',
+              reply_delete_op = 'delete_reply',
+              comment_post_perm = perm.PERM_CREATE_PROBLEM_SOLUTION,
+              comment_edit_perm = perm.PERM_NEVER,
+              comment_edit_self_perm = perm.PERM_EDIT_PROBLEM_SOLUTION_SELF,
+              comment_delete_perm = perm.PERM_DELETE_PROBLEM_SOLUTION,
+              comment_delete_self_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_SELF,
+              reply_post_perm = perm.PERM_REPLY_PROBLEM_SOLUTION,
+              reply_edit_perm = perm.PERM_NEVER,
+              reply_edit_self_perm = perm.PERM_EDIT_PROBLEM_SOLUTION_REPLY_SELF,
+              reply_delete_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_REPLY,
+              reply_delete_self_perm = perm.PERM_DELETE_PROBLEM_SOLUTION_REPLY_SELF
+            ) }}
+            {% if not sid %}
+              <div class="dtoj-solution-pager">{{ paginator.render(page, pcount) }}</div>
+            {% endif %}
+            {% if drcount == 0 %}
+              <div class="dtoj-solution-empty">{{ nothing.render('No solutions so far...') }}</div>
+            {% endif %}
+          </div>
+          {% if sid %}
+          <p class="dtoj-solution-all">
+            <a href="{{ url('problem_solution', pid=pdoc.pid|default(pdoc.docId)) }}">{{ _('View all {0} solutions').format(pscount) }}</a>
+          </p>
+          {% endif %}
+        </div>
+        <aside class="dtoj-problem-aside">
+          {% set owner_udoc = udict[pdoc.owner] %}
+          {% include "partials/problem_sidebar.html" %}
+        </aside>
       </div>
     </div>
-    {% if sid %}
-      <div class="section">
-        <a href="{{ url('problem_solution', pid=pdoc.pid|default(pdoc.docId)) }}" class="menu__link" style="width: 100%">{{ _('View all {0} solutions').format(pscount) }}</a>
-      </div>
-    {% endif %}
-  </div>
-  <div class="medium-3 columns">
-    {% set owner_udoc = udict[pdoc.owner] %}
-    {% include "partials/problem_sidebar.html" %}
   </div>
 </div>
 {% endblock %}
