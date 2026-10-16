@@ -53,6 +53,48 @@ export class DtojDataHandler extends DtojPageHandler {
     noCheckPermView = false;
 }
 
+/**
+ * 供课件系统（ppt-system）确认「当前来访者是谁」。
+ *
+ * ppt-system 与 OJ 同域部署（/ppt/），浏览器会把 OJ 的 sid Cookie 一并带过去，
+ * 它拿这个 Cookie 来调本接口，据此在自己那边建会话 —— 这样站内用户不必再登录一次。
+ *
+ * 只返回调用者自己的身份，不泄露他人信息；未登录一律 401。
+ * 课件系统按「能否编辑任意题目」区分教师与访客：这比按角色名判断稳，角色名可被改动，
+ * 权限位不会。本站是单域部署，所以取当前（system）域的权限。
+ */
+class DtojOjSessionHandler extends Handler {
+    noCheckPermView = true;
+    notUsage = true;
+
+    async get() {
+        // 身份相关的响应绝不能被缓存，否则会把甲的身份回给乙
+        this.response.addHeader('Cache-Control', 'no-store');
+        this.response.type = 'application/json';
+
+        if (!this.user.hasPriv(PRIV.PRIV_USER_PROFILE)) {
+            this.response.status = 401;
+            this.response.body = { ok: false };
+            return;
+        }
+
+        // 区分三种身份：
+        //   域管理员（域内角色 root，拥有全部域权限，含 PERM_EDIT_DOMAIN）→ ADMIN
+        //   教师（域内「教师」角色，含 PERM_EDIT_PROBLEM）→ TEACHER
+        //   其他人（学生等）→ USER
+        // 课件系统据此决定能否阅览课件，所以这里的判定要稳。
+        const isAdmin = this.user.hasPerm(PERM.PERM_EDIT_DOMAIN);
+        const isTeacher = this.user.hasPerm(PERM.PERM_EDIT_PROBLEM);
+        this.response.body = {
+            ok: true,
+            uid: this.user._id,
+            uname: this.user.uname,
+            displayName: this.user.displayName || this.user.uname,
+            role: isAdmin ? 'ADMIN' : (isTeacher ? 'TEACHER' : 'USER'),
+        };
+    }
+}
+
 export function dropEarlierRoutes(ctx: Context, paths: string[]) {
     const stack = (ctx as any).server.router.stack as { path?: string }[];
     const want = new Set(paths);
@@ -119,5 +161,24 @@ export async function apply(ctx: Context) {
         }
         global.Hydro.ui.inject('Nav', name, { prefix, displayName });
     }
+    // 课件系统入口。站点挂在 OJ 同域子路径 /ppt/（由 ppt-system 的 basePath 决定），
+    // 因此在 OJ 侧不存在对应的 Hydro 路由，这里用显式 href 而不是路由名 ——
+    // url() 只解析已注册的路由，找不到会退化成 '#'。
+    // 登录即可见：课件对教师和学生都开放，能看哪些标签由 ppt-system 的授权决定，
+    // 未登录访客不给入口（进去了也只会被弹去登录页）。
+    global.Hydro.ui.inject('Nav', 'dtoj_courseware', {
+        href: '/ppt/',
+        displayName: '课件',
+        before: 'contest_main',
+    }, (handler: Handler) => handler.user.hasPriv(PRIV.PRIV_USER_PROFILE));
     global.Hydro.ui.inject('Nav', 'domain_dashboard', { prefix: 'domain', displayName: '管理域' }, PERM.PERM_EDIT_DOMAIN);
+
+    // Nav 项的文字取自 item.name 的 i18n 目录（见 nav.html 的 _() 调用），
+    // 不注册的话顶栏会直接显示 'dtoj_courseware' 这个名字。
+    ctx.i18n.load('zh', { dtoj_courseware: '课件' });
+    ctx.i18n.load('zh_TW', { dtoj_courseware: '課件' });
+    ctx.i18n.load('en', { dtoj_courseware: 'Courseware' });
+
+    // 课件系统据此确认来访者身份，见 DtojOjSessionHandler
+    ctx.Route('dtoj_oj_session', '/oj-session', DtojOjSessionHandler);
 }

@@ -87,9 +87,16 @@
 </style>
 {%- macro nav_item(item) -%}
 <li class="nav__list-item">
+  {%- if item.args.href -%}
+  {# 站外或子路径入口：直接给显式地址，不走路由名解析（url() 只认已注册的路由） #}
+  <a href="{{ item.args.href }}" class="nav__item{% if item.args.prefix and page_name.startsWith(item.args.prefix) %} nav--active{% endif %}">
+    {{ _(item.displayName or item.name) }}
+  </a>
+  {%- else -%}
   <a href="{{ url(item.name, item.args, query=item.args.query(handler) if typeof(item.args.query) == 'function' else item.args.query or {}) }}" class="nav__item{% if page_name.startsWith(item.args.prefix) %} nav--active{% endif %}">
     {{ _(item.displayName or item.name) }}
   </a>
+  {%- endif -%}
 </li>
 {%- endmacro -%}
 

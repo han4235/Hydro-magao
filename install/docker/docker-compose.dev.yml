@@ -1,0 +1,109 @@
+# 后端开发覆盖：挂载插件源码 + 让本机入口与线上拓扑一致
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# 两件事：
+#
+# 1) 挂载插件源码，改完重启即生效（约 2 秒），不再重建镜像（约 15 分钟）。
+#    为什么可行（见 framework/register/index.js）：
+#    hydrooj 启动时 require('@hydrooj/register')，该模块把 require.extensions['.ts'] 挂上
+#    esbuild 转译，也就是**运行时**直接执行 TS 源码；插件模板同样是运行时从
+#    packages/<插件>/templates/ 读取。所以改 TS 或模板都不需要先编译。
+#
+# 2) 本机也放一层反代占 80，使 /ppt/ 与 OJ 同源，与线上 mahao.anosm.com 拓扑一致。
+#    背景：课件系统（ppt-system）挂在 OJ 的同域子路径 /ppt/ 下，身份统一依赖
+#    「浏览器会把 OJ 的 sid Cookie 一并带到 /ppt/」——这要求两者同一 origin。
+#    线上 nginx 已经在做这件事；本机原先 OJ 容器直接占 80、没有反代，
+#    于是顶栏「课件」指向的 /ppt/ 会落到 OJ 上变成 NotFoundError。
+#    改法：oj-backend 让出 80（改用 !override 换成 8888，仅本机可直连调试），
+#    oj-proxy 占 80，/ 转 oj-backend、/ppt 转 ppt-system。
+#
+# 注意：
+#   - 这里的挂载是**逐包**的，不要图省事挂整个 packages/。镜像里
+#     packages/hydrooj/node_modules 有内容，整目录挂载会把它盖掉。
+#   - 本文件只服务本机开发；线上不需要，线上的同构反代在云主机 OpenResty 里。
+#   - 反代是**本机入口**：若绕过本文件直接跑
+#     `docker compose -f docker-compose.yml up -d`，oj-backend 会重新抢占 80，
+#     与已在运行的 oj-proxy 冲突而启动失败（报端口被占）。加 -f docker-compose.dev.yml 即可。
+
+services:
+  oj-backend:
+    volumes:
+      - ../../packages/dtoj-ui:/opt/hydro/packages/dtoj-ui
+      - ../../packages/ui-default/templates:/opt/hydro/packages/ui-default/templates
+    # !override 是替换而非追加：docker-compose.yml 里的 "80:8888" 会被丢掉，
+    # 否则 80 仍被 oj-backend 占着，oj-proxy 起不来。
+    # 8888 绑到 127.0.0.1，仅供本机直连调试（对外统一走 oj-proxy 的 80）。
+    ports: !override
+      - "127.0.0.1:8888:8888"
+
+  oj-proxy:
+    image: nginx:alpine
+    container_name: oj-proxy
+    restart: unless-stopped
+    depends_on:
+      - oj-backend
+    ports:
+      - "80:80"
+    configs:
+      # 用内联 content，不落单独文件，保持「本机相关配置只在本文件里」。
+      # 注意：compose 会对 content 做变量插值，nginx 的 $host 这类变量必须写成 $$host，
+      # 否则会被当成未定义变量替换成空串，配置静默出错。
+      - source: oj_proxy_conf
+        target: /etc/nginx/nginx.conf
+
+configs:
+  oj_proxy_conf:
+    content: |
+      # 本机入口反代：/ 走 OJ，/ppt 走课件系统（与线上 nginx 同构）
+      #
+      # 关键点：Next.js 的 basePath=/ppt 会把带尾斜杠的 /ppt/ 规整成 /ppt（308），
+      # 所以「无尾斜杠」的 /ppt 精确路径也必须交给 ppt-system。
+      # 只写 location /ppt/ 的话，/ppt 会落到 location / 被 OJ 接走，
+      # 于是 nginx 301 到 /ppt/、Next 308 回 /ppt，形成死循环。
+      #
+      # 下面的 $$ 是 compose 转义，渲染出来就是单个 $。
+      events {}
+      http {
+          server {
+              listen 80;
+              server_name _;
+              client_max_body_size 256m;
+
+              location = /ppt {
+                  proxy_pass http://ppt-system:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $$host;
+                  proxy_set_header X-Real-IP $$remote_addr;
+                  proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $$scheme;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 600s;
+              }
+
+              location /ppt/ {
+                  proxy_pass http://ppt-system:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $$host;
+                  proxy_set_header X-Real-IP $$remote_addr;
+                  proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $$scheme;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 600s;
+              }
+
+              location / {
+                  proxy_pass http://oj-backend:8888;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $$host;
+                  proxy_set_header X-Real-IP $$remote_addr;
+                  proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $$scheme;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 600s;
+              }
+          }
+      }
