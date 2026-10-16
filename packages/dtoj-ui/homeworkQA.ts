@@ -200,6 +200,20 @@ export async function notifyHomeworkAttended(
     });
 }
 
+interface HomeworkDoneDoc {
+    _id: ObjectId;
+    domainId: string;
+    tid: ObjectId;
+    uid: number;
+    at: Date;
+}
+
+declare module 'hydrooj' {
+    interface Collections {
+        dtoj_homework_done: HomeworkDoneDoc;
+    }
+}
+
 const DONE_COLL = 'dtoj_homework_done';
 let doneIndexEnsured = false;
 
@@ -215,7 +229,9 @@ async function markCompletedOnce(domainId: string, tid: ObjectId, uid: number) {
         doneIndexEnsured = true;
     }
     try {
-        await db.collection(DONE_COLL).insertOne({ domainId, tid, uid, at: new Date() });
+        await db.collection(DONE_COLL).insertOne({
+            _id: new ObjectId(), domainId, tid, uid, at: new Date(),
+        });
         return true;
     } catch (e: any) {
         if (e?.code === 11000) return false;
