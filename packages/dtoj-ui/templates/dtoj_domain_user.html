@@ -1,0 +1,212 @@
+{% extends "domain_base.html" %}
+{% import "components/paginator.html" as paginator with context %}
+{% block domain_content %}
+<style>
+  /* 教师视角的学生名单。按钮、表格、表单的底样都由 partials/dtoj_domain_style.html 给，
+     这里只补几处这一页特有的（搜索行、结果条、添加学生的输入区）。 */
+  .dtoj-students__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .dtoj-students__tools form { display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 0; }
+  .dtoj-students__search {
+    width: 200px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+  }
+  .dtoj-students__count { flex: none; font-size: 13px; color: var(--muted); }
+  .dtoj-students__result { line-height: 1.8; font-size: 14px; }
+  .dtoj-students__result p { margin: 0 0 4px; }
+  .dtoj-students__result p:last-child { margin-bottom: 0; }
+  .dtoj-students__ok { color: #067647; font-weight: 600; }
+  .dtoj-students__warn { color: #8a5a00; }
+  .dtoj-students__bad { color: #b42318; }
+  .dtoj-students__add { max-width: 40rem; }
+  .dtoj-students__add label { display: block; margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-students__add textarea {
+    width: 100%;
+    min-height: 96px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .dtoj-students__add .help-text { margin: 8px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  /* 列宽得自己定：core 那套列宽（.page--domain_user 下的 .col--uid 等）挂在别的 page_name 上，
+     本页一条都拿不到，浏览器就按内容瞎分——复选框列和 UID 列各撑出半屏空白，
+     名字和按钮被顶到两头。走 colgroup + fixed，列宽才由这儿说了算。 */
+  .dtoj-domain-main .dtoj-students .data-table { table-layout: fixed; }
+  .dtoj-domain-main .dtoj-students .data-table col.col--checkbox { width: 46px; }
+  .dtoj-domain-main .dtoj-students .data-table col.col--uid { width: 88px; }
+  /* ui-default 里有一条全局的 .col--actions { width: 300px }，一行按钮用不了那么宽 */
+  .dtoj-domain-main .dtoj-students .data-table col.col--actions { width: 136px; }
+  .dtoj-domain-main .dtoj-students .data-table th.col--checkbox,
+  .dtoj-domain-main .dtoj-students .data-table td.col--checkbox {
+    width: 46px;
+    padding: 11px 0 11px 20px;
+    text-align: left;
+  }
+  .dtoj-domain-main .dtoj-students .data-table td { padding-top: 11px; padding-bottom: 11px; }
+  .dtoj-domain-main .dtoj-students .data-table td.col--uid { color: var(--muted); font-size: 13px; }
+  /* 全局那条 td{white-space:nowrap} 配 ellipsis 会把窄屏上的名字截成「崔沐…」，
+     名单页宁可折行也要看全名字 */
+  .dtoj-domain-main .dtoj-students .data-table td.col--user { overflow: hidden; white-space: normal; }
+  .dtoj-domain-main .dtoj-students .data-table th.col--actions,
+  .dtoj-domain-main .dtoj-students .data-table td.col--actions {
+    width: 136px;
+    padding-left: 8px;
+    padding-right: 20px;
+    text-align: right;
+  }
+  .dtoj-domain-main .dtoj-students input[type=checkbox] { border-radius: 5px; border-color: #c5d4e8; }
+  .dtoj-students__name { display: block; font-weight: 600; }
+  .dtoj-students__sub { display: block; margin: 2px 0 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .dtoj-students__acts { white-space: nowrap; }
+  /* 行内按钮比页面顶部那些小一号：它在一行里挤着，没必要 40px 高 */
+  .dtoj-domain-main .dtoj-students__acts .button.rounded {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .dtoj-students__empty { margin: 0; padding: 8px 0 4px; color: var(--muted); line-height: 1.8; }
+</style>
+<div class="section">
+  <div class="section__header">
+    <h1 class="section__title">{{ _('domain_user') }} · {{ domain.name }}</h1>
+    <div class="section__tools dtoj-students__tools">
+      <form method="get" action="{{ url('dtoj_domain_user') }}">
+        <input type="search" class="dtoj-students__search" name="q" value="{{ q }}" placeholder="搜姓名或账号" autocomplete="off">
+        <button type="submit" class="rounded button">搜索</button>
+        {% if q %}<a href="{{ url('dtoj_domain_user') }}" class="rounded button">清空</a>{% endif %}
+      </form>
+      <span class="dtoj-students__count">共 {{ ucount }} 人</span>
+    </div>
+  </div>
+
+  {% if result %}
+  <div class="section__body dtoj-students__result">
+    {% if result.created.length %}<p class="dtoj-students__ok">新建账号 {{ result.created.length }} 个：{{ result.created.join('、') }}（密码都是 {{ defaultPassword }}）</p>{% endif %}
+    {% if result.linked.length %}<p class="dtoj-students__ok">拉进本域 {{ result.linked.length }} 个：{{ result.linked.join('、') }}（密码没动）</p>{% endif %}
+    {% for item in result.failed %}<p class="dtoj-students__bad">没处理 {{ item.uname }}：{{ item.reason }}</p>{% endfor %}
+    {% if not result.created.length and not result.linked.length and not result.failed.length %}<p>没有可添加的账号。</p>{% endif %}
+  </div>
+  {% endif %}
+  {% if initDone %}
+  <div class="section__body dtoj-students__result">
+    <p class="dtoj-students__ok">已把 {{ initDone }} 个学生账号的密码重置为 {{ defaultPassword }}。</p>
+  </div>
+  {% endif %}
+
+  <div class="section__body">
+    <form method="post" action="{{ url('dtoj_domain_user') }}" class="dtoj-students__add">
+      <input type="hidden" name="operation" value="create">
+      <label for="dtoj-students-usernames">添加学生（角色固定为「{{ role }}」，密码统一为 {{ defaultPassword }}）</label>
+      <textarea id="dtoj-students-usernames" name="usernames" required autocomplete="off" placeholder="一行一个账号，例如：&#10;zhangsan&#10;lisi"></textarea>
+      <p class="help-text">账号已经存在时不会重复建：本来就是本域学生的跳过，别的普通账号会拉进本域当学生（密码不变）；已经有管理权限、或在本域是别的角色的，会被拒绝并说明原因。</p>
+      <button type="submit" class="rounded primary button">添加学生</button>
+    </form>
+  </div>
+
+  <form method="post" action="{{ url('dtoj_domain_user') }}">
+    <input type="hidden" name="operation" value="init_password">
+    {% if rows.length %}
+    <div class="section__body no-padding dtoj-students">
+      <table class="data-table">
+        <colgroup>
+          <col class="col--checkbox">
+          <col class="col--uid">
+          <col class="col--user">
+          <col class="col--actions">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col--checkbox">
+              <label class="compact checkbox">
+                <input type="checkbox" id="dtoj-students-select-all">
+              </label>
+            </th>
+            <th class="col--uid">{{ _('User ID') }}</th>
+            <th class="col--user">{{ _('Username') }}</th>
+            <th class="col--actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {%- for row in rows -%}
+          <tr data-uid="{{ row.uid }}">
+            <td class="col--checkbox">
+              <label class="compact checkbox">
+                <input type="checkbox" name="uids" value="{{ row.uid }}" data-student-checkbox>
+              </label>
+            </td>
+            <td class="col--uid">{{ row.uid }}</td>
+            <td class="col--user">
+              <span class="dtoj-students__name">{{ row.name }}</span>
+              {% if row.name != row.uname %}<em class="dtoj-students__sub">{{ row.uname }}</em>{% endif %}
+            </td>
+            <td class="col--actions dtoj-students__acts">
+              <button type="button" class="rounded button" data-init-one="{{ row.uid }}">{{ _('Initialize password') }}</button>
+            </td>
+          </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    <div class="section__body">
+      <button type="submit" class="rounded button">初始化选中学生的密码</button>
+    </div>
+    {% else %}
+    <div class="section__body">
+      <p class="dtoj-students__empty">
+        {% if q %}没有名字里带「{{ q }}」的学生。{% else %}本域还没有学生账号。上面「添加学生」里粘一批账号就能建。{% endif %}
+      </p>
+    </div>
+    {% endif %}
+  </form>
+
+  {{ paginator.render(page, upcount, add_qs=utils.buildQueryString({ q: q })) }}
+</div>
+<script>
+(function () {
+  var form = document.querySelector('.dtoj-students') && document.querySelector('.dtoj-students').closest('form');
+  if (!form) return;
+  var boxes = function () { return Array.prototype.slice.call(form.querySelectorAll('[data-student-checkbox]')); };
+  var selectAll = document.getElementById('dtoj-students-select-all');
+  var INIT_PASSWORD = {{ defaultPassword|json|safe }};
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      boxes().forEach(function (box) { box.checked = selectAll.checked; });
+    });
+  }
+
+  // 单个学生忘密码是最常见的情况，给个直接按行就走的按钮：
+  // 只勾这一行再提交，省得先找复选框再拉到底部
+  form.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-init-one]');
+    if (!btn) return;
+    var row = btn.closest('tr[data-uid]');
+    var box = row && row.querySelector('[data-student-checkbox]');
+    if (!box) return;
+    var name = (row.querySelector('.dtoj-students__name') || {}).textContent || box.value;
+    if (!window.confirm('确认把 ' + name + ' 的密码重置为 ' + INIT_PASSWORD + ' 吗？')) return;
+    boxes().forEach(function (item) { item.checked = false; });
+    box.checked = true;
+    form.submit();
+  });
+})();
+</script>
+{% endblock %}

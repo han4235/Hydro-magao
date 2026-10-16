@@ -15,6 +15,7 @@ export const PERMS = [
     Permission('perm_general', PERM.PERM_EDIT_DOMAIN, 'Edit domain settings'),
     Permission('perm_general', PERM.PERM_MANAGE_GROUP, 'Manage own groups'),
     Permission('perm_general', PERM.PERM_MANAGE_GROUP_ALL, 'Manage all groups'),
+    Permission('perm_general', PERM.PERM_MANAGE_STUDENT, 'Manage student accounts'),
     Permission('perm_general', PERM.PERM_MOD_BADGE, 'Show MOD badge'),
     Permission('perm_problem', PERM.PERM_CREATE_PROBLEM, 'Create problems'),
     Permission('perm_problem', PERM.PERM_EDIT_PROBLEM, 'Edit problems'),

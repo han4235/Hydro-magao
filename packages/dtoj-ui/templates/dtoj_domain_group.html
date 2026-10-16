@@ -1,0 +1,347 @@
+{% extends "domain_base.html" %}
+{% block domain_content %}
+<style>
+  /* 这一页现在是域管理区的一页，外壳（侧栏、页面标题）由 domain_base.html 给，
+     所以这里只管列表本身。按钮走 .dtoj-domain-main .button.rounded 那套样式。 */
+  .dtoj-groups__lead {
+    margin: 0 0 4px;
+    max-width: 64ch;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  /* display:flex 会盖掉 [hidden]，按创建者筛选得显式关掉 */
+  .dtoj-groups__row[hidden] { display: none; }
+  .dtoj-groups__list { margin-top: 14px; }
+  .dtoj-groups__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+  }
+  .dtoj-groups__row:first-child { border-top: 0; padding-top: 2px; }
+  /* min-width:0 让长组名自己换行，而不是把右边的按钮顶出容器 */
+  .dtoj-groups__main { min-width: 0; }
+  .dtoj-groups__name {
+    margin: 0;
+    color: var(--ink);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .dtoj-groups__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  /* 元信息之间的小圆点用伪元素，不用「·」字符：换行时圆点不会落在行首 */
+  .dtoj-groups__meta > span + span::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    vertical-align: middle;
+  }
+  /* 「已被分派」是提醒不是报错：取 DESIGN.md 的 warn-ink / warn-wash 一对（7.1:1） */
+  .dtoj-groups__used {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #f8f1dc;
+    color: #6a4b00;
+    font-weight: 700;
+  }
+  .dtoj-groups__members {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+  }
+  .dtoj-groups__acts { display: flex; align-items: center; gap: 8px; flex: none; }
+  .dtoj-groups__acts form { display: block; margin: 0; }
+  /* 删除要比「编辑组员」轻一档：无边框、常态灰字，悬停才转失败色。
+     两个同级描边按钮并排，误点删除的概率会明显变高。
+     悬停色取 DESIGN.md 的 fail-ink / fail-wash。 */
+  .dtoj-domain-main .dtoj-groups__del.button.rounded:not(.primary) {
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
+  }
+  .dtoj-domain-main .dtoj-groups__del.button.rounded:not(.primary):hover {
+    border-color: rgba(138, 31, 31, 0.3);
+    background: #f8e6e6;
+    color: #8a1f1f;
+    transform: none;
+  }
+  /* 禁用态用整只按钮降不透明度，比再造一个灰色值更省事，也不会被误读成可点 */
+  .dtoj-domain-main .dtoj-groups__del.button.rounded:not(.primary)[disabled] {
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    opacity: 0.5;
+  }
+  /* 空状态只留文字：外层 .section 已经是圆角卡片，再套一层虚线盒子就是卡中卡 */
+  .dtoj-groups__empty {
+    margin: 8px 0 4px;
+    padding: 26px 8px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+    text-align: center;
+  }
+  /* 弹窗里的空状态：列表本身已经是描边容器，这里不能再套一层盒子 */
+  .dtoj-groups__none {
+    margin: 0;
+    padding: 14px 4px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+    text-align: center;
+  }
+  @media (max-width: 640px) {
+    .dtoj-groups__row { flex-direction: column; gap: 12px; }
+  }
+</style>
+<div class="section">
+  <div class="section__header">
+    <h1 class="section__title">管理小组</h1>
+    <div class="section__tools">
+      {% if creatorOptions.length > 1 %}
+      <select class="select" id="dtoj-group-creator-filter" aria-label="按创建者筛选">
+        <option value="">全部创建者</option>
+        {% for creator in creatorOptions %}<option value="{{ creator }}">{{ creator }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <button type="button" class="rounded primary button" id="dtoj-group-create-open">＋ 新建小组</button>
+    </div>
+  </div>
+  <div class="section__body">
+    <p class="dtoj-groups__lead">
+      建小组、往里加人，布置作业和比赛时就能整个组一起分。
+      {% if canManageAll %}你有管理全部小组的权限，下面列出的是域内所有小组。{% else %}下面列出的是你管得着的小组。{% endif %}
+      组名建好之后不能改 —— 作业和比赛记的是组名，改了已布置的那些就找不到人了。
+    </p>
+    {% if groups.length %}
+    <div class="dtoj-groups__list">
+      {% for g in groups %}
+      <div class="dtoj-groups__row" data-creator="{{ g.creator }}">
+        <div class="dtoj-groups__main">
+          <h2 class="dtoj-groups__name">{{ g.name }}</h2>
+          <p class="dtoj-groups__meta">
+            <span>{{ g.creator }} 创建</span>
+            <span>{% if g.uids.length %}{{ g.uids.length }} 人{% else %}还没有成员{% endif %}</span>
+            {% if g.used %}<span class="dtoj-groups__used">已被 {{ g.used }} 份作业或比赛分派使用</span>{% endif %}
+          </p>
+          {% if g.uids.length %}
+          <p class="dtoj-groups__members">{% for uid in g.uids %}{{ names[uid] }}{% if not loop.last %}、{% endif %}{% endfor %}</p>
+          {% endif %}
+        </div>
+        <div class="dtoj-groups__acts">
+          <button type="button" class="rounded button" data-group-edit="{{ g.name }}">编辑组员</button>
+          <form method="post" action="{{ url('dtoj_group_delete') }}" data-group-del>
+            <input type="hidden" name="name" value="{{ g.name }}">
+            <button type="submit" class="rounded button dtoj-groups__del"{% if g.used %} disabled title="还有作业或比赛在用它，先改掉那些分派"{% endif %}>删除</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="dtoj-groups__empty">
+      还没有小组。点右上角「新建小组」建一个，比如「初二（3）班」，然后把人加进去。
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="dtoj-group-dialog" id="dtoj-group-create" hidden>
+  <div class="dtoj-group-dialog__mask" data-dialog-close></div>
+  <div class="dtoj-group-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="dtoj-group-create-title">
+    <div class="dtoj-group-dialog__head">
+      <h2 id="dtoj-group-create-title">新建小组</h2>
+      <button type="button" class="dtoj-group-dialog__close" data-dialog-close aria-label="{{ _('Close') }}">&times;</button>
+    </div>
+    <form method="post" action="{{ url('dtoj_group_create') }}">
+      <p class="dtoj-group-dialog__hint">组名建好后不能改，也不会和已有的重复。建议用一眼能认出来的名字。</p>
+      <input type="text" class="dtoj-group-dialog__input" name="name" maxlength="64" required autocomplete="off" placeholder="比如：初二（3）班">
+      <div class="dtoj-group-dialog__foot">
+        <button type="button" class="dtoj-user-btn" data-dialog-close>取消</button>
+        <button type="submit" class="dtoj-user-btn dtoj-user-btn--primary">创建</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="dtoj-group-dialog" id="dtoj-group-edit" hidden>
+  <div class="dtoj-group-dialog__mask" data-dialog-close></div>
+  <div class="dtoj-group-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="dtoj-group-edit-title">
+    <div class="dtoj-group-dialog__head">
+      <h2 id="dtoj-group-edit-title">编辑组员</h2>
+      <button type="button" class="dtoj-group-dialog__close" data-dialog-close aria-label="{{ _('Close') }}">&times;</button>
+    </div>
+    <form method="post" action="{{ url('dtoj_group_members') }}">
+      <p class="dtoj-group-dialog__hint" id="dtoj-group-edit-hint">勾上的人进这个组，取消勾选就移出去，保存后立刻生效。</p>
+      <input type="hidden" name="name" id="dtoj-group-edit-name">
+      <input type="search" class="dtoj-group-dialog__search" id="dtoj-group-edit-search" placeholder="搜姓名或账号">
+      <p class="dtoj-group-dialog__count">
+        <span>已选 <b id="dtoj-group-edit-picked">0</b> 人</span>
+        <span id="dtoj-group-edit-total">共 0 人</span>
+      </p>
+      <div class="dtoj-group-dialog__list" id="dtoj-group-edit-list"></div>
+      <div class="dtoj-group-dialog__foot">
+        <button type="button" class="dtoj-user-btn" data-dialog-close>取消</button>
+        <button type="submit" class="dtoj-user-btn dtoj-user-btn--primary" id="dtoj-group-edit-save">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="application/json" id="dtoj-group-data">{{ { members: members, groups: groups }|json|safe }}</script>
+<script>
+(function () {
+  var dataEl = document.getElementById('dtoj-group-data');
+  if (!dataEl) return;
+  var data = JSON.parse(dataEl.textContent);
+
+  function toggle(dialog, open) {
+    if (!dialog) return;
+    dialog.hidden = !open;
+    document.body.classList.toggle('dtoj-group-dialog-open', open);
+    if (open) {
+      var first = dialog.querySelector('input, button');
+      if (first) first.focus();
+    }
+  }
+
+  var createDialog = document.getElementById('dtoj-group-create');
+  var createOpen = document.getElementById('dtoj-group-create-open');
+  if (createOpen) createOpen.addEventListener('click', function () { toggle(createDialog, true); });
+
+  // 按创建者筛选。列表是服务端渲染好的，这儿只负责按 data-creator 收放，
+  // 所以没有「筛选后分页不对」那类问题。
+  var creatorFilter = document.getElementById('dtoj-group-creator-filter');
+  if (creatorFilter) {
+    creatorFilter.addEventListener('change', function () {
+      var want = creatorFilter.value;
+      Array.prototype.forEach.call(document.querySelectorAll('.dtoj-groups__row'), function (row) {
+        row.hidden = Boolean(want) && row.getAttribute('data-creator') !== want;
+      });
+    });
+  }
+
+  var editDialog = document.getElementById('dtoj-group-edit');
+  var editName = document.getElementById('dtoj-group-edit-name');
+  var editHint = document.getElementById('dtoj-group-edit-hint');
+  var editList = document.getElementById('dtoj-group-edit-list');
+  var editSearch = document.getElementById('dtoj-group-edit-search');
+  var editSave = document.getElementById('dtoj-group-edit-save');
+
+  // 组员选择器：名单由服务端算好（只给没有管理权限的账号），这儿只管勾选
+  function memberRow(item, checked) {
+    var label = document.createElement('label');
+    label.className = 'dtoj-group-dialog__item';
+    label.setAttribute('data-key', (item.name + ' ' + item.uname + ' ' + item.uid).toLowerCase());
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.name = 'uids';
+    box.value = item.uid;
+    box.checked = checked;
+    var name = document.createElement('span');
+    name.textContent = item.name;
+    label.appendChild(box);
+    label.appendChild(name);
+    if (item.name !== item.uname) {
+      var sub = document.createElement('em');
+      sub.className = 'dtoj-group-dialog__sub';
+      sub.textContent = item.uname;
+      label.appendChild(sub);
+    }
+    return label;
+  }
+
+  var editPicked = document.getElementById('dtoj-group-edit-picked');
+  var editTotal = document.getElementById('dtoj-group-edit-total');
+
+  // 计数行：勾了几个、名单里共几个；搜索筛过之后右半边改成「筛出 x / y」，
+  // 否则用户看到 61 个人的总数、眼前却只有 6 行，会以为名单丢了。
+  function countPicked() {
+    var boxes = editList.querySelectorAll('input[name=uids]');
+    var picked = editList.querySelectorAll('input[name=uids]:checked').length;
+    var shown = 0;
+    Array.prototype.forEach.call(boxes, function (box) {
+      var row = box.parentNode;
+      if (!row.hidden) shown += 1;
+    });
+    editSave.textContent = picked ? '保存（' + picked + ' 人）' : '保存（空组）';
+    editPicked.textContent = String(picked);
+    editTotal.textContent = shown === boxes.length
+      ? '共 ' + boxes.length + ' 人'
+      : '筛出 ' + shown + ' / ' + boxes.length + ' 人';
+  }
+
+  function openEdit(name) {
+    var group = data.groups.filter(function (g) { return g.name === name; })[0];
+    var picked = {};
+    (group ? group.uids : []).forEach(function (uid) { picked[uid] = true; });
+    editName.value = name;
+    editHint.textContent = '勾上的人进「' + name + '」，取消勾选就移出去，保存后立刻生效。';
+    editSearch.value = '';
+    editList.textContent = '';
+    data.members.forEach(function (item) {
+      editList.appendChild(memberRow(item, !!picked[item.uid]));
+    });
+    if (!data.members.length) {
+      var none = document.createElement('p');
+      none.className = 'dtoj-groups__none';
+      none.textContent = '域里还没有可以加入小组的账号。';
+      editList.appendChild(none);
+    }
+    countPicked();
+    toggle(editDialog, true);
+  }
+
+  editList.addEventListener('change', countPicked);
+  editSearch.addEventListener('input', function () {
+    var q = editSearch.value.trim().toLowerCase();
+    Array.prototype.forEach.call(editList.querySelectorAll('[data-key]'), function (label) {
+      label.hidden = Boolean(q) && label.getAttribute('data-key').indexOf(q) < 0;
+    });
+    countPicked();
+  });
+
+  document.addEventListener('click', function (event) {
+    var edit = event.target.closest('[data-group-edit]');
+    if (edit) { openEdit(edit.getAttribute('data-group-edit')); return; }
+    if (event.target.closest('[data-dialog-close]')) {
+      toggle(createDialog, false);
+      toggle(editDialog, false);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    toggle(createDialog, false);
+    toggle(editDialog, false);
+  });
+
+  // 删组是有后果的（assign 里挂着的引用会断），问一句再走
+  Array.prototype.forEach.call(document.querySelectorAll('[data-group-del]'), function (form) {
+    form.addEventListener('submit', function (event) {
+      var name = form.querySelector('input[name=name]').value;
+      if (!window.confirm('确定删除小组「' + name + '」？组员名单会一起没掉。')) event.preventDefault();
+    });
+  });
+})();
+</script>
+{% endblock %}

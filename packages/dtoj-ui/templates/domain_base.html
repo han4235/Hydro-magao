@@ -6,24 +6,32 @@
   <div class="dtoj-shell">
     <header class="dtoj-page-head dtoj-domain-head">
       <h1>{{ _('domain_dashboard') }} · {{ domain.name }}</h1>
+      {# 副标题里写的是维护角色和域设置，那是管理员的事；教师这边只有管理小组和管理用户 #}
+      {% if handler.user.hasPerm(perm.PERM_EDIT_DOMAIN) %}
       <p>{{ _('Manage users, roles, and domain settings for this site.') }}</p>
+      {% endif %}
     </header>
     <div class="dtoj-split dtoj-domain-layout">
       <nav class="dtoj-panel dtoj-domain-nav" aria-label="{{ _('Domain management') }}">
-        {%- for family, items in ui.getNodes('DomainManage')|groupby('args.family') -%}
+        {# 一个 family 下面的项可能被权限全挡掉（教师那边除了访问控制都是空的），
+           这种空分组不渲染 —— 否则侧栏会挂着一排空标题。
+           这套 Nunjucks 没有 namespace，先筛成数组再判空。 #}
+        {%- for family, allItems in ui.getNodes('DomainManage')|groupby('args.family') -%}
+        {%- set items = [] -%}
+        {%- for item in allItems -%}{%- if item.checker(handler) -%}{%- set _ = items.push(item) -%}{%- endif -%}{%- endfor -%}
+        {%- if items.length -%}
         <div class="dtoj-domain-nav__group" data-family="{{ family }}">
           <p class="dtoj-domain-nav__family">{{ _(family) }}</p>
           <ul class="dtoj-tree dtoj-domain-tree" data-family="{{ family }}">
             {%- for item in items -%}
-            {%- if item.checker(handler) -%}
             {%- set target_url = url(item.name) -%}
             <li data-nav-id="{{ item.name }}">
               <a href="{{ target_url }}" class="{% if handler.request.path == target_url %}on{% endif %}">{{ _(item.name) }}</a>
             </li>
-            {%- endif -%}
             {%- endfor -%}
           </ul>
         </div>
+        {%- endif -%}
         {%- endfor -%}
         <p class="dtoj-domain-nav__hint">{{ _('Long press menu items to reorder') }}</p>
       </nav>

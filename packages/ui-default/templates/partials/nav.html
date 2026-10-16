@@ -6,6 +6,9 @@
   }
   .nav .nav__item { letter-spacing: 0; }
   .nav .nav__item--round { font-weight: 700; }
+  /* 非管理员的域名只是个标识，不是入口：压掉 .nav__item:hover 的悬停高亮，免得看着能点 */
+  .nav .nav__item--static,
+  .nav .nav__item--static:hover { cursor: default; border-color: transparent; background: none; }
   .dtoj-nav-drop { position: relative; }
   .nav .dtoj-nav-drop-btn {
     display: block;
@@ -174,27 +177,42 @@
       </li>
     {% else %}
     {% if model.system.get('ui-default.domainNavigation') %}
+      {# 管理员=有 PERM_EDIT_DOMAIN（域内 root），教师/学生/guest 都没有。
+         非管理员到不了 /home/domain（那是域管理台），所以对它们只把域名当标识显示，
+         去掉下拉和箭头；域下拉原本也只装了「管理」一项，点开是空的。 #}
+      {% set canManageDomain = handler.user.hasPerm(perm.PERM_EDIT_DOMAIN) %}
+      {% macro domain_avatar(ddoc) %}<span class="icon"><img class="small user-profile-avatar v-center" loading="lazy" src="{{ avatarUrl(ddoc.avatar|default('')) }}" width="20" height="20"></span>{% endmacro %}
+      {% if handler.user.domains|length or canManageDomain %}
       <li class="nav__list-item" data-dropdown-pos="bottom right" data-dropdown-custom-class="nav__dropdown" data-dropdown-target="#menu-nav-domain" data-dropdown-disabledconstrainToWindow data-dropdown-trigger-desktop-only>
-        <span class="nav__item"><span class="icon"><img class="small user-profile-avatar v-center" loading="lazy" src="{{ avatarUrl(handler.domain.avatar|default('')) }}" width="20" height="20"></span> {{ handler.domain.name }} <span class="icon icon-expand_more nojs--hide"></span></span>
+        <span class="nav__item">{{ domain_avatar(handler.domain) }} {{ handler.domain.name }} <span class="icon icon-expand_more nojs--hide"></span></span>
         <ol class="dropdown-target menu" id="menu-nav-domain">
           {%- if handler.user.domains|length -%}
           {%- for ddoc in handler.user.domains -%}
             <li class="menu__item">
               <a href="{{ url('homepage', domainId=ddoc['_id']) }}" class="menu__link">
-                <span class="icon"><img class="small user-profile-avatar v-center" loading="lazy" src="{{ avatarUrl(ddoc.avatar|default('')) }}" width="20" height="20"></span>
+                {{ domain_avatar(ddoc) }}
                 {{ ddoc['name'] }}{% if ddoc['name'] != ddoc['_id']%} ({{ ddoc['_id'] }}){% endif %}
               </a>
             </li>
           {%- endfor -%}
+          {%- if canManageDomain -%}
           <li class="menu__seperator"></li>
           {%- endif -%}
+          {%- endif -%}
+          {% if canManageDomain %}
           <li class="menu__item">
             <a href="{{ url('home_domain') }}" class="menu__link">
               <span class="icon icon-wrench"></span> {{ _('Manage') }}
             </a>
           </li>
+          {% endif %}
         </ol>
       </li>
+      {% else %}
+      <li class="nav__list-item">
+        <span class="nav__item nav__item--static">{{ domain_avatar(handler.domain) }} {{ handler.domain.name }}</span>
+      </li>
+      {% endif %}
     {% endif %}
       <li class="nav__list-item" data-dropdown-pos="bottom right" data-dropdown-custom-class="nav__dropdown" data-dropdown-target="#menu-nav-user" data-dropdown-disabledconstrainToWindow data-dropdown-trigger-desktop-only>
         <a href="{{ url('user_detail', uid=handler.user._id) }}" class="nav__item">{% if handler.user.displayName and handler.user.displayName != handler.user.uname %}{{ handler.user.displayName }} ({{ handler.user.uname }}){% else %}{{ handler.user.uname }}{% endif %} <span class="icon icon-expand_more nojs--hide"></span></a>
