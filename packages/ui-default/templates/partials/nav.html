@@ -36,6 +36,29 @@
     border-right: 4px solid transparent;
     border-top: 5px solid currentColor;
   }
+  /* 站内消息未读：挂在入口右上角的一枚计数角标。
+     必须绝对定位 —— 它是活的，收到消息随时会冒出来，留在流里会让后面几个导航项跟着左右跳。
+     空档交给 :has 预留，角标就不会压到「站内消息」四个字上。 */
+  .nav__list-item:has(.dtoj-nav-dot) > .nav__item { padding-right: 34px; }
+  .dtoj-nav-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #d92d20;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-nav-dot.is-empty { display: none; }
   .dtoj-nav-drop.is-open .dtoj-nav-caret {
     border-top: 0;
     border-bottom: 5px solid currentColor;
@@ -86,6 +109,9 @@
   }
 </style>
 {%- macro nav_item(item) -%}
+{%- set isMsg = item.name == 'home_messages' -%}
+{%- set navUnread = isMsg and UserContext.unreadMsg -%}
+{%- set navDot = (navUnread if navUnread < 100 else '99+') if navUnread else '' -%}
 <li class="nav__list-item">
   {%- if item.args.href -%}
   {# 站外或子路径入口：直接给显式地址，不走路由名解析（url() 只认已注册的路由） #}
@@ -94,7 +120,7 @@
   </a>
   {%- else -%}
   <a href="{{ url(item.name, item.args, query=item.args.query(handler) if typeof(item.args.query) == 'function' else item.args.query or {}) }}" class="nav__item{% if page_name.startsWith(item.args.prefix) %} nav--active{% endif %}">
-    {{ _(item.displayName or item.name) }}
+    {{ _(item.displayName or item.name) }}{% if isMsg %}<span class="dtoj-nav-dot{{ '' if navDot else ' is-empty' }}" id="dtoj-nav-unread">{{ navDot }}</span>{% endif %}
   </a>
   {%- endif -%}
 </li>
@@ -287,4 +313,93 @@
   window.addEventListener('load', function () {
     window.showSignInDialog = dtojGoLogin;
   });
+</script>
+<script>
+  /*
+   * 顶栏未读角标的实时刷新。
+   *
+   * 角标那张脸是服务端按 UserContext.unreadMsg 画好的，只在页面打开那一刻准。
+   * 之后来的消息只会走右下角那条提示，角标要等下次翻页才出现 —— 老师盯着首页等
+   * 学生提问时，看到的永远是「没有未读」。这里自己订阅一次 message 频道把这段补上。
+   *
+   * 代价是每个标签页多一条长连接，换来的是角标不用等翻页。切到后台就断开、
+   * 切回前台先问一次 /dtoj/unread 再重连：断开期间来的消息本地计数是旧的，
+   * 而且消息可能已经在别的标签页读完了，不重新对一次真数就会一直挂着一个假的未读数。
+   */
+  (function () {
+    var badge = document.getElementById('dtoj-nav-unread');
+    // 聊天页自己就是消息界面，前端 bundle 已经在那儿做全套实时处理了
+    if (!badge || !UserContext._id || document.documentElement.dataset.page === 'home_messages') return;
+
+    var FLAG_UNREAD = 1; // 与 hydrooj 的 MessageModel.FLAG_UNREAD 对齐：只有带这一位的才计未读
+    var count = parseInt(badge.textContent, 10) || 0;
+    var socket = null;
+
+    function paint(n) {
+      count = n;
+      // 超过两位就封顶，免得把导航项撑开
+      badge.textContent = n > 99 ? '99+' : (n || '');
+      badge.classList.toggle('is-empty', !n);
+    }
+
+    function connect() {
+      if (socket || document.hidden) return;
+      var endpoint = new URL(UiContext.ws_prefix + 'websocket', location.href)
+        .toString().replace(/^http/, 'ws');
+      socket = new WebSocket(endpoint);
+      socket.onopen = function () {
+        var sid = (document.cookie.match(/(?:^|;\s*)sid=([^;]*)/) || [])[1] || '';
+        socket.send(JSON.stringify({
+          operation: 'subscribe',
+          request_id: Math.random().toString(16).substring(2),
+          credential: sid,
+          channels: ['message'],
+        }));
+      };
+      socket.onmessage = function (event) {
+        var payload;
+        try {
+          payload = JSON.parse(event.data);
+        } catch (e) {
+          return;
+        }
+        var mdoc = payload.operation === 'event' && payload.payload && payload.payload.mdoc;
+        // 系统公告一类只广播、不计未读的消息不能算进来，否则本地计数会越飘越远
+        if (mdoc && (mdoc.flag & FLAG_UNREAD)) paint(count + 1);
+      };
+      socket.onclose = function () {
+        socket = null;
+        if (!document.hidden) setTimeout(connect, 5000);
+      };
+      socket.onerror = function () {
+        if (socket) socket.close();
+      };
+    }
+
+    function disconnect() {
+      if (!socket) return;
+      var pending = socket;
+      socket = null;
+      // 先摘掉 onclose，否则这条主动断开会被当成掉线而排一次重连
+      pending.onclose = null;
+      pending.close();
+    }
+
+    function resyncAndConnect() {
+      fetch('/dtoj/unread', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (data && typeof data.n === 'number') paint(data.n);
+        })
+        .catch(function () { /* 对不上就沿用本地计数，下次切回来再问 */ })
+        .then(connect);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) disconnect();
+      else resyncAndConnect();
+    });
+
+    connect();
+  }());
 </script>

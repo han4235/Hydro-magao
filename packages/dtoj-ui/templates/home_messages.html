@@ -1,0 +1,443 @@
+{% extends "layout/home_base.html" %}
+{% block home_content %}
+{% include "dtoj_style.html" %}
+{#
+  站内消息。把 ui-default 的 MessagePad 收进本站的冷色场地和白卡片，
+  顺手把它的写死尺寸拿掉。
+
+  这一页的 DOM 是 React 挂的：home_messages.page.tsx 里用
+  createRoot($('#messagePad')) 接管了 #messagePad 的全部子节点。所以这里只换
+  外壳和一层作用域样式，组件自己的结构一件都不能动。
+
+  不能改的钩子（改了页面 JS 就失效）：
+    - #messagePad                       —— React 挂载点，模板里必须留着
+    - .messagepad 及 __sidebar / __list / __header / __content / __input
+                                        —— 组件用这批类名定位，样式全靠命中它们
+    - .messagepad__input.visible        —— 有会话时才加上，输入区靠它显形
+    - .messagepad__list-item            —— 点它切会话
+    - .messagepad__input button         —— 发送按钮
+
+  原来侧栏、头部、正文、输入区四处都是绝对定位，尺寸写死 250/30/80px，
+  窄屏下会话区只剩一百多像素宽，等于不可用。这里换成 grid：桌面两列，
+  窄屏收成一列，列表和正文各自滚动，整块高度跟着视口走。
+
+  气泡原来用 border 拼了个直角三角当尾巴，颜色也是 ui-default 的招牌蓝配白字。
+  本站的训练蓝只给「入口」，所以这里两边的气泡都用冷色淡底，靠左右和头像区分，
+  整页唯一一块招牌蓝留给发送按钮。
+
+  时间用 tabular-nums，滚动条、光标、选区都跟着这套色走 —— 这些浏览器默认样式
+  不属于任何设计系统，不写上就永远是默认的那套。
+#}
+<style>
+  /* 一张白纸，坐在冷色场地上 */
+  .dtoj-inbox .dtoj-inbox-sheet {
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+
+  /* 骨架 */
+  .dtoj-inbox #messagePad { min-height: 0; }
+  .dtoj-inbox .messagepad {
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 288px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "aside head"
+      "aside thread"
+      "aside composer";
+    height: min(74vh, 700px);
+  }
+
+  .dtoj-inbox .messagepad__sidebar {
+    grid-area: aside;
+    display: flex;
+    flex-direction: column;
+    float: none;
+    width: auto;
+    min-height: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  /* 侧栏顶上的「新建会话」，与右边会话标题同高 */
+  .dtoj-inbox .messagepad__sidebar .section__header {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-inbox .messagepad__sidebar .section__header .button {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--brand-deep);
+    box-shadow: none;
+    text-shadow: none;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .dtoj-inbox .messagepad__sidebar .section__header .button:hover {
+    background: #f3f7fe;
+    border-color: rgba(37, 99, 235, 0.28);
+  }
+  .dtoj-inbox .messagepad__sidebar .section__header .button:active { background: #e9f0fd; }
+  .dtoj-inbox .messagepad__sidebar .section__header .button .icon { font-size: 15px; }
+
+  /* 会话列表 */
+  .dtoj-inbox .messagepad__list {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(28, 39, 64, 0.22) transparent;
+  }
+  .dtoj-inbox .messagepad__list li { list-style: none; }
+
+  .dtoj-inbox .messagepad__list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    text-decoration: none;
+    transition: background-color .15s ease, box-shadow .15s ease;
+  }
+  .dtoj-inbox .messagepad__list li + li .messagepad__list-item { margin-top: 2px; }
+  .dtoj-inbox .messagepad__list-item:hover { background: rgba(28, 39, 64, 0.05); }
+  .dtoj-inbox .messagepad__list-item.active {
+    background: var(--note);
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
+  }
+
+  /* 头像与两行文字：.media 原本是 table 布局，这里收成 flex 的子项 */
+  .dtoj-inbox .messagepad__list-item .media__left,
+  .dtoj-inbox .messagepad__list-item .media__body {
+    display: block;
+    width: auto;
+    padding: 0;
+    vertical-align: baseline;
+  }
+  .dtoj-inbox .messagepad__list-item .media__left { flex: none; }
+  .dtoj-inbox .messagepad__list-item .media__body { flex: 1 1 auto; min-width: 0; }
+  .dtoj-inbox .messagepad__list-item img.user-profile-avatar {
+    display: block;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+  }
+
+  /* h3 默认是 18.7px 的细字，在列表行里太大太轻 */
+  .dtoj-inbox .messagepad__username {
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+  .dtoj-inbox .messagepad__list-item.active .messagepad__username { color: var(--brand-deep); }
+
+  .dtoj-inbox .messagepad__desc {
+    margin-top: 2px;
+    max-height: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .dtoj-inbox .messagepad__list-item.active .messagepad__desc { color: var(--note-ink); opacity: .76; }
+
+  /* 会话标题 */
+  .dtoj-inbox .messagepad__header {
+    grid-area: head;
+    box-sizing: border-box;
+    position: static;
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 22px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-inbox .messagepad__header:empty { border-bottom-color: transparent; }
+  .dtoj-inbox .messagepad__content__header__title {
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+    text-decoration: none;
+  }
+  .dtoj-inbox .messagepad__content__header__title:hover { color: var(--brand-deep); }
+
+  /* 会话正文 */
+  .dtoj-inbox .messagepad__content {
+    grid-area: thread;
+    position: static;
+    margin: 0;
+    padding: 22px;
+    list-style: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fbfcfe;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(28, 39, 64, 0.22) transparent;
+  }
+
+  /* 没选会话、或会话里还没消息时，原来是一片空白 */
+  .dtoj-inbox .messagepad__content:empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dtoj-inbox .messagepad__content:empty::before {
+    content: "还没有消息，说点什么吧。";
+    max-width: 22ch;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+    text-align: center;
+  }
+  .dtoj-inbox .messagepad:has(.messagepad__header:empty) .messagepad__content:empty::before {
+    content: "从左侧挑一段会话；要开新的，点上面的「创建」。";
+  }
+
+  /* 气泡 */
+  .dtoj-inbox .messagepad__message {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+    overflow: visible;
+  }
+  .dtoj-inbox .messagepad__message:last-child { margin-bottom: 0; }
+  .dtoj-inbox .messagepad__message__avatar { flex: none; }
+  .dtoj-inbox .messagepad__message__avatar img.user-profile-avatar {
+    display: block;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+  .dtoj-inbox .messagepad__message__body {
+    position: relative;
+    min-width: 0;
+    max-width: 62ch;
+    margin-bottom: 0;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
+  /* 原来用 border 拼的直角三角尾巴 */
+  .dtoj-inbox .messagepad__message__body::after { display: none; }
+  .dtoj-inbox .messagepad__message__body time {
+    display: block;
+    margin-top: 3px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    opacity: 1;
+  }
+  .dtoj-inbox .messagepad__message__body a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* 对方：冷白底、墨色字，读起来最稳 */
+  .dtoj-inbox .side--other .messagepad__message__body {
+    order: 1;
+    margin-left: 0;
+    background: #eef2f7;
+    color: var(--ink);
+  }
+  .dtoj-inbox .side--other .messagepad__message__body time { color: var(--muted); }
+
+  /* 自己：本店那一支蓝的淡底，和对方分得开 */
+  .dtoj-inbox .side--self .messagepad__message__body {
+    order: -1;
+    margin-right: 0;
+    background: var(--note);
+    color: var(--note-ink);
+  }
+  .dtoj-inbox .side--self .messagepad__message__body time { color: var(--note-ink); opacity: .66; }
+
+  /* 输入区 */
+  .dtoj-inbox .messagepad__input {
+    grid-area: composer;
+    position: static;
+    display: none;
+    gap: 10px;
+    height: auto;
+    padding: 14px 18px;
+    border-top: 1px solid var(--line);
+  }
+  .dtoj-inbox .messagepad__input.visible { display: flex; }
+
+  .dtoj-inbox .messagepad__textarea-container {
+    position: static;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fbfcfe;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  }
+  .dtoj-inbox .messagepad__textarea-container:focus-within {
+    border-color: var(--brand);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  }
+  .dtoj-inbox .messagepad__textarea-container textarea {
+    display: block;
+    width: 100%;
+    min-height: 42px;
+    max-height: 128px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    /* ui-default 对每个 textarea 都下了 font-family: $code-font-family !important
+       （misc/typography.styl），那条是给写代码和 markdown 用的。这里回一句，是因为
+       消息正文本来就是纯文本、气泡里也是无衬线 —— 输入框跟上，写的时候所见即所得。 */
+    font-family: inherit !important;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
+    overflow-y: auto;
+    caret-color: var(--brand);
+    scrollbar-width: thin;
+  }
+  /* 焦点环交给外层容器画，见上面的 :focus-within */
+  .dtoj-inbox .messagepad__textarea-container textarea:focus { outline: 0; }
+
+  /* 发送：整页唯一一块招牌蓝 */
+  .dtoj-inbox .messagepad__input button {
+    position: static;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    width: 46px;
+    height: auto;
+    min-height: 44px;
+    border: 0;
+    border-radius: 11px;
+    font-size: 17px;
+    line-height: 1;
+    text-align: center;
+    transition: background-color .15s ease, box-shadow .15s ease, transform .1s ease;
+  }
+  .dtoj-inbox .messagepad__input button:enabled {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
+    cursor: pointer;
+  }
+  .dtoj-inbox .messagepad__input button:enabled:hover {
+    background: var(--brand-deep);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+  }
+  .dtoj-inbox .messagepad__input button:enabled:active { transform: translateY(1px); }
+  .dtoj-inbox .messagepad__input button:disabled {
+    background: #e7ecf3;
+    color: #a9b4c2;
+    opacity: 1;
+    cursor: not-allowed;
+  }
+
+  /* 滚动条也归这套色，浏览器默认那条不属于任何设计 */
+  .dtoj-inbox .messagepad__list::-webkit-scrollbar,
+  .dtoj-inbox .messagepad__content::-webkit-scrollbar,
+  .dtoj-inbox .messagepad__textarea-container textarea::-webkit-scrollbar { width: 10px; height: 10px; }
+  .dtoj-inbox .messagepad__list::-webkit-scrollbar-track,
+  .dtoj-inbox .messagepad__content::-webkit-scrollbar-track,
+  .dtoj-inbox .messagepad__textarea-container textarea::-webkit-scrollbar-track { background: transparent; }
+  .dtoj-inbox .messagepad__list::-webkit-scrollbar-thumb,
+  .dtoj-inbox .messagepad__content::-webkit-scrollbar-thumb,
+  .dtoj-inbox .messagepad__textarea-container textarea::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: rgba(28, 39, 64, 0.2);
+    background-clip: content-box;
+  }
+  .dtoj-inbox .messagepad__list::-webkit-scrollbar-thumb:hover,
+  .dtoj-inbox .messagepad__content::-webkit-scrollbar-thumb:hover {
+    background: rgba(28, 39, 64, 0.34);
+    background-clip: content-box;
+  }
+
+  /* 窄屏：两列摆不下，收成一列；列表先出现，正文给足高度 */
+  @media (max-width: 860px) {
+    .dtoj-inbox .messagepad {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "aside"
+        "head"
+        "thread"
+        "composer";
+      height: auto;
+    }
+    .dtoj-inbox .messagepad__sidebar {
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .dtoj-inbox .messagepad__list { max-height: 40vh; }
+    .dtoj-inbox .messagepad__content { min-height: 46vh; max-height: 62vh; padding: 16px; }
+    .dtoj-inbox .messagepad__header:empty { display: none; }
+    .dtoj-inbox .messagepad__message__body { max-width: 84%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dtoj-inbox .messagepad__list-item,
+    .dtoj-inbox .messagepad__sidebar .section__header .button,
+    .dtoj-inbox .messagepad__textarea-container,
+    .dtoj-inbox .messagepad__input button { transition: none; }
+  }
+</style>
+
+<div class="dtoj-page dtoj-home dtoj-inbox">
+  <div class="dtoj-shell">
+    <header class="dtoj-page-head">
+      <h1>站内消息</h1>
+      <div class="dtoj-rule" aria-hidden="true"></div>
+      <p>学生提问、认领作业、交完作业都会在这里发消息给老师；老师在会话里回一句，学生那边也会收到。</p>
+    </header>
+
+    <div class="dtoj-inbox-sheet">
+      <div id="messagePad">
+        {{ noscript_note.render() }}
+        <div class="loader-container"><div class="loader"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -35,6 +35,42 @@
         {% endif %}
       </section>
 
+      {% if hwPending|length %}
+      {# 有待认领作业才出现：一行滚动文字 + 小喇叭，点整条去作业页 #}
+      <a class="dtoj-notice" href="{{ url('homework_main') }}" id="dtoj-notice">
+        <span class="dtoj-notice-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="17" height="17" focusable="false">
+            <path d="M4 9.4h3.1L13.5 5v14L7.1 14.6H4a1 1 0 0 1-1-1V10.4a1 1 0 0 1 1-1Z" fill="currentColor"/>
+            <path d="M16.4 9.2a3.9 3.9 0 0 1 0 5.6M18.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="dtoj-notice-track" data-notice-track>
+          <span class="dtoj-notice-lane">
+            <span class="dtoj-notice-text">你有 <b>{{ hwPending|length }}</b> 份作业还没认领：{% for item in hwPending %}{{ item.title }}（{{ item.deadline }} 截止）{% if not loop.last %}· {% endif %}{% endfor %}——点这里去认领</span>
+          </span>
+        </span>
+      </a>
+      <script>
+        // 一行放得下就不滚（短提醒滚起来反而晃眼）；放不下才复制一份、首尾相接循环滚。
+        (function () {
+          var box = document.getElementById('dtoj-notice');
+          if (!box) return;
+          var track = box.querySelector('[data-notice-track]');
+          var lane = track && track.querySelector('.dtoj-notice-lane');
+          var text = lane && lane.firstElementChild;
+          if (!track || !lane || !text) return;
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          if (text.scrollWidth <= track.clientWidth + 4) return;
+          var clone = text.cloneNode(true);
+          clone.setAttribute('aria-hidden', 'true');
+          lane.appendChild(clone);
+          box.classList.add('is-scroll');
+          // 42px/s：比常见的跑马灯慢，读得完一行的字数
+          lane.style.setProperty('--dtoj-notice-duration', Math.max(14, Math.round(text.scrollWidth / 42)) + 's');
+        }());
+      </script>
+      {% endif %}
+
       {% if canEditHome %}
       <p class="dtoj-home-admin">
         <a href="{{ url('dtoj_home_edit_hub') }}">管理首页配置</a>
