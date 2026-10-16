@@ -26,6 +26,7 @@
 | 数据范围 | N/值之上下限、极值 |
 | 时/内存限 | 决数据规上限 |
 | 算法类 | 决 Hack 数据向 |
+| 测试点划分 | **必查**：题面有无写明测试点总数、各点规模/特殊性质/分值/百分比；有则依此定组数与 subtasks，无则走默认 |
 
 若用户所供不足以定上任一，**必问用户补**。
 
@@ -33,7 +34,7 @@
 
 标程乃生 .out 之独法，必保：
 
-- 算法**正**（能过诸 25 组测试数据）
+- 算法**正**（能过诸 N 组测试数据，组数见第 3 步）
 - 用 `std.cpp` 为文件名，置 `{WORK_DIR}/` 目录
 - OI 风格：简变量名、全局变量、`ios::sync_with_stdio(false)`
 - 时复杂度对标题限（勿写出比正解更慢版）
@@ -41,9 +42,25 @@
 
 ### 3. 设计测试数据
 
-编 `{WORK_DIR}/mkin.h` 之 `test()` 函，覆 25 组。
+编 `{WORK_DIR}/mkin.h` 之 `test()` 函，覆诸测试点。
+
+**题面指定优先，三样一起照做：**
+
+| 项 | 题面给了测试点说明 | 题面没给（默认回退） |
+|---|---|---|
+| **总量** | 「共 N 个测试点」→ N 组 | 25 组 |
+| **分组** | 各点规模/特殊性质/分值/百分比 → `subtasks` 逐点对应 | 默认 5 组（见 `references/testdata-design.md` → 一） |
+| **数据** | `test()` 分支按题面逐点划分 | 按下述 3a–3f 骨架 |
+
+定好组数后，`mkin.h` 顶常量与分支一起改：
+
+```cpp
+const int TEST_CASES = N;   // 题面给了测试点数就改成其数，否则留 25
+```
 
 **分布方案、边界清单、Hack 设计、config.yaml 格式详见 `references/testdata-design.md`。**
+
+> 下述 3a–3f 的 case 编号为**默认 25 组**骨架；题面自定分点（点数或性质不同）时按题面重排编号，骨架仅作参考。
 
 #### 3a. 样例数据（case 1-2）
 
@@ -92,7 +109,11 @@ else if (case_num >= 3 && case_num <= 5) {
 ### 4. 配 {WORK_DIR}/testdata/config.yaml
 
 格式见 **`references/testdata-design.md` → 五、config.yaml 格式**。
-**时/内存限**自用户供题信息取。若用户未供，主动问。
+
+- 题面给了测试点划分 → `subtasks` 的分值、测试点区间、分组个数与题面**一一对应**，勿套默认 5 组
+- 题面没给 → 才用默认分组（样例 10 / 小规模+特殊 20 / Hack 15 / 中大规模 30 / 随机回归 25）
+- 分值合计恒为 100；1~N 不重不漏，`cases` 与实生 `.in`/`.out` 一一对应
+- **时/内存限**自用户供题信息取。若用户未供，主动问
 
 ### 5. 编译运行
 
@@ -120,10 +141,10 @@ g++ mkdata.cpp -o mkdata -std=c++17
 
 必验下诸项：
 
-- [ ] {WORK_DIR}/testdata/ 目录下 25 .in 与 25 .out 成对存
+- [ ] `mkin.h` 顶 `TEST_CASES` = 本次组数 N；`{WORK_DIR}/testdata/` 下 N 组 .in 与 N 组 .out 成对存
 - [ ] 前 2 组数与样例题完全一致（用 `diff` 或 `read_file` 较）
-- [ ] 每组 .in 格合同题入格式述
-- [ ] {WORK_DIR}/testdata/config.yaml 之 subtask cases 表与实生文件一致
+- [ ] 每组 .in 格合同题入格式述，且规模/特殊性质吻合题面该测试点（无题面说明则合默认分布）
+- [ ] `{WORK_DIR}/testdata/config.yaml` 分值合计 100、测试点区间不重不漏，cases 与实生文件一一对应
 - [ ] `lsp_diagnostics` 查 mkin.h 无误
 
 ### 7. 打包
@@ -140,7 +161,7 @@ zip testdata/testdata.zip testdata/*.in testdata/*.out testdata/config.yaml std.
 ### 8. 交付
 
 告用户测数已生：
-- `{WORK_DIR}/testdata/` 目录：25 组 `.in` + 25 组 `.out` + `config.yaml`
+- `{WORK_DIR}/testdata/` 目录：N 组 `.in` + N 组 `.out` + `config.yaml`
 - `{WORK_DIR}/testdata/testdata.zip`：前诸文件打
 
 ## 与常流之别

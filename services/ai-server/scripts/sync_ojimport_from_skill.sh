@@ -13,7 +13,8 @@ if [[ ! -d "$SKILL/steps" ]]; then
 fi
 mkdir -p "$DEST/steps" "$DEST/question/testdata" "$DEST/theory" "$DEST/references" "$DEST/gesp/training_materials"
 for f in 00-detect-url.md 01-init.md 02-get-info.md 03-gesp.md 04-problem.md 05-config.md \
-  06-std.md 07-testdata.md 08-package.md 09-from-file.md 10-from-text.md 11-testdata-only.md; do
+  06-std.md 07-testdata.md 08-package.md 09-from-file.md 10-from-text.md 11-testdata-only.md \
+  12-training.md; do
   cp "$SKILL/steps/$f" "$DEST/steps/$f"
 done
 sed -i '' 's|llm-wiki/raw_sources/GESP_Training_Materials|ojimport/gesp/training_materials|g' "$DEST/steps/03-gesp.md" 2>/dev/null || \

@@ -118,6 +118,24 @@
     font-weight: 600;
     font-size: 14px;
   }
+  .ai-job-material-link {
+    color: #1e40af;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .ai-job-material-link:hover { color: #2563eb; }
+  .ai-job-material-link:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  /* 图标跟着文字流走：链接换行时它落在最后一个字后面，不会飘到行中间 */
+  .ai-job-material-icon {
+    display: inline-block;
+    vertical-align: -1px;
+    margin-left: 4px;
+  }
   .ai-job-stage {
     display: flex;
     align-items: center;
@@ -411,7 +429,7 @@
         </div>
         <div class="ai-job-meta-item is-file">
           <dt>材料</dt>
-          <dd id="ai-job-filename">{{ job.filename }}</dd>
+          <dd id="ai-job-filename">{% if job.material and job.material.url %}<a class="ai-job-material-link" href="{{ job.material.url }}" target="_blank" rel="noopener noreferrer" title="{{ job.material.title }}">{{ job.material.text }}<svg class="ai-job-material-icon" width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3h6v6M11 3L4 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 8.5V11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>{% elif job.material %}{{ job.material.text }}{% else %}{{ job.filename }}{% endif %}</dd>
         </div>
       </dl>
 

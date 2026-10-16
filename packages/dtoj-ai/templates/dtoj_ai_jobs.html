@@ -55,6 +55,31 @@
   }
   .ai-source label:has(input:checked) { border-color: #1e40af; background: #f4f7fb; color: #1e40af; }
   .ai-source input { accent-color: #1e40af; }
+  /* 一次最多挂 5 个任务：每张任务卡自成一个单选组，来源面板与校验都只作用在卡内 */
+  .ai-task {
+    padding: 18px 18px 16px; border: 1px solid rgba(30, 41, 59, 0.09);
+    border-radius: 18px; background: #fbfcfe;
+  }
+  .ai-task + .ai-task { margin-top: 14px; }
+  .ai-task .ai-kind label { box-shadow: none; }
+  .ai-task-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px;
+  }
+  .ai-task-no { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; color: #1e40af; }
+  .ai-task-del {
+    padding: 4px 8px; border: 0; border-radius: 8px; background: none;
+    color: #8a1f1f; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .ai-task-del:hover { background: #f8e6e6; }
+  .ai-task-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; }
+  .ai-add {
+    display: inline-flex; align-items: center; height: 40px; padding: 0 16px;
+    border: 1px dashed rgba(30, 64, 175, 0.5); border-radius: 11px; background: #fff;
+    color: #1e40af; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .ai-add:hover:not(:disabled) { background: #f4f7fb; }
+  .ai-add:disabled { border-color: rgba(30, 41, 59, 0.16); color: #8b95a5; cursor: not-allowed; }
+  .ai-add-hint { color: #5f6b7a; font-size: 13px; }
   .ai-panel { margin: 0 0 4px; }
   .ai-panel[hidden] { display: none; }
   .ai-file textarea {
@@ -70,10 +95,6 @@
   }
   .ai-submit:hover { transform: translateY(-1px); }
   .ai-submit:focus { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
-  .ai-params { margin: 22px 0 0; }
-  .ai-params div { display: grid; grid-template-columns: 72px 1fr; gap: 8px 12px; padding: 10px 0; border-top: 1px solid rgba(30, 41, 59, 0.09); }
-  .ai-params b { font-weight: 700; color: #111827; }
-  .ai-params span { color: #3d4a5c; line-height: 1.6; }
   .ai-jobs h2 {
     margin: 28px 0 12px;
     font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
@@ -87,16 +108,27 @@
   }
   .ai-jobs td { padding: 12px 8px; border-top: 1px solid rgba(30, 41, 59, 0.09); vertical-align: middle; color: #111827; }
   .ai-jobs td a { color: #1e40af; }
+  /* 材料可能是长文件名或整条链接，限宽加省略号，别把表格撑出横向滚动 */
+  .ai-jobs td.ai-material { max-width: 300px; }
+  .ai-jobs td.ai-material a,
+  .ai-jobs td.ai-material span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .ai-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
   .ai-pill-pass { color: #145c32; background: #e5f2ea; }
   .ai-pill-wait { color: #6a4b00; background: #f8f1dc; }
   .ai-pill-run { color: #1e40af; background: #e8eef5; }
   .ai-pill-fail { color: #8a1f1f; background: #f8e6e6; }
-  .ai-jobs .ai-error { margin: 0 0 16px; padding: 10px 12px; border-radius: 11px; color: #8a1f1f; background: #f8e6e6; }
+  .ai-jobs .ai-error { margin: 0 0 16px; padding: 10px 12px; border-radius: 11px; color: #8a1f1f; background: #f8e6e6; white-space: pre-line; }
   .ai-empty { margin: 0; color: #3d4a5c; }
   @media (max-width: 700px) {
     .ai-sheet { padding: 20px 16px; border-radius: 16px; }
-    .ai-kind, .ai-params div { grid-template-columns: 1fr; }
+    .ai-kind { grid-template-columns: 1fr; }
+    .ai-task { padding: 14px 12px; }
     .ai-jobs h1 { font-size: 28px; }
   }
 </style>
@@ -107,80 +139,247 @@
       <div class="ai-rule"></div>
       <p class="ai-lead">先选单题或理论试卷，再提供 PDF、Word、网页链接或纯文本。服务端统一用 markdownify 转成 Markdown 后交给模型。</p>
       {% if error %}<p class="ai-error">{{ error }}</p>{% endif %}
-      <form method="post" enctype="multipart/form-data" id="ai-import-form">
-        <div class="ai-kind">
-          <label>
-            <input type="radio" name="kind" value="single" required>
-            <strong>单题</strong>
-            <span>一道编程题一个题包。题面按搬题姬的小节写，样例单独成对保存。</span>
-          </label>
-          <label>
-            <input type="radio" name="kind" value="theory">
-            <strong>理论试卷</strong>
-            <span>整份试卷作为一道题。选择题、判断题用 select，答案写在 config.yaml。</span>
-          </label>
+      <form method="post" enctype="multipart/form-data" id="ai-import-form" data-list="{{ url('dtoj_ai_jobs') }}">
+        <div id="ai-task-list">
+          <section class="ai-task" data-task>
+            <div class="ai-task-head">
+              <span class="ai-task-no">任务 1</span>
+              <button type="button" class="ai-task-del" data-del hidden>移除</button>
+            </div>
+            <div class="ai-kind">
+              <label>
+                <input type="radio" data-role="kind" name="kind" value="single" required>
+                <strong>单题</strong>
+                <span>一道编程题一个题包。题面按搬题姬的小节写，样例单独成对保存。</span>
+              </label>
+              <label>
+                <input type="radio" data-role="kind" name="kind" value="theory">
+                <strong>理论试卷</strong>
+                <span>整份试卷作为一道题。选择题、判断题用 select，答案写在 config.yaml。</span>
+              </label>
+            </div>
+            <div class="ai-source">
+              <label><input type="radio" data-role="source" name="source" value="file" checked> 文件</label>
+              <label><input type="radio" data-role="source" name="source" value="url"> 链接</label>
+              <label><input type="radio" data-role="source" name="source" value="text"> 文本</label>
+            </div>
+            <div class="ai-panel" data-panel="file">
+              <label class="ai-file">PDF / Word / 文本文件
+                <input type="file" data-role="file" name="file" accept=".pdf,.doc,.docx,.txt,.md,.markdown,application/pdf">
+              </label>
+            </div>
+            <div class="ai-panel" data-panel="url" hidden>
+              <label class="ai-file">网页链接
+                <input type="url" data-role="url" name="url" placeholder="https://..." inputmode="url">
+              </label>
+              <label class="ai-file">Cookie（可选）
+                <textarea data-role="cookie" name="fetchCookie" rows="2" placeholder="洛谷等需登录或仍 418 时：浏览器 F12 → 网络 → 打开题面 → 复制请求头 Cookie。留空则不用。" autocomplete="off" spellcheck="false"></textarea>
+              </label>
+            </div>
+            <div class="ai-panel" data-panel="text" hidden>
+              <label class="ai-file">粘贴文本
+                <textarea data-role="text" name="text" placeholder="题面、试卷正文等"></textarea>
+              </label>
+            </div>
+          </section>
         </div>
-        <div class="ai-source">
-          <label><input type="radio" name="source" value="file" checked> 文件</label>
-          <label><input type="radio" name="source" value="url"> 链接</label>
-          <label><input type="radio" name="source" value="text"> 文本</label>
+        <div class="ai-task-actions">
+          <button type="button" class="ai-add" id="ai-add-task">＋ 增加任务</button>
+          <span class="ai-add-hint" id="ai-add-hint"></span>
         </div>
-        <div class="ai-panel" data-panel="file">
-          <label class="ai-file">PDF / Word / 文本文件
-            <input type="file" name="file" id="ai-input-file" accept=".pdf,.doc,.docx,.txt,.md,.markdown,application/pdf">
-          </label>
-        </div>
-        <div class="ai-panel" data-panel="url" hidden>
-          <label class="ai-file">网页链接
-            <input type="url" name="url" id="ai-input-url" placeholder="https://..." inputmode="url">
-          </label>
-          <label class="ai-file">Cookie（可选）
-            <textarea name="fetchCookie" id="ai-input-cookie" rows="2" placeholder="洛谷等需登录或仍 418 时：浏览器 F12 → 网络 → 打开题面 → 复制请求头 Cookie。留空则不用。" autocomplete="off" spellcheck="false"></textarea>
-          </label>
-        </div>
-        <div class="ai-panel" data-panel="text" hidden>
-          <label class="ai-file">粘贴文本
-            <textarea name="text" id="ai-input-text" placeholder="题面、试卷正文等"></textarea>
-          </label>
-        </div>
+        <p class="ai-error" id="ai-submit-error" hidden></p>
         <button type="submit" class="ai-submit">生成并导入</button>
-        <div class="ai-params">
-          <div><b>kind</b><span>必填。single 单题，theory 理论试卷。</span></div>
-          <div><b>source</b><span>file / url / text 三选一，对应文件、链接或文本字段。</span></div>
-          <div><b>markdownify</b><span>文件与链接由 markitdown 转 Markdown；纯文本同样经 markitdown 规范化。</span></div>
-        </div>
       </form>
       <script>
       (function () {
         var form = document.getElementById('ai-import-form');
         if (!form) return;
-        var file = document.getElementById('ai-input-file');
-        var url = document.getElementById('ai-input-url');
-        var text = document.getElementById('ai-input-text');
-        function mode() {
-          var picked = form.querySelector('input[name="source"]:checked');
-          return picked ? picked.value : 'file';
+        var list = document.getElementById('ai-task-list');
+        var addBtn = document.getElementById('ai-add-task');
+        var addHint = document.getElementById('ai-add-hint');
+        var submitBtn = form.querySelector('.ai-submit');
+        var errorBox = document.getElementById('ai-submit-error');
+        var LIMIT = 5;
+        // 新增的卡要各自成为一个单选组，name 得跟着序号走。第一张保持原始 name，
+        // 这样即使脚本没跑起来，单任务的老表单也还能照常提交。
+        var FIELD_NAMES = { kind: 'kind', source: 'source', file: 'file', url: 'url', text: 'text', cookie: 'fetchCookie' };
+        var seq = 0;
+        var busy = false;
+
+        function blocks() {
+          return Array.prototype.slice.call(list.querySelectorAll('[data-task]'));
         }
-        function sync() {
-          var m = mode();
-          form.querySelectorAll('[data-panel]').forEach(function (el) {
-            el.hidden = el.getAttribute('data-panel') !== m;
+
+        function field(block, key) {
+          return block.querySelector('[data-role="' + key + '"]');
+        }
+
+        function picked(block, key) {
+          return block.querySelector('[data-role="' + key + '"]:checked');
+        }
+
+        // 切来源只影响本卡的面板，required 也只压在选中那个字段上：
+        // 否则隐藏面板里的必填项会让浏览器拦下提交却说不出焦点在哪。
+        function sync(block) {
+          var chosen = picked(block, 'source');
+          var mode = chosen ? chosen.value : 'file';
+          block.querySelectorAll('[data-panel]').forEach(function (el) {
+            el.hidden = el.getAttribute('data-panel') !== mode;
           });
-          file.required = m === 'file';
-          url.required = m === 'url';
-          text.required = m === 'text';
+          field(block, 'file').required = mode === 'file';
+          field(block, 'url').required = mode === 'url';
+          field(block, 'text').required = mode === 'text';
         }
-        form.querySelectorAll('input[name="source"]').forEach(function (el) {
-          el.addEventListener('change', sync);
+
+        function renumber() {
+          var all = blocks();
+          all.forEach(function (block, i) {
+            block.querySelector('.ai-task-no').textContent = '任务 ' + (i + 1);
+            block.querySelector('[data-del]').hidden = all.length < 2;
+          });
+          addBtn.disabled = all.length >= LIMIT;
+          addHint.textContent = all.length >= LIMIT
+            ? '已达上限 ' + LIMIT + ' 个'
+            : '还可以增加 ' + (LIMIT - all.length) + ' 个，一次最多提交 ' + LIMIT + ' 个';
+          submitBtn.textContent = all.length > 1 ? '生成并导入 ' + all.length + ' 个任务' : '生成并导入';
+        }
+
+        function rename(block) {
+          seq += 1;
+          Object.keys(FIELD_NAMES).forEach(function (key) {
+            block.querySelectorAll('[data-role="' + key + '"]').forEach(function (el) {
+              el.name = FIELD_NAMES[key] + seq;
+            });
+          });
+        }
+
+        function addTask() {
+          var all = blocks();
+          if (all.length >= LIMIT) return;
+          var copy = all[0].cloneNode(true);
+          rename(copy);
+          copy.querySelectorAll('input, textarea').forEach(function (el) {
+            if (el.type === 'radio' || el.type === 'checkbox') el.checked = false;
+            else el.value = '';
+          });
+          field(copy, 'source').checked = true;
+          sync(copy);
+          list.appendChild(copy);
+          renumber();
+          copy.scrollIntoView({ block: 'nearest' });
+        }
+
+        function removeTask(btn) {
+          if (blocks().length < 2) return;
+          btn.closest('[data-task]').remove();
+          renumber();
+        }
+
+        // 手工拼每个任务的 FormData：DOM 上的 name 只服务于单选分组，
+        // 服务器认的是 kind / source / url / text / fetchCookie / file 这几个固定字段。
+        function buildForm(block) {
+          var kind = picked(block, 'kind');
+          var source = picked(block, 'source');
+          if (!kind) throw new Error('还没选生成单题还是理论试卷');
+          if (!source) throw new Error('还没选材料怎么给');
+          var data = new FormData();
+          data.append('kind', kind.value);
+          data.append('source', source.value);
+          if (source.value === 'url') {
+            var url = field(block, 'url').value.trim();
+            if (!url) throw new Error('请填写网页链接');
+            data.append('url', url);
+            var cookie = field(block, 'cookie').value.trim();
+            if (cookie) data.append('fetchCookie', cookie);
+          } else if (source.value === 'text') {
+            var text = field(block, 'text').value.trim();
+            if (!text) throw new Error('请填写或粘贴文本');
+            data.append('text', text);
+          } else {
+            var file = field(block, 'file').files[0];
+            if (!file) throw new Error('请上传文件');
+            data.append('file', file, file.name);
+          }
+          return data;
+        }
+
+        // 出错时 body 是 { error: {...} } —— 序列化后的 Error，正文在 error.message；
+        // 轮询接口那边给的则是字符串，两个形状都认。
+        function errorText(body, status) {
+          var err = body && body.error;
+          if (typeof err === 'string') return err;
+          if (err && typeof err.message === 'string') return err.message;
+          return '提交失败 HTTP ' + status;
+        }
+
+        async function submitOne(block) {
+          var res = await fetch(form.action, {
+            method: 'POST',
+            body: buildForm(block),
+            credentials: 'same-origin',
+            // 带 json 的 Accept，handler 就不发 302，直接回 { url }，见 framework/framework/base.ts
+            headers: { Accept: 'application/json' },
+          });
+          var body = {};
+          try { body = await res.json(); } catch (e) { body = {}; }
+          if (!res.ok || body.error) throw new Error(errorText(body, res.status));
+          if (!body.url) throw new Error('提交成功但没拿到任务地址');
+          return body.url;
+        }
+
+        // 一个一个发：ai-server 是单 worker 顺序接单，排队顺序就是任务顺序。
+        async function submitAll() {
+          if (busy) return;
+          busy = true;
+          errorBox.hidden = true;
+          var all = blocks();
+          var links = [];
+          var failed = [];
+          submitBtn.disabled = true;
+          for (var i = 0; i < all.length; i++) {
+            submitBtn.textContent = '正在提交 ' + (i + 1) + '/' + all.length + '…';
+            try {
+              links.push(await submitOne(all[i]));
+            } catch (e) {
+              failed.push('任务 ' + (i + 1) + '：' + (e.message || e));
+            }
+          }
+          submitBtn.disabled = false;
+          busy = false;
+          renumber();
+          if (!failed.length) {
+            // 只发一个就看这一个的详情，和以前一样；发了一堆就回列表看排队情况。
+            window.location.href = links.length === 1 ? links[0] : form.dataset.list;
+            return;
+          }
+          if (links.length) failed.push('其余 ' + links.length + ' 个已经提交，可在下方「最近任务」里看进度。');
+          errorBox.textContent = failed.join('\n');
+          errorBox.hidden = false;
+          errorBox.scrollIntoView({ block: 'nearest' });
+        }
+
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          submitAll();
         });
-        sync();
+        addBtn.addEventListener('click', addTask);
+        list.addEventListener('change', function (event) {
+          var block = event.target.closest('[data-task]');
+          if (block) sync(block);
+        });
+        list.addEventListener('click', function (event) {
+          var btn = event.target.closest('[data-del]');
+          if (btn) removeTask(btn);
+        });
+        blocks().forEach(sync);
+        renumber();
       })();
       </script>
       <h2>最近任务</h2>
       {% if not jobs.length %}
       <p class="ai-empty">还没有任务。提交后会出现在这里。</p>
       {% else %}
-      <div class="ai-table"><table>
+      <div class="ai-table" data-status-url="{{ url('dtoj_ai_jobs_poll') }}"><table>
         <thead><tr><th>时间</th><th>类型</th><th>来源</th><th>材料</th><th>状态</th><th></th></tr></thead>
         <tbody>
           {% for job in jobs %}
@@ -188,8 +387,8 @@
             <td>{{ job.createdAtText }}</td>
             <td>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% else %}未填写{% endif %}</td>
             <td>{{ job.sourceLabel or '文件' }}</td>
-            <td>{{ job.filename }}</td>
-            <td>
+            <td class="ai-material">{% if job.material and job.material.url %}<a href="{{ job.material.url }}" target="_blank" rel="noopener noreferrer" title="{{ job.material.title }}">{{ job.material.text }}</a>{% elif job.material %}<span title="{{ job.material.text }}">{{ job.material.text }}</span>{% else %}{{ job.filename }}{% endif %}</td>
+            <td data-job-id="{{ job.id }}" data-status="{{ job.status }}">
               {% if job.status == 'done' %}<span class="ai-pill ai-pill-pass">完成</span>
               {% elif job.status == 'failed' %}<span class="ai-pill ai-pill-fail">失败</span>
               {% elif job.status == 'queued' %}<span class="ai-pill ai-pill-wait">排队</span>
@@ -201,6 +400,75 @@
           {% endfor %}
         </tbody>
       </table></div>
+      <script>
+      (function () {
+        // 这张表是服务端渲染的快照。任务在后台排队、一个个跑，页面不跟着变的话
+        // 「处理中」会一直挂在那儿，哪怕那个任务早就失败或完成了。所以只对还没完结
+        // 的行按几秒一次刷状态，全部落地就停掉——完结的表格不需要再问。
+        var box = document.querySelector('.ai-table');
+        var url = box && box.getAttribute('data-status-url');
+        if (!box || !url || !window.fetch) return;
+        var LIVE = { queued: 1, running: 1, importing: 1 };
+        var PILL = {
+          done: ['完成', 'ai-pill-pass'],
+          failed: ['失败', 'ai-pill-fail'],
+          queued: ['排队', 'ai-pill-wait'],
+          running: ['处理中', 'ai-pill-run'],
+          importing: ['导入中', 'ai-pill-run'],
+          // ai-server 的队列只在内存里，它一重启，正跑的任务就没了下文。
+          // 这一行不能一直挂着「处理中」，标个失效就收工。
+          gone: ['已失效', 'ai-pill-wait'],
+        };
+        var cells = Array.prototype.slice.call(box.querySelectorAll('[data-job-id]'));
+
+        function paint(cell, status) {
+          var spec = PILL[status];
+          if (!spec) {
+            cell.textContent = status;
+            return;
+          }
+          var pill = cell.querySelector('.ai-pill');
+          if (!pill) {
+            pill = document.createElement('span');
+            cell.textContent = '';
+            cell.appendChild(pill);
+          }
+          pill.className = 'ai-pill ' + spec[1];
+          pill.textContent = spec[0];
+        }
+
+        function tick() {
+          var live = cells.filter(function (c) { return LIVE[c.getAttribute('data-status')]; });
+          if (!live.length) return;
+          fetch(url, { credentials: 'same-origin' }).then(function (res) {
+            return res.json();
+          }).then(function (data) {
+            if (data.error) throw new Error(data.error);
+            var by = {};
+            (data.jobs || []).forEach(function (j) { by[j.id] = j.status; });
+            var left = 0;
+            cells.forEach(function (cell) {
+              var id = cell.getAttribute('data-job-id');
+              var st = by[id];
+              var live = LIVE[cell.getAttribute('data-status')];
+              // 返回里没有这个任务，而我们还在等它——多半是 ai-server 重启过，内存队列丢了
+              if (!st && live) st = 'gone';
+              if (st && st !== cell.getAttribute('data-status')) {
+                cell.setAttribute('data-status', st);
+                paint(cell, st);
+              }
+              if (LIVE[cell.getAttribute('data-status')]) left += 1;
+            });
+            if (left) setTimeout(tick, 3000);
+          }).catch(function () {
+            // 轮询失败（ai-server 没起、网络抖）就放慢再试，不打断页面
+            setTimeout(tick, 6000);
+          });
+        }
+
+        setTimeout(tick, 1500);
+      })();
+      </script>
       {% endif %}
     </div>
   </div>

@@ -5,7 +5,15 @@ from functools import lru_cache
 from pathlib import Path
 
 SPEC_ROOT = Path(__file__).resolve().parent.parent / 'ojimport'
-GESP_TAG_RE = re.compile(r'^GESP\s*[1-8]\s*级$')
+# 站内既有等级标签为中文数字、无空格（GESP一级…GESP八级），此处按此归一
+_GESP_CN = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八'}
+GESP_TAG_RE = re.compile(r'^GESP\s*([1-8]|[一二三四五六七八])\s*级$')
+# 知识点标签上限：多级完整（大类 + 子类），再加等级标签合计 ≤5
+KNOWLEDGE_TAG_MAX = 4
+
+
+def gesp_tag(level: int) -> str:
+    return f'GESP{_GESP_CN[level]}级'
 
 # 部署镜像须全部存在；缺失则 /health 报错、任务前可发现
 _STEP_FILES = [
@@ -162,19 +170,16 @@ def full_testdata_config() -> str:
 
 def normalize_tags(tags: list[str], gesp_level: int | None = None) -> list[str]:
     cleaned = [str(t).strip() for t in tags if str(t).strip()]
-    if not cleaned and gesp_level:
-        cleaned.append(f'GESP {gesp_level}级')
     knowledge = [t for t in cleaned if not GESP_TAG_RE.match(t)]
-    gesp = [t for t in cleaned if GESP_TAG_RE.match(t)]
-    if len(gesp) != 1 and gesp_level:
-        gesp = [f'GESP {gesp_level}级']
+    gesp = [gesp_tag(gesp_level)] if gesp_level in _GESP_CN else []
     if len(gesp) != 1:
         raise ValueError('tag 须含且仅含一个「GESP X级」')
     if not knowledge:
-        raise ValueError('tag 须含 1~3 个知识点标签')
-    if len(knowledge) > 3:
-        knowledge = knowledge[:3]
-    return knowledge + gesp
+        raise ValueError('tag 须含 2~4 个知识点标签')
+    return knowledge[:KNOWLEDGE_TAG_MAX] + gesp
+
+
+TITLE_PREFIX_RE = re.compile(r'^GESP\s*(?:[1-8]|[一二三四五六七八])\s*级\s*[｜|]\s*')
 
 
 def pick_titles(item: dict) -> tuple[str, str]:
@@ -184,6 +189,9 @@ def pick_titles(item: dict) -> tuple[str, str]:
         heading = yaml_title.split('｜', 1)[-1].strip()
     if not yaml_title and heading:
         yaml_title = heading
+    # 级别由 tag 承载，标题只留题目名
+    yaml_title = TITLE_PREFIX_RE.sub('', yaml_title).strip()
+    heading = TITLE_PREFIX_RE.sub('', heading).strip()
     if not yaml_title or not heading:
         raise ValueError('标题为空')
     if len(yaml_title) > 120:
