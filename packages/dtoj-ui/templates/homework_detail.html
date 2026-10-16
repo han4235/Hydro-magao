@@ -1,0 +1,932 @@
+{% extends "layout/basic.html" %}
+{% import "components/record.html" as record with context %}
+{% import "components/problem.html" as problem with context %}
+{% import "components/homework.html" as homework with context %}
+{% import "components/user.html" as user with context %}
+{% block content %}
+{{ set(UiContext, 'tdoc', tdoc) }}
+{{ set(UiContext, 'tsdoc', tsdoc) }}
+{% include "dtoj_style.html" %}
+{#
+  作业详情。沿用 dtoj_style.html 的冷色场地和白卡片，把首页那套「时间轨道 + 主操作」
+  搬到这里：学生打开页面第一眼要能看到还剩多少时间、要做什么、能不能认领。
+
+  作业状态只有四种，和作业列表页保持同一套判断和文案：
+  延期递交 > 已结束 > 未开始 > 进行中。statusText 对还没开始的作业返回 'New'，
+  中文会翻成「创建」，放在这里读着不对，所以未开始自己写。
+
+  老师的权限判断按 partials/homework_sidebar.html 抄过来，改权限时两处要一起改。
+#}
+{% set hwExtended = model.contest.isExtended(tdoc) %}
+{% set hwDone = model.contest.isDone(tdoc) %}
+{% set hwSoon = model.contest.isNotStarted(tdoc) %}
+{% set hwState = 'late' if hwExtended else ('done' if hwDone else ('soon' if hwSoon else 'live')) %}
+{% set hwStateText = '延期递交' if hwExtended else ('未开始' if hwSoon else _(model.contest.statusText(tdoc))) %}
+{% set hwHasLate = tdoc.endAt.getTime() > tdoc.penaltySince.getTime() %}
+
+{# 时间轨道：整段是「开始 → 硬截止」，蓝色是正常窗口，金色是延期窗口 #}
+{% set tBegin = tdoc.beginAt.getTime() %}
+{% set tDead = tdoc.penaltySince.getTime() %}
+{% set tEnd = tdoc.endAt.getTime() %}
+{% set tSpan = tEnd - tBegin %}
+{% set pctDead = 100 if tSpan <= 0 else (((tDead - tBegin) * 100 / tSpan)|round(2)) %}
+
+{# 我的进度：psdict 每个 pid 只留一条，所以它的键数就是交过的题数 #}
+{% set hwSubmitted = psdict|length if psdict else 0 %}
+{% set hwPids = tdoc.pids|length %}
+{% set pctSubmit = 0 if hwPids <= 0 else ((hwSubmitted * 100 / hwPids)|round(1)) %}
+{% set isAdmin = handler.user.own(tdoc) or handler.user.hasPerm(perm.PERM_VIEW_HOMEWORK_HIDDEN_SCOREBOARD) %}
+{% set ntdoc = hwDone or (tsdoc.attend and not hwSoon) %}
+
+<style>
+  .dtoj-hw-view .dtoj-hw-card {
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-hw-view .dtoj-hw-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-hw-view .dtoj-hw-card-head h2 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.4;
+  }
+  .dtoj-hw-view .dtoj-hw-card-body { padding: 18px 22px 22px; }
+  .dtoj-hw-view .dtoj-hw-card-body.is-flush { padding: 0; overflow-x: auto; }
+
+  /* 返回 */
+  .dtoj-hw-view .dtoj-hw-back { margin: 0; }
+  .dtoj-hw-view .dtoj-hw-back a { color: var(--muted); font-size: 14px; font-weight: 700; line-height: 1.6; text-decoration: none; }
+  .dtoj-hw-view .dtoj-hw-back a:hover { color: var(--brand-deep); }
+
+  /* 头部 */
+  .dtoj-hw-view .dtoj-hw-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 26px 22px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-hw-view .dtoj-hw-hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px 24px;
+  }
+  .dtoj-hw-view .dtoj-hw-hero-main { min-width: 0; flex: 1 1 320px; }
+  .dtoj-hw-view .dtoj-hw-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+  .dtoj-hw-view .dtoj-hw-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  .dtoj-hw-view .dtoj-hw-sub { margin: 8px 0 0; max-width: 46ch; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .dtoj-hw-view .dtoj-hw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-go,
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-alt {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    min-width: 124px;
+    height: 44px;
+    padding: 0 20px;
+    font-size: 14px;
+    transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-go { color: #fff; background: linear-gradient(110deg, var(--brand), var(--mint)); box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18); }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-go.is-plain {
+    color: #fff;
+    background: var(--brand-deep);
+    box-shadow: 0 10px 22px rgba(30, 64, 175, 0.16);
+  }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-alt { border: 1px solid #c5d4e8; background: #fff; box-shadow: none; }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-alt:hover { background: #f4f7fb; border-color: #a8bdd4; }
+  .dtoj-hw-view .dtoj-hw-claim { display: flex; margin: 0; }
+  .dtoj-hw-view .dtoj-hw-claim button { border: 0; font-family: inherit; cursor: pointer; }
+  /* 撤认领是「往回走」的一步：平时读着安静，悬停才用金色提一下小心 */
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-hw-unclaim {
+    box-sizing: border-box;
+    min-width: 124px;
+    height: 44px;
+    padding: 0 20px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
+    color: var(--muted);
+    font-size: 14px;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .dtoj-hw-view .dtoj-hw-actions .dtoj-hw-unclaim:hover {
+    border-color: var(--gold);
+    background: #f8f1dc;
+    color: #6a4b00;
+  }
+
+  /* 状态胶囊，和作业列表页同一套配色 */
+  .dtoj-hw-view .dtoj-hw-state {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .dtoj-hw-view .dtoj-hw-state[data-state="live"] { background: #e7eefb; color: var(--brand-deep); }
+  .dtoj-hw-view .dtoj-hw-state[data-state="soon"] { background: #f8efd2; color: #6b5528; }
+  .dtoj-hw-view .dtoj-hw-state[data-state="late"] { background: #f6e7d4; color: #7a4a12; }
+  .dtoj-hw-view .dtoj-hw-state[data-state="done"] { background: #eef1f5; color: var(--muted); }
+  .dtoj-hw-view .dtoj-hw-claimed {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: #e5f2ea;
+    color: #145c32;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .dtoj-hw-view .dtoj-hw-claimed.is-muted { background: #eef1f5; color: var(--muted); }
+
+  /* 时间轨道 */
+  .dtoj-hw-view .dtoj-hw-clock { display: flex; flex-direction: column; gap: 10px; }
+  .dtoj-hw-view .dtoj-hw-clock-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .dtoj-hw-view .dtoj-hw-clock-head h2 {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+  }
+  .dtoj-hw-view .dtoj-hw-count {
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    color: var(--brand-deep);
+  }
+  .dtoj-hw-view .dtoj-hw-count[data-state="late"] { color: #7a4a12; }
+  .dtoj-hw-view .dtoj-hw-count[data-state="done"] { color: var(--muted); }
+  .dtoj-hw-view .dtoj-hw-rail {
+    position: relative;
+    height: 10px;
+    margin: 4px 0;
+    border-radius: 999px;
+    background: #e8eef5;
+  }
+  .dtoj-hw-view .dtoj-hw-rail-ontime {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--brand-deep), var(--brand));
+  }
+  .dtoj-hw-view .dtoj-hw-rail-late {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 999px;
+    background: repeating-linear-gradient(115deg, #cbb185 0 5px, #f2e7d0 5px 10px);
+  }
+  .dtoj-hw-view .dtoj-hw-now {
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    left: 0;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--ink);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+    transform: translateX(-50%);
+    transition: left 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dtoj-hw-view .dtoj-hw-now:after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    width: 8px;
+    height: 8px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    transform: translateX(-50%);
+  }
+  .dtoj-hw-view .dtoj-hw-marks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-hw-view .dtoj-hw-marks li { display: flex; align-items: center; gap: 8px; }
+  .dtoj-hw-view .dtoj-hw-marks li:before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--brand);
+  }
+  .dtoj-hw-view .dtoj-hw-marks li.is-late:before { background: var(--gold); }
+  .dtoj-hw-view .dtoj-hw-marks b { color: #4b5563; font-weight: 700; }
+
+  /* 两列 */
+  .dtoj-hw-view .dtoj-hw-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    align-items: start;
+  }
+  .dtoj-hw-view .dtoj-hw-main-col,
+  .dtoj-hw-view .dtoj-hw-aside { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .dtoj-hw-view .dtoj-hw-aside { position: sticky; top: 16px; }
+
+  /* 作业说明 */
+  .dtoj-hw-view .dtoj-hw-brief { max-width: 72ch; font-size: 14px; line-height: 1.9; }
+  .dtoj-hw-view .dtoj-hw-brief > :first-child { margin-top: 0; }
+  .dtoj-hw-view .dtoj-hw-brief > :last-child { margin-bottom: 0; }
+  .dtoj-hw-view .dtoj-hw-blank { margin: 0; color: var(--muted); line-height: 1.9; }
+
+  /* 题目表 */
+  .dtoj-hw-view .dtoj-hw-table { width: 100%; border-collapse: collapse; }
+  .dtoj-hw-view .dtoj-hw-table col.is-state { width: 148px; }
+  .dtoj-hw-view .dtoj-hw-table col.is-at { width: 148px; }
+  .dtoj-hw-view .dtoj-hw-table th {
+    padding: 11px 22px;
+    border-bottom: 1px solid var(--line);
+    background: #f8fafc;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
+    text-align: left;
+  }
+  .dtoj-hw-view .dtoj-hw-table td {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .dtoj-hw-view .dtoj-hw-table tr:last-child td { border-bottom: 0; }
+  .dtoj-hw-view .dtoj-hw-table tbody tr:hover td { background: #f8fafc; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--border { border-left: 0; }
+  .dtoj-hw-view .dtoj-hw-table td.col--submit-at { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dtoj-hw-view .dtoj-hw-table .col--status__text { display: flex; align-items: center; gap: 2px; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--text { font-weight: 700; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--text.pass { color: #145c32 !important; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--text.fail { color: #8a1f1f !important; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--text.progress,
+  .dtoj-hw-view .dtoj-hw-table .record-status--text.pending,
+  .dtoj-hw-view .dtoj-hw-table .record-status--text.ignored { color: #6a4b00 !important; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--icon.pass:before { color: #15803d; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--icon.fail:before { color: #b42318; }
+  .dtoj-hw-view .dtoj-hw-table .record-status--icon.progress:before,
+  .dtoj-hw-view .dtoj-hw-table .record-status--icon.pending:before { color: #b45309; }
+  .dtoj-hw-view .dtoj-hw-table .col--problem-name { font-weight: 700; }
+  .dtoj-hw-view .dtoj-hw-table .col--problem-name a { color: var(--ink); font-weight: 700; text-decoration: none; }
+  .dtoj-hw-view .dtoj-hw-table .col--problem-name a:hover { color: var(--brand-deep); }
+  .dtoj-hw-view .dtoj-hw-table .col--problem-name a b {
+    display: inline-block;
+    margin-right: 2px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .dtoj-hw-view .dtoj-hw-table .record-status--text a { color: inherit; }
+  .dtoj-hw-view .dtoj-hw-count-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  /* 作业进度（老师视角）：谁交完了、谁还差几道 */
+  .dtoj-hw-view .dtoj-hw-done {
+    color: #6a4b00;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-hw-view .dtoj-hw-done b { font-size: 15px; font-weight: 800; }
+  .dtoj-hw-view .dtoj-hw-done.is-full { color: #145c32; }
+
+  /* 作业答疑：提问框与往返记录 */
+  .dtoj-hw-view .dtoj-hw-ask { display: flex; flex-direction: column; gap: 10px; }
+  .dtoj-hw-view .dtoj-hw-ask textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 78px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .dtoj-hw-view .dtoj-hw-ask textarea:focus { border-color: var(--brand); outline: none; }
+  .dtoj-hw-view .dtoj-hw-ask-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .dtoj-hw-view .dtoj-hw-ask-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .dtoj-hw-view .dtoj-hw-ask-row select {
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .dtoj-hw-view .dtoj-hw-ask-row button {
+    margin-left: auto;
+    height: 38px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(110deg, var(--brand), var(--mint));
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-hw-view .dtoj-hw-qa {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 18px 0 0;
+    padding: 18px 0 0;
+    border-top: 1px solid var(--line);
+    list-style: none;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-item {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fbfcfe;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dtoj-hw-view .dtoj-hw-qa-head b { font-size: 13px; font-weight: 800; }
+  .dtoj-hw-view .dtoj-hw-qa-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-tag.is-pub { background: #e5f2ea; color: #145c32; }
+  .dtoj-hw-view .dtoj-hw-qa-at {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-body {
+    margin: 8px 0 0;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-reply {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #eef4fd;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-reply .dtoj-hw-qa-body { margin-top: 4px; font-size: 13px; }
+  .dtoj-hw-view .dtoj-hw-qa-form { display: flex; align-items: flex-end; gap: 10px; margin: 12px 0 0; }
+  .dtoj-hw-view .dtoj-hw-qa-form textarea {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-form textarea:focus { border-color: var(--brand); outline: none; }
+  .dtoj-hw-view .dtoj-hw-qa-form button {
+    flex: 0 0 auto;
+    height: 40px;
+    padding: 0 18px;
+    border: 1px solid #c5d4e8;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .dtoj-hw-view .dtoj-hw-qa-form button:hover { background: #f4f7fb; border-color: #a8bdd4; }
+
+  /* 侧栏 */
+  .dtoj-hw-view .dtoj-hw-facts { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+  .dtoj-hw-view .dtoj-hw-facts > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .dtoj-hw-view .dtoj-hw-facts dt { margin: 0; color: var(--muted); font-weight: 700; line-height: 1.6; }
+  .dtoj-hw-view .dtoj-hw-facts dd { margin: 0; color: var(--ink); font-weight: 800; line-height: 1.6; font-variant-numeric: tabular-nums; }
+  .dtoj-hw-view .dtoj-hw-progress { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .dtoj-hw-view .dtoj-hw-progress-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .dtoj-hw-view .dtoj-hw-progress-head b { color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; }
+  .dtoj-hw-view .dtoj-hw-progress-bar { height: 6px; margin: 8px 0 0; border-radius: 999px; background: #e8eef5; overflow: hidden; }
+  .dtoj-hw-view .dtoj-hw-progress-bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+  .dtoj-hw-view .dtoj-hw-progress p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .dtoj-hw-view .dtoj-hw-links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .dtoj-hw-view .dtoj-hw-links a {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.6;
+    text-decoration: none;
+  }
+  .dtoj-hw-view .dtoj-hw-links a:hover { background: #f4f7fb; color: var(--brand-deep); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dtoj-hw-view .dtoj-hw-now { transition: none; }
+  }
+  @media (max-width: 960px) {
+    .dtoj-hw-view .dtoj-hw-layout { grid-template-columns: 1fr; }
+    .dtoj-hw-view .dtoj-hw-aside { position: static; }
+  }
+  @media (max-width: 700px) {
+    .dtoj-hw-view .dtoj-hw-hero { padding: 20px 18px; }
+    .dtoj-hw-view .dtoj-hw-hero-actions { width: 100%; }
+    .dtoj-hw-view .dtoj-hw-actions { width: 100%; }
+    .dtoj-hw-view .dtoj-hw-actions .dtoj-go,
+    .dtoj-hw-view .dtoj-hw-actions .dtoj-alt,
+    .dtoj-hw-view .dtoj-hw-actions .dtoj-hw-unclaim,
+    .dtoj-hw-view .dtoj-hw-claim { flex: 1 1 140px; width: auto; }
+    .dtoj-hw-view .dtoj-hw-table col.is-state { width: 104px; }
+    .dtoj-hw-view .dtoj-hw-table col.is-at { width: 0; }
+    .dtoj-hw-view .dtoj-hw-table th.col--submit-at,
+    .dtoj-hw-view .dtoj-hw-table td.col--submit-at { display: none; }
+    .dtoj-hw-view .dtoj-hw-table th,
+    .dtoj-hw-view .dtoj-hw-table td { padding: 12px 16px; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home dtoj-hw-view">
+    <div class="dtoj-shell">
+      <p class="dtoj-hw-back">
+        <a href="{{ url('homework_main') }}" data-dtoj-back-fallback="{{ url('homework_main') }}">← 返回作业列表</a>
+      </p>
+
+      <header class="dtoj-hw-hero">
+        <div class="dtoj-hw-hero-top">
+          <div class="dtoj-hw-hero-main">
+            <div class="dtoj-hw-title-row">
+              <h1 class="dtoj-hw-title">{{ tdoc.title }}</h1>
+              <span class="dtoj-hw-state" data-state="{{ hwState }}">{{ hwStateText }}</span>
+            </div>
+            <p class="dtoj-hw-sub">
+              {%- if hwSoon -%}
+              开始前看不到题目，{{ datetimeSpan(tdoc['beginAt'], false, 'M-D H:mm')|safe }} 再来。
+              {%- elif hwExtended -%}
+              已经过了截止时间，延期窗口里交的题会按老师设的规则扣分。
+              {%- elif hwDone -%}
+              这次作业已经结束，题目和提交记录还能翻出来复习。
+              {%- else -%}
+              在截止时间之前交，交完记得回来看一眼状态。
+              {%- endif -%}
+            </p>
+          </div>
+          <div class="dtoj-hw-hero-actions">
+            <div class="dtoj-hw-actions">
+              {% if tsdoc.attend %}
+              <span class="dtoj-hw-claimed">已认领</span>
+              {% if not hwDone and tsdoc.journal|length == 0 %}
+              {# 撤认领会连成绩一起撤：交过题（journal 有记录）就不给这个按钮，接口那边也会拦 #}
+              <form class="dtoj-hw-claim" action="{{ url('homework_unclaim', tid=tdoc.docId) }}" method="POST"
+                    onsubmit='return confirm("撤销认领后题目会重新收起来，要重新认领才能看。确定撤销吗？");'>
+                <button class="dtoj-hw-unclaim" type="submit">取消认领</button>
+              </form>
+              {% endif %}
+              {% elif not hwDone %}
+              {% if handler.user.hasPerm(perm.PERM_ATTEND_HOMEWORK) and handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+              <form class="dtoj-hw-claim" action="{{ url('homework_detail', tid=tdoc.docId) }}" method="POST">
+                <input type="hidden" name="operation" value="attend">
+                <button class="dtoj-go" type="submit">认领作业</button>
+              </form>
+              {% elif not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+              <a class="dtoj-go" href="javascript:showSignInDialog()">登录后认领</a>
+              {% elif not handler.user._dudoc.join %}
+              <a class="dtoj-go" href="/domain/join?target={{ tdoc.domainId }}">加入域后认领</a>
+              {% else %}
+              <span class="dtoj-hw-claimed is-muted">无认领权限</span>
+              {% endif %}
+              {% endif %}
+              {% if model.contest.canShowScoreboard.call(handler, tdoc, false) %}
+              <a class="dtoj-alt" href="{{ url('homework_scoreboard', tid=tdoc.docId) }}">成绩表</a>
+              {% elif model.contest.canViewHiddenScoreboard(handler, tdoc) %}
+              <a class="dtoj-alt" href="{{ url('homework_scoreboard', tid=tdoc.docId) }}">成绩表（隐藏）</a>
+              {% endif %}
+              {% if handler.user.own(tdoc) or handler.user.hasPerm(perm.PERM_EDIT_HOMEWORK) %}
+              <a class="dtoj-go is-plain" href="{{ url('homework_edit', tid=tdoc.docId) }}">编辑作业</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="dtoj-hw-clock" data-clock data-state="{{ hwState }}"
+             data-begin="{{ (tBegin / 1000)|int }}" data-dead="{{ (tDead / 1000)|int }}" data-end="{{ (tEnd / 1000)|int }}">
+          <div class="dtoj-hw-clock-head">
+            <h2>提交时间</h2>
+            <span class="dtoj-hw-count" data-count data-state="{{ hwState }}">—</span>
+          </div>
+          <div class="dtoj-hw-rail">
+            <span class="dtoj-hw-rail-ontime" style="width: {{ pctDead }}%"></span>
+            {% if hwHasLate %}
+            <span class="dtoj-hw-rail-late" style="left: {{ pctDead }}%"></span>
+            {% endif %}
+            <span class="dtoj-hw-now" data-now style="left: 0%"></span>
+          </div>
+          <ul class="dtoj-hw-marks">
+            <li><b>开始</b>{{ datetimeSpan(tdoc['beginAt'], false, 'M-D H:mm')|safe }}</li>
+            <li><b>截止</b>{{ datetimeSpan(tdoc['penaltySince'], false, 'M-D H:mm')|safe }}</li>
+            {% if hwHasLate %}
+            <li class="is-late"><b>延期至</b>{{ datetimeSpan(tdoc['endAt'], false, 'M-D H:mm')|safe }}</li>
+            {% endif %}
+          </ul>
+        </div>
+      </header>
+
+      <div class="dtoj-hw-layout">
+        <div class="dtoj-hw-main-col">
+          {# 老师进来第一眼要知道谁交了、谁还差几道，所以进度放在最前 #}
+          {% if hwCanManage and hwProgress %}
+          <section class="dtoj-hw-card">
+            <div class="dtoj-hw-card-head">
+              <h2>作业进度</h2>
+              <span class="dtoj-hw-count-pill">{{ hwProgress.attended }} 人已认领</span>
+            </div>
+            {% if hwProgress.rows.length %}
+            <div class="dtoj-hw-card-body is-flush">
+              <table class="dtoj-hw-table">
+                <colgroup>
+                  <col>
+                  <col class="is-state">
+                  <col class="is-at">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>同学</th>
+                    <th>完成</th>
+                    <th class="col--submit-at">最后提交</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for row in hwProgress.rows %}
+                  <tr>
+                    <td>
+                      {% if hwProgress.udict[row.uid] %}
+                      {{ user.render_inline(hwProgress.udict[row.uid], badge=false) }}
+                      {% else %}#{{ row.uid }}{% endif %}
+                    </td>
+                    <td>
+                      <span class="dtoj-hw-done{{ ' is-full' if hwProgress.total and row.done >= hwProgress.total }}"><b>{{ row.done }}</b> / {{ hwProgress.total }}</span>
+                    </td>
+                    <td class="col--submit-at">{% if row.lastAt %}{{ datetimeSpan(row.lastAt)|safe }}{% else %}-{% endif %}</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="dtoj-hw-card-body">
+              <p class="dtoj-hw-blank">还没有人认领这次作业。</p>
+            </div>
+            {% endif %}
+          </section>
+          {% endif %}
+
+          <section class="dtoj-hw-card">
+            <div class="dtoj-hw-card-head"><h2>作业说明</h2></div>
+            <div class="dtoj-hw-card-body">
+              {% if tdoc.content and tdoc.content|trim %}
+              <div class="typo richmedia dtoj-hw-brief">{{ tdoc['content']|markdown|safe }}</div>
+              {% else %}
+              <p class="dtoj-hw-blank">老师没有写说明，直接看题目就好。</p>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="dtoj-hw-card">
+            <div class="dtoj-hw-card-head">
+              <h2>题目</h2>
+              <span class="dtoj-hw-count-pill">{{ hwPids }} 道</span>
+            </div>
+            {% if pdict %}
+            <div class="dtoj-hw-card-body is-flush">
+              <table class="dtoj-hw-table">
+                <colgroup>
+                {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                  <col class="is-state">
+                {% endif %}
+                  <col>
+                {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                  <col class="is-at">
+                {% endif %}
+                </colgroup>
+                <thead>
+                  <tr>
+                  {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                    <th class="col--status record-status--border">状态</th>
+                  {% endif %}
+                    <th class="col--problem">题目</th>
+                  {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                    <th class="col--submit-at">最后递交</th>
+                  {% endif %}
+                  </tr>
+                </thead>
+                <tbody>
+                {%- for pid in tdoc.pids -%}
+                  <tr>
+                  {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                    {% if psdict[pid] and psdict[pid].rid %}
+                      {% set rdoc = rdict[psdict[pid].rid] %}
+                      {% if model.contest.canShowSelfRecord.call(handler, tdoc) %}
+                        {{ record.render_status_td(rdoc) }}
+                      {% else %}
+                        <td class="col--status record-status--border"><a href="{{ url('record_detail', rid=rdoc._id) }}">{{ _('Submitted') }}</a></td>
+                      {% endif %}
+                      <td class="col--problem col--problem-name">
+                        {% if isAdmin and not ntdoc %}
+                          {{ problem.render_problem_title(pdict[pid], show_invisible_flag=false, show_tags=false) }}
+                        {% else %}
+                          {{ problem.render_problem_title(pdict[pid], tdoc=tdoc, show_invisible_flag=false, show_tags=false) }}
+                        {% endif %}
+                      </td>
+                      <td class="col--submit-at">{{ datetimeSpan(rdoc._id)|safe }}</td>
+                    {% else %}
+                      <td class="col--status record-status--border">没有递交</td>
+                      <td class="col--problem col--problem-name">
+                        {% if isAdmin and not ntdoc %}
+                          {{ problem.render_problem_title(pdict[pid], show_invisible_flag=false, show_tags=false) }}
+                        {% else %}
+                          {{ problem.render_problem_title(pdict[pid], tdoc=tdoc, show_invisible_flag=false, show_tags=false) }}
+                        {% endif %}
+                      </td>
+                      <td class="col--submit-at">-</td>
+                    {% endif %}
+                  {% else %}
+                    <td class="col--problem col--problem-name">
+                      {{ problem.render_problem_title(pdict[pid], show_invisible_flag=false, show_tags=false) }}
+                    </td>
+                  {% endif %}
+                  </tr>
+                {%- endfor -%}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="dtoj-hw-card-body">
+              {% if tsdoc.attend %}
+              <p class="dtoj-hw-blank">作业还没开始，题目要等 {{ datetimeSpan(tdoc['beginAt'], false, 'M-D H:mm')|safe }} 才放出来。</p>
+              {% else %}
+              <p class="dtoj-hw-blank">先点上面的「认领作业」，认领之后题目才会出现在这里。</p>
+              {% endif %}
+            </div>
+            {% endif %}
+          </section>
+
+          {# 作业答疑。学生在这里问、老师在这里回，来往都发站内消息，见 homeworkQA #}
+          <section class="dtoj-hw-card">
+            <div class="dtoj-hw-card-head">
+              <h2>{{ '作业答疑' if hwCanManage else '我的提问' }}</h2>
+              {% if hwQuestions.length %}
+              <span class="dtoj-hw-count-pill">{{ hwQuestions.length }} 条</span>
+              {% endif %}
+            </div>
+            <div class="dtoj-hw-card-body">
+              <p class="dtoj-hw-blank">
+                {%- if hwCanManage -%}
+                同学问的问题都会汇总在这里，回复之后对方会收到站内消息。
+                {%- else -%}
+                哪道题读不懂、本地能过提交却挂了，都可以在这里问，老师会收到消息。
+                {%- endif -%}
+              </p>
+
+              {% if tsdoc.attend or hwCanManage %}
+              <form class="dtoj-hw-ask" method="POST" action="{{ url('homework_ask', tid=tdoc.docId) }}">
+                <textarea name="content" rows="3" required
+                          placeholder="{{ '补充说明或统一解答，勾上「公开」全班都能看到……' if hwCanManage else '把问题写清楚：哪道题、卡在哪一步、你试过什么……' }}"></textarea>
+                <div class="dtoj-hw-ask-row">
+                  <label>针对
+                    <select name="subject">
+                      <option value="0">整份作业</option>
+                      {% for pid in tdoc.pids %}
+                      <option value="{{ pid }}">第 {{ loop.index }} 题</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label><input type="checkbox" name="isPublic"> 公开给全班</label>
+                  <button type="submit">{{ '发布' if hwCanManage else '提问' }}</button>
+                </div>
+              </form>
+              {% endif %}
+
+              {% if hwQuestions.length %}
+              <ul class="dtoj-hw-qa">
+                {% for q in hwQuestions %}
+                <li class="dtoj-hw-qa-item">
+                  <div class="dtoj-hw-qa-head">
+                    {% if hwQuestionUsers[q.owner] %}{{ user.render_inline(hwQuestionUsers[q.owner], badge=false) }}{% else %}#{{ q.owner }}{% endif %}
+                    <span class="dtoj-hw-qa-tag">{{ q.subjectLabel }}</span>
+                    {% if q.isPublic %}<span class="dtoj-hw-qa-tag is-pub">公开</span>{% endif %}
+                    <span class="dtoj-hw-qa-at">{{ datetimeSpan(q._id)|safe }}</span>
+                  </div>
+                  <p class="dtoj-hw-qa-body">{{ q.content }}</p>
+                  {% for r in q.reply or [] %}
+                  <div class="dtoj-hw-qa-reply">
+                    <div class="dtoj-hw-qa-head">
+                      {% if hwQuestionUsers[r.owner] %}{{ user.render_inline(hwQuestionUsers[r.owner], badge=false) }}{% else %}#{{ r.owner }}{% endif %}
+                      {% if r.isTeacher %}<span class="dtoj-hw-qa-tag">老师</span>{% endif %}
+                    </div>
+                    <p class="dtoj-hw-qa-body">{{ r.content }}</p>
+                  </div>
+                  {% endfor %}
+                  {% if hwCanManage %}
+                  <form class="dtoj-hw-qa-form" method="POST" action="{{ url('homework_ask_reply', tid=tdoc.docId, did=q._id) }}">
+                    <textarea name="content" rows="2" required placeholder="回复这位同学……"></textarea>
+                    <button type="submit">回复</button>
+                  </form>
+                  {% endif %}
+                </li>
+                {% endfor %}
+              </ul>
+              {% elif not tsdoc.attend and not hwCanManage %}
+              <p class="dtoj-hw-blank">认领作业之后就能提问了。</p>
+              {% else %}
+              <p class="dtoj-hw-blank">还没有人提问。</p>
+              {% endif %}
+            </div>
+          </section>
+        </div>
+
+        <aside class="dtoj-hw-aside">
+          <section class="dtoj-hw-card">
+            <div class="dtoj-hw-card-head"><h2>作业概况</h2></div>
+            <div class="dtoj-hw-card-body">
+              <dl class="dtoj-hw-facts">
+                <div><dt>题目</dt><dd>{{ hwPids }} 道</dd></div>
+                <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }} 人</dd></div>
+                {% if hwHasLate %}
+                <div><dt>可延期</dt><dd>{{ homework.render_extension(tdoc) }} 小时</dd></div>
+                {% endif %}
+              </dl>
+              {% if psdict and hwPids %}
+              <div class="dtoj-hw-progress">
+                <div class="dtoj-hw-progress-head"><span>我的提交</span><b>{{ hwSubmitted }} / {{ hwPids }}</b></div>
+                <div class="dtoj-hw-progress-bar"><i style="width: {{ pctSubmit }}%"></i></div>
+                <p>只算交过的题，对错去成绩表里看。</p>
+              </div>
+              {% endif %}
+            </div>
+            <nav class="dtoj-hw-links">
+              {% if handler.user.own(tdoc) or handler.user.hasPerm(perm.PERM_EDIT_HOMEWORK) %}
+              <a href="{{ url('homework_files', tid=tdoc.docId) }}">作业文件</a>
+              {% endif %}
+              {% if handler.user.own(tdoc) or handler.user.hasPriv(PRIV.PRIV_READ_RECORD_CODE) or handler.user.hasPerm(perm.PERM_READ_RECORD_CODE) %}
+              <a href="{{ url('homework_code', tid=tdoc.docId) }}" data-no-instant>导出所有代码</a>
+              <a href="{{ url('record_main', query={tid:tdoc.docId}) }}">所有递交</a>
+              {% elif tsdoc.attend %}
+              <a href="{{ url('record_main', query={uidOrName:handler.user._id, tid:tdoc.docId}) }}">我的最近递交</a>
+              {% endif %}
+              <a href="{{ url('wiki_help') }}">使用帮助</a>
+            </nav>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // 「现在」标记的位置和倒计时都按浏览器本地时间算，服务端只给三个时间点。
+  (function () {
+    var box = document.querySelector('[data-clock]');
+    if (!box) return;
+    var begin = Number(box.getAttribute('data-begin')) * 1000;
+    var dead = Number(box.getAttribute('data-dead')) * 1000;
+    var end = Number(box.getAttribute('data-end')) * 1000;
+    var span = end - begin;
+    var marker = box.querySelector('[data-now]');
+    var label = box.querySelector('[data-count]');
+
+    function human(ms) {
+      var min = Math.floor(ms / 60000);
+      var day = Math.floor(min / 1440);
+      var hour = Math.floor((min % 1440) / 60);
+      if (day > 0) return day + ' 天 ' + hour + ' 小时';
+      if (hour > 0) return hour + ' 小时 ' + (min % 60) + ' 分';
+      return Math.max(0, min) + ' 分';
+    }
+
+    function render() {
+      var now = Date.now();
+      var pct = span > 0 ? ((now - begin) * 100 / span) : 100;
+      if (marker) marker.style.left = Math.min(100, Math.max(0, pct)).toFixed(2) + '%';
+      if (!label) return;
+      if (now < begin) label.textContent = '距开始 ' + human(begin - now);
+      else if (now < dead) label.textContent = '剩 ' + human(dead - now);
+      else if (now < end) label.textContent = '延期窗口剩 ' + human(end - now);
+      else label.textContent = '已结束 ' + human(now - end);
+    }
+
+    render();
+    setInterval(render, 30000);
+  }());
+</script>
+{% endblock %}

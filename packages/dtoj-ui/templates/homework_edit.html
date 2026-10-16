@@ -1,0 +1,313 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+{#
+  创建 / 编辑作业。表单字段全部沿用 components/form.html 的宏，
+  因为 name="pids" / "assign" / "maintainer" / "langs" 会被
+  contest_edit.page.ts 换成自动补全组件（它按 .textbox-container 的原样 DOM 挂载），
+  data-pick-date / data-pick-time 由 datepicker.page.tsx 接管。
+  这里只做分组和配色，字段名、宏参数、提交逻辑都不动。
+#}
+<style>
+  .dtoj-hw-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 296px;
+    gap: 20px;
+    align-items: start;
+  }
+  .dtoj-hw-form { display: flex; flex-direction: column; gap: 18px; }
+
+  /* 分区卡片 */
+  .dtoj-hw-sec { padding: 22px 24px 20px; border-radius: 20px; box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07); }
+  .dtoj-hw-sec > h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.4;
+  }
+  .dtoj-hw-sec > .dtoj-hw-note { margin: 6px 0 0; max-width: 62ch; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+  /* 字段栅格：抽掉 Foundation 外层那 120px 边距，保留 9px 内槽，字段正好对齐卡片内边 */
+  .dtoj-hw-page .dtoj-hw-form .row { margin: 16px -9px 0; max-width: none; }
+  .dtoj-hw-page .dtoj-hw-form .row > .columns { padding: 0 9px; }
+  .dtoj-hw-page .dtoj-hw-form .form__item { margin: 0; }
+  .dtoj-hw-page .dtoj-hw-form .form__item > label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .dtoj-hw-page .dtoj-hw-form .help-text { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .dtoj-hw-page .dtoj-hw-form .textbox:focus,
+  .dtoj-hw-page .dtoj-hw-form .select:focus {
+    outline: none;
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+  .dtoj-hw-page .dtoj-hw-form textarea.textbox {
+    height: auto;
+    min-height: 132px;
+    padding: 12px 14px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .dtoj-hw-page .dtoj-hw-form textarea.textbox[data-markdown] { min-height: 200px; }
+  .dtoj-hw-page .dtoj-hw-form textarea.textbox.monospace {
+    min-height: 148px;
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 13px;
+  }
+
+  /* 自动补全组件自带一套外框，这里把它改成和别的输入框一样高、一样圆 */
+  .dtoj-hw-page .dtoj-hw-form .autocomplete-container { display: block !important; width: 100% !important; margin-bottom: 0 !important; }
+  .dtoj-hw-page .dtoj-hw-form .autocomplete-wrapper { padding: 0; border: 1px solid var(--line); border-radius: 11px; background: #fff; }
+  .dtoj-hw-page .dtoj-hw-form .autocomplete-wrapper:focus-within {
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+  .dtoj-hw-page .dtoj-hw-form .autocomplete-wrapper input { height: 42px; padding: 0 12px; color: var(--ink); font-size: 14px; }
+
+  /* 底部按钮：主按钮只留一个渐变，删除推到最右 */
+  .dtoj-hw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .dtoj-hw-actions button { font-family: inherit; cursor: pointer; }
+  .dtoj-hw-actions .dtoj-go,
+  .dtoj-hw-actions .dtoj-alt,
+  .dtoj-hw-actions .dtoj-hw-danger { min-width: 132px; padding: 0 26px; }
+  .dtoj-hw-actions button.dtoj-go { border: 0; }
+  .dtoj-hw-actions button.dtoj-alt { cursor: pointer; }
+  .dtoj-hw-actions .dtoj-hw-danger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 50px;
+    margin-left: auto;
+    border: 1px solid rgba(138, 31, 31, 0.28);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--fail-ink, #8a1f1f);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .dtoj-hw-actions .dtoj-hw-danger:hover { background: #f8e6e6; border-color: rgba(138, 31, 31, 0.5); transform: translateY(-1px); }
+
+  /* 右侧 Markdown 速查：改成和左边卡片同一套底 */
+  .dtoj-hw-hint .section {
+    float: none;
+    width: 100%;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.06);
+  }
+  .dtoj-hw-hint .section__body { padding: 18px 18px 20px; }
+  .dtoj-hw-hint dl { margin: 0; }
+  .dtoj-hw-hint dt { margin: 12px 0 4px; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.5; }
+  .dtoj-hw-hint dt:first-child { margin-top: 0; }
+  .dtoj-hw-hint dd { margin: 0; }
+  .dtoj-hw-hint pre {
+    margin: 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--field-soft, #f4f7fb);
+    color: var(--ink);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .dtoj-hw-hint h2 {
+    margin: 16px 0 8px;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+  }
+  .dtoj-hw-hint ul { margin: 0; padding-left: 1.1em; }
+  .dtoj-hw-hint li { margin: 4px 0; font-size: 12px; line-height: 1.7; }
+  .dtoj-hw-hint a { color: var(--brand-deep); }
+
+  @media (max-width: 1000px) {
+    .dtoj-hw-layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .dtoj-hw-sec { padding: 18px 16px 16px; }
+    .dtoj-hw-actions .dtoj-go,
+    .dtoj-hw-actions .dtoj-alt,
+    .dtoj-hw-actions .dtoj-hw-danger { flex: 1 1 100%; margin-left: 0; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home dtoj-hw-page">
+    <div class="dtoj-shell">
+      <header class="dtoj-page-head">
+        <h1>{% if page_name == 'homework_edit' %}编辑作业{% else %}创建作业{% endif %}</h1>
+        <div class="dtoj-rule" aria-hidden="true"></div>
+        {% if page_name == 'homework_edit' %}
+        <p>改完点「保存」立即生效。动了开始、结束时间或题目，系统会重算所有同学的提交状态。</p>
+        {% else %}
+        <p>写好标题和收作业的时间，填上题号，再决定分给谁。提交后还能随时回来改。</p>
+        {% endif %}
+      </header>
+
+      <div class="dtoj-hw-layout">
+        <form method="post" class="dtoj-hw-form">
+          <section class="dtoj-sheet dtoj-hw-sec">
+            <h2>基本信息</h2>
+            <p class="dtoj-hw-note">标题会出现在作业列表、日历和同学的作业页上。</p>
+            {{ form.form_text({
+                columns:12,
+                label:'Title',
+                name:'title',
+                placeholder:_('title'),
+                value:tdoc['title']|default(''),
+                autofocus:true
+            }) }}
+          </section>
+
+          <section class="dtoj-sheet dtoj-hw-sec">
+            <h2>时间安排</h2>
+            <p class="dtoj-hw-note">开始到结束之间交算正常；结束之后的这些天是延期窗口，按下面的规则扣分。时间按你所在时区算。</p>
+            <div class="row">
+              {{ form.form_text({
+                  columns:3,
+                  label:'Begin Date',
+                  name:'beginAtDate',
+                  placeholder:'YYYY-mm-dd',
+                  value:dateBeginText,
+                  date:true,
+                  row:false
+              }) }}
+              {{ form.form_text({
+                  columns:2,
+                  label:'Begin Time',
+                  name:'beginAtTime',
+                  placeholder:'HH:MM',
+                  value:timeBeginText,
+                  time:true,
+                  row:false
+              }) }}
+              {{ form.form_text({
+                  columns:3,
+                  label:'End Date',
+                  name:'penaltySinceDate',
+                  placeholder:'YYYY-mm-dd',
+                  value:datePenaltyText,
+                  date:true,
+                  row:false
+              }) }}
+              {{ form.form_text({
+                  columns:2,
+                  label:'End Time',
+                  name:'penaltySinceTime',
+                  placeholder:'HH:MM',
+                  value:timePenaltyText,
+                  time:true,
+                  row:false
+              }) }}
+              {{ form.form_text({
+                  row:false,
+                  last_column:true,
+                  columns:2,
+                  label:'Extension (days)',
+                  name:'extensionDays',
+                  value:extensionDays
+              }) }}
+            </div>
+          </section>
+
+          <section class="dtoj-sheet dtoj-hw-sec">
+            <h2>参与者</h2>
+            <p class="dtoj-hw-note">「分配给」留空表示所有人都能看到并认领；填了小组，就只对这些小组可见。</p>
+            <div class="row">
+              {{ form.form_text({
+                  row:false,
+                  columns:6,
+                  label:'Assign',
+                  name:'assign',
+                  placeholder:_('Group / UID'),
+                  value:tdoc.assign|default('')
+              }) }}
+              {{ form.form_text({
+                  row:false,
+                  last_column:true,
+                  columns:6,
+                  label:'Homework Maintainer',
+                  name:'maintainer',
+                  help_text:_('Allow to maintain this {0}').format(_('homework')),
+                  value:tdoc.maintainer|default('')
+              }) }}
+            </div>
+          </section>
+
+          <section class="dtoj-sheet dtoj-hw-sec">
+            <h2>题目与内容</h2>
+            <p class="dtoj-hw-note">题目填题号（PID），多个用英文逗号隔开。内容支持 Markdown，右侧有语法速查。</p>
+            {{ form.form_text({
+                columns:12,
+                label:'Problems',
+                name:'pids',
+                value:pids
+            }) }}
+            {{ form.form_textarea({
+                columns:12,
+                label:'Content',
+                name:'content',
+                value:tdoc['content']|default(''),
+                markdown:true
+            }) }}
+          </section>
+
+          <section class="dtoj-sheet dtoj-hw-sec">
+            <h2>高级</h2>
+            <p class="dtoj-hw-note">延期扣分规则用 YAML 写，键是「延期小时数」，值是分数系数。语言限制留空表示不限制。</p>
+            {% set defaultPenaltyRules %}{% include 'partials/homework_default_penalty_rules.yaml' %}{% endset %}
+            {{ form.form_textarea({
+                columns:12,
+                label:'Extension Score Penalty',
+                name:'penaltyRules',
+                extra_class:'monospace',
+                extra_attr:'data-yaml',
+                value:(penaltyRules if tdoc else defaultPenaltyRules)
+            }) }}
+            {{ form.form_text({
+                columns:12,
+                label:'Submission language limit',
+                name:'langs',
+                value:tdoc.langs|default(''),
+                placeholder:_("Seperated with ','"),
+                row:true
+            }) }}
+          </section>
+
+          <div class="dtoj-hw-actions">
+            {% if page_name == 'homework_edit' %}
+            <button class="dtoj-go" name="operation" value="update" type="submit">{{ _('Update') }}</button>
+            <button class="dtoj-alt" name="operation" value="update" type="submit" formaction="{{ url('homework_create') }}">{{ _('Clone') }}</button>
+            <a class="dtoj-alt" href="{{ url('homework_detail', tid=tdoc.docId) }}">{{ _('Cancel') }}</a>
+            {% if handler.user.own(tdoc) or handler.user.hasPerm(perm.PERM_EDIT_HOMEWORK) %}
+            <button class="dtoj-hw-danger" name="operation" value="delete" type="submit">{{ _('Delete') }}</button>
+            {% endif %}
+            {% else %}
+            <button class="dtoj-go" name="operation" value="update" type="submit">{{ _('Create') }}</button>
+            <a class="dtoj-alt" href="{{ url('homework_main') }}">{{ _('Cancel') }}</a>
+            {% endif %}
+          </div>
+        </form>
+
+        <aside class="dtoj-hw-hint">
+          {% include 'components/md_hint.html' %}
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

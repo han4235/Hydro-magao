@@ -1,8 +1,8 @@
 import {
-    Context, PERM, PRIV, ProblemModel, Types, ValidationError, param,
+    Context, PERM, PRIV, ProblemModel, Types, ValidationError, moment, param,
 } from 'hydrooj';
 import {
-    DtojDataHandler, DtojPageHandler, dropEarlierRoutes, queryString,
+    DtojDataHandler, DtojPageHandler, dropEarlierRoutes, myPendingHomework, queryString,
 } from 'dtoj-ui';
 import { wikiGroups } from 'dtoj-wiki';
 import {
@@ -46,6 +46,11 @@ class DtojHomeHandler extends DtojPageHandler {
         const streak = cfg.checkin.demoStreak;
         const cal = checkinCalendar(zone);
         const uid = guest ? 0 : Number(u._id) || 0;
+        const pending = guest ? [] : await myPendingHomework(domainId, uid);
+        const hwPending = pending.map((tdoc) => ({
+            title: String(tdoc.title || ''),
+            deadline: moment(tdoc.penaltySince).tz(zone).format('MM-DD HH:mm'),
+        }));
         const fortuneIndex = fortuneIndexForDay(uid, cal.dayKey);
         const checkinFortune = checkinFortunes[fortuneIndex] || checkinFortunes[0];
         const { boardLayout, bandLayout } = splitHomeLayout(cfg.layout);
@@ -56,6 +61,7 @@ class DtojHomeHandler extends DtojPageHandler {
             streak,
             who: name,
             mark: name.slice(0, 1),
+            hwPending,
             checkinUid: uid,
             checkinDayKey: cal.dayKey,
             checkinCalendar: cal,

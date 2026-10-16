@@ -365,6 +365,53 @@
   }
   .dtoj-hero-card .dtoj-go,
   .dtoj-hero-card .dtoj-alt { flex: 1 1 180px; max-width: 240px; }
+  /* 首页作业提醒条（只在有待认领作业时渲染）：深褐小喇叭 + 暖底色，和满屏蓝拉开 */
+  .dtoj-notice {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 16px;
+    background: #f8f1dc;
+    box-shadow: 0 12px 28px rgba(142, 115, 65, 0.16);
+    color: #6a4b00;
+    text-decoration: none;
+  }
+  .dtoj-notice:hover { background: #f6ebcd; color: #553c00; }
+  .dtoj-notice-ico {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: #6a4b00;
+    color: #f8f1dc;
+  }
+  .dtoj-notice-track { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+  .dtoj-notice-lane { display: flex; width: max-content; }
+  .dtoj-notice-text {
+    flex: 0 0 auto;
+    margin: 0;
+    padding-right: 72px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.8;
+    white-space: nowrap;
+  }
+  .dtoj-notice-text b { font-size: 15px; font-weight: 800; }
+  .dtoj-notice.is-scroll .dtoj-notice-track { overflow: hidden; }
+  .dtoj-notice.is-scroll .dtoj-notice-lane { animation: dtoj-notice-roll var(--dtoj-notice-duration, 18s) linear infinite; }
+  .dtoj-notice:hover .dtoj-notice-lane { animation-play-state: paused; }
+  @keyframes dtoj-notice-roll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dtoj-notice.is-scroll .dtoj-notice-lane { animation: none; }
+  }
   .dtoj-go, .dtoj-alt, .dtoj-sign {
     display: flex;
     align-items: center;
@@ -1064,6 +1111,83 @@
   .dtoj-user-btn:hover { border-color: rgba(37, 99, 235, 0.35); background: #f8fafc; color: var(--brand-deep); text-decoration: none; }
   .dtoj-user-btn--static { cursor: default; }
   .dtoj-user-btn--static:hover { background: #fff; border-color: var(--line); color: var(--ink); }
+  .dtoj-user-btn--primary {
+    border-color: transparent;
+    background: var(--brand);
+    color: #fff;
+  }
+  .dtoj-user-btn--primary:hover { border-color: transparent; background: var(--brand-deep); color: #fff; }
+  body.dtoj-group-dialog-open { overflow: hidden; }
+  .dtoj-group-dialog {
+    --ink: #111827;
+    --muted: #5f6b7a;
+    --brand: #2563eb;
+    --brand-deep: #1e40af;
+    --line: rgba(30, 41, 59, 0.09);
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dtoj-group-dialog[hidden] { display: none; }
+  .dtoj-group-dialog__mask { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.45); }
+  .dtoj-group-dialog__panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(420px, calc(100vw - 32px));
+    max-height: min(560px, calc(100vh - 64px));
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    color: var(--ink);
+    font-family: "Open Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  .dtoj-group-dialog__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; flex: none; }
+  .dtoj-group-dialog__head h2 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+  .dtoj-group-dialog__close {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .dtoj-group-dialog__close:hover { background: #f1f5f9; color: var(--ink); }
+  .dtoj-group-dialog__hint { margin: 10px 20px 0; color: var(--muted); font-size: 13px; line-height: 1.7; flex: none; }
+  /* 表单是滚动容器：分组多了只滚列表，头和按钮钉住 */
+  .dtoj-group-dialog__panel form { display: flex; flex-direction: column; min-height: 0; }
+  .dtoj-group-dialog__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    margin-top: 14px;
+    padding: 0 20px;
+    overflow-y: auto;
+  }
+  .dtoj-group-dialog__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-group-dialog__item:hover { border-color: rgba(37, 99, 235, 0.35); background: #f8fafc; }
+  .dtoj-group-dialog__item input { margin: 0; }
+  .dtoj-group-dialog__foot { display: flex; justify-content: flex-end; gap: 8px; flex: none; padding: 16px 20px 20px; }
+  .dtoj-group-dialog .dtoj-user-btn { font-family: inherit; }
   .dtoj-user-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

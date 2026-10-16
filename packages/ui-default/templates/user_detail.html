@@ -40,6 +40,9 @@
             <a class="dtoj-user-btn" href="{{ url('home_settings', category='account') }}">
               <span class="icon icon-edit"></span>{{ _('Edit Profile') }}
             </a>
+            {% if joinableGroups.length %}
+            <button type="button" class="dtoj-user-btn" id="dtoj-group-open">加入分组</button>
+            {% endif %}
             {% endif %}
             <a class="dtoj-user-btn" href="{{ url('home_messages', query={target:udoc._id}) }}" target="_blank">
               <span class="icon icon-comment--multiple"></span>{{ _('Send Message') }}
@@ -249,4 +252,52 @@
     </div>
   </div>
 </div>
+{% if isSelfProfile and joinableGroups.length %}
+<div class="dtoj-group-dialog" id="dtoj-group-dialog" hidden>
+  <div class="dtoj-group-dialog__mask" data-group-dialog-close></div>
+  <div class="dtoj-group-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="dtoj-group-dialog-title">
+    <div class="dtoj-group-dialog__head">
+      <h2 id="dtoj-group-dialog-title">加入分组</h2>
+      <button type="button" class="dtoj-group-dialog__close" data-group-dialog-close aria-label="{{ _('Close') }}">&times;</button>
+    </div>
+    <form method="post" action="{{ url('dtoj_user_group', uid=udoc._id) }}">
+      <p class="dtoj-group-dialog__hint">勾上要加入的分组，取消勾选就退出该分组，保存后立刻生效。</p>
+      <div class="dtoj-group-dialog__list">
+        {% for gname in joinableGroups %}
+        <label class="dtoj-group-dialog__item">
+          <input type="checkbox" name="groups" value="{{ gname }}"{% if myGroups.includes(gname) %} checked{% endif %}>
+          <span>{{ gname }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="dtoj-group-dialog__foot">
+        <button type="button" class="dtoj-user-btn" data-group-dialog-close>取消</button>
+        <button type="submit" class="dtoj-user-btn dtoj-user-btn--primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var dialog = document.getElementById('dtoj-group-dialog');
+  var trigger = document.getElementById('dtoj-group-open');
+  if (!dialog || !trigger) return;
+  function toggle(open) {
+    dialog.hidden = !open;
+    document.body.classList.toggle('dtoj-group-dialog-open', open);
+    if (open) {
+      var first = dialog.querySelector('input[type=checkbox]');
+      if (first) first.focus();
+    }
+  }
+  trigger.addEventListener('click', function () { toggle(true); });
+  dialog.addEventListener('click', function (e) {
+    if (e.target.closest('[data-group-dialog-close]')) toggle(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !dialog.hidden) toggle(false);
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
