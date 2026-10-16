@@ -2,7 +2,9 @@
 
 ## 目标
 
-**生 25 组测试数据 → 只编 `{WORK_DIR}/mkin.h` 之 `test()` 函数**
+**生测试数据 → 只编 `{WORK_DIR}/mkin.h` 之 `test()` 函数**
+
+组数：题面给了测试点数就按题面（`total_cases`），没给则 25 组。
 
 ## ⚠️ 唯一要记
 
@@ -15,8 +17,11 @@
 
 在生成测试数据时，**必须严格遵守以下优先级规则**：
 
-1. **题目指定优先（最高优先级）**：若题面（`problem_zh.md` 的数据范围部分）明确给出了各测试点（Subtask）的规模限制、特殊性质、分值占比等详细分布信息，**必须绝对严格遵循题目给定的规则生成数据**。例如：题目说测试点 1~4 的 $N \le 10$，测试点 14~16 有特殊性质 A，则 `mkin.h` 中的 `if-else` 分支必须按此规则一对一精确划分。
-2. **默认回退规则**：仅当题目**完全没有**提供任何测试点拆分或规模限制时，才可回退使用 **`references/testdata-design.md`** 中的默认 25 组分布框架（即基础测试、Hack、极值等常规分类）。
+1. **题目指定优先（最高优先级）**：若题面（`problem_zh.md` 的数据范围部分）明确给出了测试点划分信息，**必须绝对严格遵循**，三样一起照做：
+   - **总量**：题面写「共 N 个测试点」→ `total_cases = N`（服务端据此把 `mkin.h` 的 `TEST_CASES` 与实生组数改成 N；不填则默认 25 组）
+   - **分组**：各测试点/百分比的分值与区间 → `subtasks`，逐点对应，参见 `05-config.md`
+   - **数据**：`mkin.h` 中 `test()` 的 `if-else` 分支按题面逐点划分。例如题目说测试点 1~4 的 $N \le 10$，14~16 有特殊性质 A → 分支必须一对一精确对应
+2. **默认回退规则**：仅当题目**完全没有**提供任何测试点拆分、规模限制或百分比时，才可回退使用 **`references/testdata-design.md` → 一、数据分布框架** 的默认 25 组（基础测试、Hack、极值等常规分类）。
 
 ## 边界清单与 Hack 设计
 
@@ -34,6 +39,8 @@
 3. 将边界写入 `mkin.h` 的 `test()` 函数
 
 ## test() 模板
+
+以下为默认回退（25 组）骨架；题面有测试点划分时须**按其点数与性质重写分支**，服务端只按 `total_cases` 覆写 `TEST_CASES` 与生成组数，分支语义仍由你保证。
 
 ```cpp
 void test(int case_num, ofstream& fout) {
@@ -109,8 +116,8 @@ void test(int case_num, ofstream& fout) {
 ## 改 test() 后必同更
 
 1. `mkin.h` 顶 `SUBTASKS[]` 数组（仅作注标记用）
-2. `{WORK_DIR}/testdata/config.yaml` 格式见 **`references/testdata-design.md` → 五、config.yaml 格式**
-3. 务必确保 `config.yaml` 中配置的 Subtasks 分值、测试点 ID 范围与题面给出的数据范围表**完全一一对应**。
+2. **在输出 JSON 里给出 `total_cases`（题面给了测试点数时）与 `subtasks`**：服务端据此覆写 `TEST_CASES`、生成 `{WORK_DIR}/testdata/config.yaml`，格式与样例见 **`05-config.md`** 与 **`references/testdata-design.md` → 五、config.yaml 格式**
+3. 务必确保 `config.yaml` 中配置的 Subtasks 分值、测试点区间与题面给出的数据范围表**完全一一对应**；题面没给才用默认分组。
 4. 所有测试点总分持 100。
 
 ## 编译运行
@@ -118,7 +125,7 @@ void test(int case_num, ofstream& fout) {
 ```bash
 cd {WORK_DIR}
 g++ -o mkdata mkdata.cpp -std=c++17
-./mkdata
+./mkdata     # 生成组数 = TEST_CASES = total_cases
 ```
 
 ## 验证

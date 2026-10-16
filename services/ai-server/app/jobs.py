@@ -12,6 +12,7 @@ from app.llm import LlmClient
 from app.ojimport_spec import bundle_missing
 from app.skills.base import SkillContext
 from app.skills.registry import get_skill
+from app.training import classify
 
 JOBS: dict[str, dict] = {}
 ROOT = Path(os.environ.get('JOB_DATA_DIR', '/tmp/ai-jobs'))
@@ -180,6 +181,13 @@ async def _worker():
                 continue
             else:
                 job['logs'].append('未配置 HYDRO_IMPORT_TOKEN 且自动 sid 未启用，只生成了题包')
+            if imported and pids:
+                job['logs'].append('step12: 归类训练课程')
+                try:
+                    for line in classify(pids):
+                        job['logs'].append(line)
+                except Exception as e:
+                    job['errors'].append(f'step12 归类失败: {e}')
             job['status'] = 'done' if imported or not base else 'failed'
         except Exception as e:
             job['status'] = 'failed'

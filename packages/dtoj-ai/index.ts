@@ -63,6 +63,25 @@ function jobForClient(raw: Record<string, unknown> | null) {
     return { ...raw, phase: status, status };
 }
 
+/** 「材料」该显示什么：链接来源要给能点的原链接，文件来源要给上传时的文件名。
+ *  job.filename 对链接任务只是落盘的占位名 source.url，照搬出来等于没说。 */
+const MATERIAL_MAX = 72;
+
+function jobMaterial(job: Record<string, unknown>) {
+    const source = String(job.source || 'file');
+    const url = String(job.url || '').trim();
+    if (source === 'url' && url) {
+        const text = url.length > MATERIAL_MAX ? `${url.slice(0, MATERIAL_MAX - 1)}…` : url;
+        return { text, url, title: url };
+    }
+    if (job.skill === SAMPLE_SKILL) {
+        const docId = (job.meta as { docId?: number } | undefined)?.docId;
+        return { text: docId ? `题目 P${docId}` : '题目样例再生', url: '', title: '' };
+    }
+    if (source === 'text') return { text: '粘贴的文本', url: '', title: '' };
+    return { text: String(job.filename || ''), url: '', title: '' };
+}
+
 class DtojAiJobsHandler extends DtojPageHandler {
     async get() {
         this.checkPerm(PERM.PERM_CREATE_PROBLEM);
@@ -72,10 +91,13 @@ class DtojAiJobsHandler extends DtojPageHandler {
             const data = await aiFetch('/internal/jobs', 'list', 'list');
             jobs = (data.jobs || []).map((job) => ({
                 ...job,
+                material: jobMaterial(job),
                 createdAtText: job.createdAt
                     ? new Date(job.createdAt * 1000).toLocaleString('zh-CN', { hour12: false })
                     : '',
-                sourceLabel: job.source === 'url' ? '链接' : job.source === 'text' ? '文本' : '文件',
+                sourceLabel: job.skill === SAMPLE_SKILL
+                    ? '题面'
+                    : job.source === 'url' ? '链接' : job.source === 'text' ? '文本' : '文件',
             }));
         } catch (e) {
             error = e.message || String(e);
@@ -135,11 +157,13 @@ class DtojAiJobHandler extends DtojPageHandler {
         let job = null;
         let error = '';
         try {
-            job = await aiFetch(`/internal/jobs/${id}`, 'get', id);
+            const raw = await aiFetch(`/internal/jobs/${id}`, 'get', id);
+            job = jobForClient(raw);
+            if (job) job.material = jobMaterial(raw);
         } catch (e) {
             error = e.message || String(e);
         }
-        this.view('dtoj_ai_job', { job: jobForClient(job), error });
+        this.view('dtoj_ai_job', { job, error });
     }
 }
 
@@ -227,10 +251,29 @@ class DtojAiJobPollHandler extends DtojPageHandler {
     }
 }
 
+/** 列表页轮询用：只回 id 与状态。整份 job 里有 logs、errors、payload，
+ *  payload 甚至装着整份测试数据，列表页每几秒拉一次不合适。
+ *  路径特意取 /ai-jobs-status 而不是 /ai/jobs/status —— /ai/jobs/:id 会先把它吃掉。 */
+class DtojAiJobsPollHandler extends DtojPageHandler {
+    async get() {
+        this.checkPerm(PERM.PERM_CREATE_PROBLEM);
+        this.response.type = 'application/json';
+        try {
+            const data = await aiFetch('/internal/jobs', 'list', 'list');
+            this.response.body = {
+                jobs: (data.jobs || []).map((job: any) => ({ id: job.id, status: job.status })),
+            };
+        } catch (e) {
+            this.response.body = { error: e.message || String(e) };
+        }
+    }
+}
+
 export async function apply(ctx: Context) {
     ctx.Route('dtoj_ai_jobs', '/ai/jobs', DtojAiJobsHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job', '/ai/jobs/:id', DtojAiJobHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job_poll', '/ai/jobs/:id/poll', DtojAiJobPollHandler, PERM.PERM_CREATE_PROBLEM);
+    ctx.Route('dtoj_ai_jobs_poll', '/ai-jobs-status', DtojAiJobsPollHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job_apply', '/ai/jobs/:id/apply-samples', DtojAiJobApplyHandler, PERM.PERM_EDIT_PROBLEM);
     ctx.Route('dtoj_ai_problem_sample', '/ai/problem/:pid/sample-regen', DtojAiProblemSampleHandler, PERM.PERM_EDIT_PROBLEM);
     ctx.injectUI('ProblemAdd', 'dtoj_ai_jobs', { icon: 'copy', text: 'Import From AI' });

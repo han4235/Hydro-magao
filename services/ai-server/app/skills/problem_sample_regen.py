@@ -1,13 +1,19 @@
-"""按搬题姬 Step 11→06→07：读题面 → 模型出 std/mkin → mkdata 生成 25 组 testdata。"""
-import asyncio
+"""按搬题姬 Step 11→06→07：读题面 → 模型出 std/mkin → mkdata 生成 testdata（组数按 total_cases）。"""
 import json
+from functools import partial
 from pathlib import Path
 
 from app.hydro_problem import content_zh, load_problem, replace_sample_blocks
 from app.ojimport_spec import regen_data_llm_system, spec_version
 from app.skills.base import Skill, SkillContext, SkillResult
-from app.skills.pdf_to_packs import _load_json
-from app.testdata_run import finalize_mkin_h, init_question_skeleton, run_testdata_pipeline
+from app.skills.pdf_to_packs import _chat_until_valid, _missing_testpoints
+from app.testdata_run import (
+    build_testdata_config,
+    finalize_mkin_h,
+    init_question_skeleton,
+    normalize_total_cases,
+    run_testdata_pipeline,
+)
 
 
 def _nl(s: str) -> str:
@@ -53,6 +59,30 @@ def _read_testdata_payload(work: Path) -> dict[str, str]:
     return files
 
 
+def _regen_issues(data: dict, text: str = '') -> list[str]:
+    """重生数据的预检：std/mkin/测试点分组有问题就回抛给模型补齐，别硬走到编译那步。"""
+    try:
+        item = _item_from_data(data)
+    except ValueError as e:
+        return [str(e)]
+    issues = _missing_testpoints(text, item)
+    if not str(item.get('std_cpp') or '').strip():
+        issues.append('缺少 std_cpp（step06）')
+    mkin_h = str(item.get('mkin_h') or '').strip()
+    if not mkin_h or 'void test(' not in mkin_h:
+        issues.append('缺少完整 mkin.h test()（step07）')
+    try:
+        total_cases = normalize_total_cases(item.get('total_cases'))
+    except ValueError as e:
+        issues.append(str(e))
+    else:
+        try:
+            build_testdata_config(item.get('subtasks'), total_cases)
+        except ValueError as e:
+            issues.append(str(e))
+    return issues
+
+
 class ProblemSampleRegenSkill(Skill):
     name = 'problem_sample_regen'
     accepts = ['text/plain', 'application/octet-stream', '']
@@ -83,37 +113,26 @@ class ProblemSampleRegenSkill(Skill):
         logs.append('step11→06→07: 调用模型生成 std.cpp 与 mkin.h（见 prompts/regen_data_preamble.md）')
         system = regen_data_llm_system()
         try:
-            raw = await asyncio.to_thread(llm.chat, [
-                {'role': 'system', 'content': system},
-                {'role': 'user', 'content': zh[:60000]},
-            ])
+            data, error = await _chat_until_valid(ctx, system, zh[:60000], partial(_regen_issues, text=zh), logs)
         except Exception as e:
             return SkillResult(errors=[f'模型调用失败: {e}'], logs=logs)
-
-        (work / 'llm_response.txt').write_text(raw, encoding='utf-8')
+        if error:
+            return SkillResult(errors=[error], logs=logs)
         logs.append('step06/07: 已保存 llm_response.txt')
 
-        try:
-            data = _load_json(raw)
-            item = _item_from_data(data)
-        except ValueError as e:
-            return SkillResult(errors=[str(e)], logs=logs)
+        item = _item_from_data(data)
 
         std_cpp = str(item.get('std_cpp') or '').strip()
         mkin_h = str(item.get('mkin_h') or '').strip()
-        if not std_cpp:
-            return SkillResult(errors=['缺少 std_cpp（step06）'], logs=logs)
-        if not mkin_h or 'void test(' not in mkin_h:
-            return SkillResult(errors=['缺少完整 mkin.h test()（step07）'], logs=logs)
-
         init_question_skeleton(work, logs)
         (work / 'std.cpp').write_text(std_cpp if std_cpp.endswith('\n') else std_cpp + '\n', encoding='utf-8')
         logs.append('step06: 已写 std.cpp')
-        (work / 'mkin.h').write_text(finalize_mkin_h(mkin_h), encoding='utf-8')
+        total_cases = normalize_total_cases(item.get('total_cases'))
+        (work / 'mkin.h').write_text(finalize_mkin_h(mkin_h, total_cases), encoding='utf-8')
         logs.append('step07: 已写 mkin.h（已并入 question 模板头）')
 
         try:
-            run_testdata_pipeline(work, logs)
+            run_testdata_pipeline(work, logs, total_cases, item.get('subtasks'))
         except (RuntimeError, ValueError) as e:
             return SkillResult(errors=[str(e)], logs=logs)
 
@@ -130,10 +149,10 @@ class ProblemSampleRegenSkill(Skill):
         new_zh = replace_sample_blocks(zh, pairs) if pairs else zh
 
         testdata_files = _read_testdata_payload(work)
-        if len([k for k in testdata_files if k.endswith('.in')]) < 25:
-            return SkillResult(errors=['testdata 未生成满 25 组'], logs=logs)
+        if len([k for k in testdata_files if k.endswith('.in')]) < total_cases:
+            return SkillResult(errors=[f'testdata 未生成满 {total_cases} 组'], logs=logs)
 
-        logs.append('step08: 25 组 testdata 就绪，待青石写入本题')
+        logs.append(f'step08: {total_cases} 组 testdata 就绪，待青石写入本题')
         payload = {
             'domainId': domain_id,
             'docId': doc_id,

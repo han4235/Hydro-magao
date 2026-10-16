@@ -12,11 +12,23 @@
 
 ## 1. problem.yaml
 
+字段顺序与写法照 `template/problem.yaml`（`pid` / `owner` / `title` / `tag` / `nSubmit` / `nAccept`），由脚本另补 `difficulty`，与库内既有理论卷一致。
+
 - **pid**：平台题号（新卷须换新 pid，勿与模版 `GESP5000` 冲突）。
-- **title**：与 `problem_zh.md` 首行 `#` 标题一致。
-- **tag**：如 `GESP一级理论`（级别 +「理论」）。
-- **difficulty** / **time** / **memory**：与模版同级卷一致即可（模版为 `3` / `1s` / `512m`）。
-- **nSubmit** / **nAccept**：可置 `0`，导入后由系统统计。
+- **title**：命名风格与库内同级卷一致，形如 **`GESP{年份}{月份}{级别}客观题`**，如 `GESP202506一级客观题`、`GESP202512三级客观题`；模拟卷续写 `模拟题`（可带序号），如 `GESP三级客观题模拟题（一）`。
+  - 月份两位补零；级别用中文数字，与 `tag`、Markdown 标题一致。
+  - 不要自创标题（如 `C++ 一级 2026 年 09 月`）；材料只给「2026 年 09 月 + 一级」时，标题应记为 `GESP202609一级客观题`。
+  - 必须与 `problem_zh.md` 首行 `#` 标题逐字一致。
+- **tag**：`GESP{级别}理论`，中文数字、无空格（`GESP一级理论`～`GESP八级理论`）。
+- **difficulty**：按**级别**取库内既有值，全库同级别统一，不随卷面难易浮动：
+
+  | 级别 | 一 | 二 | 三 | 四 | 五 | 六 | 七 | 八 |
+  |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+  | difficulty | 1 | 1 | 2 | 2 | 3 | 3 | 4 | 4 |
+
+  （对应 UI：1 入门、2 普及−、3 普及/提高−、4 普及+/提高。）
+- **time** / **memory**：库内理论卷**一律不写**这两项（`config.yaml` 只有 `type: objective` + `answers`），系统按缺省 `1000ms` / `256MiB` 处理；确需显式写时用 `time: 1s`、`memory: 256m`。**不要**套用单题路径的 `1s` / `512m`。
+- **nSubmit** / **nAccept**：置 `0`，导入后由系统统计。
 
 ## 2. problem_zh.md
 
@@ -52,4 +64,6 @@ answers:
 
 - [ ] `select` 序号连续、与 `answers` 键集合一致  
 - [ ] 单选答案在 A–D；判断答案在 A/B  
-- [ ] `title`、Markdown 标题、`tag` 级别一致  
+- [ ] `title` 形如 `GESP{年份}{月份}{级别}客观题`，与 Markdown 标题逐字一致  
+- [ ] `tag` 为 `GESP{级别}理论`，`difficulty` 与该级别对应值一致  
+- [ ] `config.yaml` 只有 `type: objective` + `answers`，未多写 `time` / `memory`  
