@@ -5,6 +5,19 @@
     font-weight: 400;
   }
   .nav .nav__item { letter-spacing: 0; }
+  /* 顶栏可用宽度被 .row 的 1200px 钉死，跟视口多宽无关：1440 和 2560 都一样。
+     而 navigation.page.js 的「更多」逻辑一发现换行，就把尾部几项当成 menu__item 搬走
+     —— 搬进去又不会真的显示出来。原来只剩 51px 余量，加一项「帮助」正好越线，
+     会连带把「管理域」一起吞掉。左右各收 4px，十几项回收约 50px，比原来还宽裕。 */
+  @media (min-width: 1101px) {
+    .nav .nav__item { padding-left: 16px; padding-right: 16px; }
+  }
+  /* dtoj_style.html 里同一条规则（≤1100px 收到 10px）要等页面正文渲染才生效，
+     而这个导航先渲染后加类，折叠逻辑在 init 那一刻就会按 20px 的排版误判换行。
+     同样的值在这儿再写一遍，让它在导航一出现就成立。 */
+  @media (max-width: 1100px) {
+    .nav .nav__item { padding-left: 10px; padding-right: 10px; }
+  }
   .nav .nav__item--round { font-weight: 700; }
   /* 非管理员的域名只是个标识，不是入口：压掉 .nav__item:hover 的悬停高亮，免得看着能点 */
   .nav .nav__item--static,
@@ -78,6 +91,70 @@
     box-shadow: 0 14px 32px rgba(23, 34, 55, 0.14);
   }
   .dtoj-nav-panel[hidden] { display: none; }
+  /* 帮助菜单：三组目录并排，比社区那个宽得多，所以锚在右边展开。
+     主导航是左浮动的，这一项已经排到近半屏，靠左展开会顶出视口右边缘。 */
+  .dtoj-nav-panel--help {
+    left: auto;
+    right: 0;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    padding: 12px;
+  }
+  .dtoj-help-nav-top {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid #e8ecf2;
+  }
+  .dtoj-help-nav-top .dtoj-nav-link { flex: 1 1 0; min-width: 0; padding: 8px 10px; }
+  .dtoj-help-nav-top .dtoj-nav-link strong { font-size: 15px; }
+  .dtoj-help-nav-cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(132px, 1fr));
+    gap: 2px 10px;
+    padding-top: 10px;
+  }
+  .dtoj-help-nav-col p {
+    margin: 0 0 4px;
+    padding: 0 10px;
+    color: #8b95a5;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-help-nav-col a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #111827;
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dtoj-help-nav-col a:hover { background: #f4f7fb; }
+  /* 窗口不够宽时，navigation.page.js 会把尾部的项（社区、帮助…）整块搬进「更多」下拉里。
+     浮动面板在那儿没有赖以定位的容器，会糊到下拉外面去，改成随流展开的子目录。 */
+  #menu-nav-more { min-width: 220px; }
+  #menu-nav-more .dtoj-nav-drop-btn {
+    width: 100%;
+    padding: 8px 10px;
+    color: #111827;
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+  }
+  #menu-nav-more .dtoj-nav-panel {
+    position: static;
+    width: auto;
+    max-width: none;
+    margin: 0 0 6px;
+    padding: 6px 10px 8px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  #menu-nav-more .dtoj-help-nav-top { flex-direction: column; padding-bottom: 8px; }
+  #menu-nav-more .dtoj-help-nav-top .dtoj-nav-link { padding: 6px 10px; }
+  #menu-nav-more .dtoj-help-nav-cols { grid-template-columns: minmax(0, 1fr); }
+  #menu-nav-more .dtoj-help-nav-col a { white-space: normal; }
   .dtoj-nav-space {
     margin: 0 12px 6px;
     color: #8b95a5;
@@ -109,6 +186,10 @@
   }
   @media (max-width: 800px) {
     .dtoj-nav-panel { position: static; width: auto; margin-top: 4px; box-shadow: none; }
+    /* 窄屏上面板已改成随流排布，三列并排会横着溢出，落成一列 */
+    .dtoj-nav-panel--help { max-width: none; }
+    .dtoj-help-nav-cols { grid-template-columns: minmax(0, 1fr); }
+    .dtoj-help-nav-col a { white-space: normal; }
   }
 </style>
 {%- macro nav_item(item) -%}
@@ -158,6 +239,59 @@
         {{ nav_item(item) }}
         {% endif %}
       {% endif %}{%- endfor -%}
+      {#
+        「帮助」：主导航的最右一项，原先散在 /home/domain 页面上的「什么是域？」收在这里。
+        三组目录并排列出来，点哪节跳哪节（锚点即 wiki_help.html 里各节的 id）。
+        记账在模板里，不在 handler：这些条目就是帮助页的目录本身，
+        加一节时这里补一行即可，不值得为它绕一趟后端。
+      #}
+      {% set helpMenu = [
+        ['评测与提交', [
+          ['compiler', '编译环境'],
+          ['limits', '时间与内存限制'],
+          ['io', '输入输出'],
+          ['status', '评测状态'],
+          ['ce', '编译错误']
+        ]],
+        ['课程与比赛', [
+          ['training', '课程训练'],
+          ['contest', '比赛规则'],
+          ['acratio', '通过率'],
+          ['rp', '等级分'],
+          ['pbmdiff', '题目难度']
+        ]],
+        ['站点与内容', [
+          ['domain', '域与权限'],
+          ['upload', '测试数据配置'],
+          ['lostpass', '找回账号'],
+          ['markdown', 'Markdown']
+        ]]
+      ] %}
+      <li class="nav__list-item dtoj-nav-drop{% if page_name.startsWith('wiki') %} nav--active{% endif %}">
+        <button type="button" class="nav__item dtoj-nav-drop-btn" aria-expanded="false" aria-controls="dtoj-nav-help">
+          帮助 <span class="dtoj-nav-caret" aria-hidden="true"></span>
+        </button>
+        <div class="dtoj-nav-panel dtoj-nav-panel--help" id="dtoj-nav-help" hidden>
+          <div class="dtoj-help-nav-top">
+            <a class="dtoj-nav-link{% if page_name == 'wiki_help' %} is-on{% endif %}" href="{{ url('wiki_help') }}">
+              <strong>帮助中心</strong><small>评测、比赛、域名与常见问题</small>
+            </a>
+            <a class="dtoj-nav-link{% if page_name == 'wiki_about' %} is-on{% endif %}" href="{{ url('wiki_about') }}">
+              <strong>关于</strong><small>服务说明与隐私政策</small>
+            </a>
+          </div>
+          <div class="dtoj-help-nav-cols">
+            {% for group in helpMenu %}
+            <div class="dtoj-help-nav-col">
+              <p>{{ group[0] }}</p>
+              {% for sec in group[1] %}
+              <a href="{{ url('wiki_help', anchor=sec[0]) }}">{{ sec[1] }}</a>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </li>
     </ol>
     <ol class="nav__list nav__list--secondary clearfix">
     {% if not handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
@@ -296,25 +430,41 @@
 <nav class="nav--shadow"></nav>
 <script>
   (function () {
-    var drop = document.querySelector('.dtoj-nav-drop');
-    if (!drop) return;
-    var btn = drop.querySelector('.dtoj-nav-drop-btn');
-    var panel = drop.querySelector('.dtoj-nav-panel');
-    function setOpen(open) {
-      drop.classList.toggle('is-open', open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      panel.hidden = !open;
+    // 顶栏有两处同类下拉（社区、帮助），而且窗口一窄，「更多」逻辑会把节点搬到别处去，
+    // 所以不绑在按钮上，改成绑在 document 上认人：节点搬到哪儿，这套逻辑都还认得它。
+    function parts(drop) {
+      return {
+        btn: drop.querySelector('.dtoj-nav-drop-btn'),
+        panel: drop.querySelector('.dtoj-nav-panel'),
+      };
     }
-    btn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen(panel.hidden);
-    });
+    function setOpen(drop, open) {
+      var p = parts(drop);
+      if (!p.btn || !p.panel) return;
+      drop.classList.toggle('is-open', open);
+      p.btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      p.panel.hidden = !open;
+    }
+    function closeAll(except) {
+      Array.prototype.forEach.call(document.querySelectorAll('.dtoj-nav-drop.is-open'), function (drop) {
+        if (drop !== except) setOpen(drop, false);
+      });
+    }
     document.addEventListener('click', function (event) {
-      if (!drop.contains(event.target)) setOpen(false);
+      var btn = event.target.closest && event.target.closest('.dtoj-nav-drop-btn');
+      if (btn) {
+        // 同时只留一个展开，两个面板叠在一起没法看
+        var drop = btn.parentElement;
+        closeAll(drop);
+        setOpen(drop, !drop.classList.contains('is-open'));
+        return;
+      }
+      // 面板内部不收起：里头全是链接，点一下就该跳走，不能顺手把面板关了
+      var inner = event.target.closest && event.target.closest('.dtoj-nav-drop.is-open');
+      if (!inner) closeAll(null);
     });
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') closeAll(null);
     });
   }());
 </script>

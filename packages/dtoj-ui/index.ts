@@ -604,9 +604,9 @@ const nav: [string, string, string][] = [
     ['homepage', 'dtoj_home', '首页'],
     ['dtoj_problems', 'dtoj_problems', '题库'],
     ['training_main', 'dtoj_training', '训练'],
+    ['homework_main', 'homework', '作业'],
     ['contest_main', 'dtoj_contest', '比赛'],
     ['record_main', 'dtoj_record', '评测记录'],
-    ['homework_main', 'homework', '作业'],
     ['home_messages', 'home_messages', '站内消息'],
     ['dtoj_rank', 'dtoj_rank', '等级分'],
     ['dtoj_community', 'dtoj_community', '社区'],
@@ -689,7 +689,8 @@ export async function apply(ctx: Context) {
     global.Hydro.ui.inject('Nav', 'dtoj_courseware', {
         href: '/ppt/',
         displayName: '课件',
-        before: 'contest_main',
+        // 排在「评测记录」之后、「站内消息」之前（作业原先待的位置），与作业对调。
+        before: 'home_messages',
     }, (handler: Handler) => handler.user.hasPriv(PRIV.PRIV_USER_PROFILE));
     global.Hydro.ui.inject('Nav', 'domain_dashboard', { prefix: 'domain', displayName: '管理域' }, PERM.PERM_EDIT_DOMAIN);
 

@@ -1,189 +1,309 @@
-{% extends "layout/wiki_base.html" %}
-{% block wiki_content %}
-{% set name = handler.domain.ui.name|default(model.system.get('server.name')) %}
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="domain" data-heading>{{ _('Domain') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>每个用户可以创建自己的域。比如，老师可以为课程创建一个域，然后把题目和学生加入到此域中。再如，可以把域作为团队功能。</p>
-    <p>通过合理的设置角色及其权限，可以把域设为公开或私有。</p>
-    <p>默认域为 system，用户直接访问 {{ name }} 域名就会访问此域，点击 Hydro Logo 会从任意域跳转回 system 域。</p>
-    <p>每个域的题库、讨论、训练以及比赛是独立且自治的。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="compiler" data-heading>{{ _("Compilers' Version and Parameters") }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>{{ name }} 使用 <a href="https://github.com/hydro-dev/Hydro/tree/master/packages/hydrojudge">HydroJudge</a> 进行评测，编译参数和当前所用编译器版本见状态页。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="limits" data-heading>{{ _('Limitations') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>{{ name }} 评测机使用进程的CPU时间计算时间消耗，时间的限定为题目中评测点所指定的时间。</p>
-    <p>{{ name }} 评测机使用进程虚拟内存与物理内存总和计算内存空间消耗。内存空间默认限定为256MiB，题目中特别指明的，限定为题目中评测点所指定的内存空间。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="io" data-heading>{{ _('IO') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>若无特殊说明，{{ name }} 使用标准输入输出（控制台输入输出，屏幕输入输出，STD I/O）。  </p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="status" data-heading>{{ _('Judge Status') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <ul>
-      <li><span class="record-status--text pending">Waiting</span> 评测：评测请求正在等待被评测机抓取</li>
-      <li><span class="record-status--text progress">Fetched</span> 评测：评测请求已被评测机抓取，正在准备开始评测</li>
-      <li><span class="record-status--text progress">Compiling</span> 评测：正在编译中</li>
-      <li><span class="record-status--text progress">Judging</span> 评测：编译成功，正在评测中</li>
-      <li><span class="record-status--text pass">Accepted</span> 通过：程序输出完全正确</li>
-      <li><span class="record-status--text fail">Wrong Answer</span> 不通过：程序输出与标准答案不一致（不包括行末空格以及文件末空行）</li>
-      <li><span class="record-status--text fail">Time Limit Exceeded</span> 不通过：程序运行时间超过了题目限制</li>
-      <li><span class="record-status--text fail">Memory Limit Exceeded</span> 不通过：程序运行内存空间超过了题目限制</li>
-      <li><span class="record-status--text fail">Runtime Error</span> 不通过：程序运行时错误（如数组越界、被零除、运算溢出、栈溢出、无效指针等）</li>
-      <li><span class="record-status--text fail">Compile Error</span> 不通过：编译失败</li>
-      <li><span class="record-status--text fail">System Error</span> 错误：系统错误（如果您遇到此问题，请及时在讨论区进行反馈）</li>
-      <li><span class="record-status--text ignored">Canceled</span> 其他：评测被取消</li>
-      <li><span class="record-status--text fail">Unknown Error</span> 其他：未知错误</li>
-      <li><span class="record-status--text ignored">Ignored</span> 其他：被忽略</li>
-    </ul>
-    <blockquote class="note">有“成绩取消”字样则说明管理员手动标记此记录为取消，可能违反了服务条款，比如代码被发现与其他用户的代码十分相似。</blockquote>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="ce" data-heading>{{ _('Compile Error') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>可能有以下情况：</p>
-    <blockquote><ul>
-    <li>1. 递交时选错了编程语言</li>
-    <li>2. Java 的主类名没有使用 "Main"</li>
-    <li>3. 对于 C/C++：见下</li>
-    <li>4. 一般性的编译错误</li>
-    </ul></blockquote>
-    
-    <blockquote class="warn">
-      <p>对 C/C++ 选手的特别提醒：</p>
-      <ul>
-      <li>1. __int64 在 GNU C++ 中应写成 long long 类型</li>
-      <li>2. main() 返回值必须定义为 int ，而不是 void</li>
-      <li>3. for 语句中的指标变量 i 将会在如"for (int i = 0...) {...}"语句之后变为无效</li>
-      <li>4. itoa 不是一个通用 ANSI 函数（标准 C/C++ 中无此函数）</li>
-      <li>5. printf 中使用 %lf 格式是不正确的</li>
-      </ul>
-    </blockquote>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="training" data-heading>{{ _('Training') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>我们精心挑选了一些题目组成了训练计划。单击导航栏的“训练”即可进入！</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="contest" data-heading>{{ _('Contest') }}</h1>
-  </div>
-  <div class="section__body typo richmedia">
-    <p>按照赛制不同，有不同的递交、排名规则。</p>
-    <p>在 IOI，XCPC，{{ _('Ledo') }}，IOI(Strict) 赛制下，选手可以多次提交一道题目，并获得实时评测结果。</p>
-    <p>在 IOI，XCPC，{{ _('Ledo') }} 赛制下，选手可以在比赛时看到排行榜。</p>
+{% extends "layout/basic.html" %}
+{% block content %}
+{% include "dtoj_style.html" %}
+<style>
+  .dtoj-help-crumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .dtoj-help-crumb b { color: var(--ink); }
+  .dtoj-help-crumb a { color: var(--muted); text-decoration: none; }
+  .dtoj-help-crumb a:hover { color: var(--brand-deep); text-decoration: underline; text-underline-offset: 0.18em; }
+  .dtoj-help-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.45; }
 
-    <p>OI 赛制所有题目均以最后一次递交为准，特别地，请避免编译错误。</p>
-    <p>OI 赛制排名规则为：总分高的排在前面，总分相等则排名相同。</p>
+  .dtoj-help {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
 
-    <p>XCPC 赛制中，每次错误提交会给题目增加 20 分钟的罚时。</p>
-    <p>XCPC 赛制排名规则为：通过题目数多的排在前面，通过题目数相同的做题耗时（含罚时）少的排在前。</p>
+  .dtoj-help-rail { position: sticky; top: 61px; }
+  .dtoj-help-toc {
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+  }
+  .dtoj-help-toc-head {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    padding: 6px 8px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+  }
+  .dtoj-help-toc-head:hover { color: var(--ink); }
+  .dtoj-help-chev { width: 14px; height: 14px; transition: transform 0.18s ease; }
+  .dtoj-help-toc.is-closed .dtoj-help-chev { transform: rotate(-90deg); }
+  .dtoj-help-toc.is-closed .dtoj-help-list { display: none; }
 
-    <p>{{ _('Ledo') }} 赛制下，多次提交会导致选手的得分被扣除，排行榜将显示用户的最高得分。</p>
-    <p>{{ _('Ledo') }} 赛制下，每道题的最终得分为： $s \times \max(0.95^{n}, 0.7)$ 。$s,n$ 分别代表本次得分和本次提交前的尝试次数。</p>
-    <p>{{ _('Ledo') }} 排名规则为：按照如上规则折算后的分数从高到低排名。</p>
+  .dtoj-help-list,
+  .dtoj-help-list ol { margin: 0; padding: 0; list-style: none; }
+  .dtoj-help-list p {
+    margin: 12px 8px 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  .dtoj-help-list a {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 10px;
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.5;
+    text-decoration: none;
+  }
+  .dtoj-help-list a:hover { background: #f4f7fb; color: var(--brand-deep); }
+  .dtoj-help-list a.is-on { background: #e7eefb; color: var(--brand-deep); font-weight: 700; }
 
-    <p>{{ _('IOI(Strict)') }} 赛制下，每道题的排行榜得分将为用户每个子任务在所有提交中的最大得分的和。</p>
+  .dtoj-help-body { padding: 26px 30px 34px; }
+  /* 55px = 固定顶栏 45px + 10px 间隙，跟 core 的 smoothscroll 跳转偏移保持一致 */
+  .dtoj-help-sec { scroll-margin-top: 55px; }
+  .dtoj-help-sec + .dtoj-help-sec { margin-top: 34px; }
+  .dtoj-help-sec > h2 {
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(21px, 2.1vw, 25px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.35;
+  }
+  .dtoj-help-body p,
+  .dtoj-help-body li { max-width: 72ch; }
+  .dtoj-help-body p { margin: 0 0 12px; line-height: 1.9; }
+  .dtoj-help-body ul { margin: 8px 0 12px; padding-left: 22px; }
+  .dtoj-help-body li { line-height: 1.85; }
+  .dtoj-help-body blockquote { margin: 10px 0; }
 
-    <p>时间与空间限制以题目说明为准，默认限制参见<a href="#limits">{{ _('Limitations') }}</a>。</p>
+  @media (max-width: 900px) {
+    .dtoj-help { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .dtoj-help-rail { position: static; }
+    .dtoj-help-body { padding: 20px 18px 26px; }
+  }
+</style>
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell">
+      <p class="dtoj-help-crumb">
+        <b>帮助</b>
+        <i class="dtoj-help-dot" aria-hidden="true"></i>
+        <a href="{{ url('wiki_about') }}">关于</a>
+      </p>
+      <div class="dtoj-help">
+        <aside class="dtoj-help-rail">
+          <div class="dtoj-help-toc" data-help-toc>
+            <button type="button" class="dtoj-help-toc-head" data-help-toc-toggle aria-expanded="true">
+              <span>本目录</span>
+              <svg class="dtoj-help-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <ol class="dtoj-help-list" id="dtoj-help-list"></ol>
+          </div>
+        </aside>
+        <article class="dtoj-panel dtoj-help-body typo" data-help-body>
+          <section class="dtoj-help-sec" id="compiler" data-group="评测与提交">
+            <h2>编译环境</h2>
+            <p>代码由 HydroJudge 评测。提交页默认选中的语言是 C++11（带 -O2），要交别的语言自己在下拉里换。</p>
+            <p>各语言的编译参数与当前编译器版本都在<a href="{{ url('status') }}">状态页</a>上。</p>
+          </section>
+          <section class="dtoj-help-sec" id="limits" data-group="评测与提交">
+            <h2>时间与内存限制</h2>
+            <p>时限与内存写在题目上，以题目为准：题目里写的时间就是该评测点的限时，评测机按进程实际占用的 CPU 时间计；内存按进程的虚拟内存与物理内存之和计。</p>
+            <p>没写这两项的（比如理论卷）按 1 秒、256 MiB 计。</p>
+          </section>
+          <section class="dtoj-help-sec" id="io" data-group="评测与提交">
+            <h2>输入输出</h2>
+            <p>除题面另有说明，一律从标准输入读、往标准输出写（stdin / stdout），不要自己读写文件。</p>
+          </section>
+          <section class="dtoj-help-sec" id="status" data-group="评测与提交">
+            <h2>评测状态</h2>
+            <ul>
+              <li><span class="record-status--text pending">Waiting</span> 评测：评测请求正在等待被评测机抓取</li>
+              <li><span class="record-status--text progress">Fetched</span> 评测：评测请求已被评测机抓取，正在准备开始评测</li>
+              <li><span class="record-status--text progress">Compiling</span> 评测：正在编译中</li>
+              <li><span class="record-status--text progress">Judging</span> 评测：编译成功，正在评测中</li>
+              <li><span class="record-status--text pass">Accepted</span> 通过：程序输出完全正确</li>
+              <li><span class="record-status--text fail">Wrong Answer</span> 不通过：程序输出与标准答案不一致（不包括行末空格以及文件末空行）</li>
+              <li><span class="record-status--text fail">Time Limit Exceeded</span> 不通过：程序运行时间超过了题目限制</li>
+              <li><span class="record-status--text fail">Memory Limit Exceeded</span> 不通过：程序运行内存空间超过了题目限制</li>
+              <li><span class="record-status--text fail">Runtime Error</span> 不通过：程序运行时错误（如数组越界、被零除、运算溢出、栈溢出、无效指针等）</li>
+              <li><span class="record-status--text fail">Compile Error</span> 不通过：编译失败</li>
+              <li><span class="record-status--text fail">System Error</span> 错误：系统错误（如果您遇到此问题，请及时在讨论区进行反馈）</li>
+              <li><span class="record-status--text ignored">Canceled</span> 其他：评测被取消</li>
+              <li><span class="record-status--text fail">Unknown Error</span> 其他：未知错误</li>
+              <li><span class="record-status--text ignored">Ignored</span> 其他：被忽略</li>
+            </ul>
+            <blockquote class="note">有“成绩取消”字样则说明管理员手动标记此记录为取消，可能违反了服务条款，比如代码被发现与其他用户的代码十分相似。</blockquote>
+          </section>
+          <section class="dtoj-help-sec" id="ce" data-group="评测与提交">
+            <h2>编译错误</h2>
+            <p>常见原因：递交时选错了语言；Java 的主类必须叫 Main；数组开得太大；以及一般的语法、类型错误。</p>
+            <p>C/C++ 特别注意：</p>
+            <ul>
+              <li>__int64 要写 long long。</li>
+              <li>main 的返回值必须是 int，不能写 void。</li>
+              <li>for (int i = 0; ...) 里的 i 出了这个循环就无效。</li>
+              <li>itoa 不是标准函数，用 snprintf 或 std::to_string 代替。</li>
+            </ul>
+          </section>
+          <section class="dtoj-help-sec" id="training" data-group="课程与比赛">
+            <h2>课程训练</h2>
+            <p>「训练」把题目按课程和章节组织起来，从导航栏的「训练」进入，讲义、练习和提交记录都在同一页。</p>
+            <p>有权限的老师可以在练习列表里加题、删题，拖动最左边的把手调整顺序。</p>
+          </section>
+          <section class="dtoj-help-sec" id="contest" data-group="课程与比赛">
+            <h2>比赛规则</h2>
+            <p>赛制不同，递交与排名的规则也不同。</p>
+            <ul>
+              <li><b>OI</b>：以最后一次提交为准，务必避免编译错误；按总分排名，总分相同则并列。</li>
+              <li><b>IOI</b>：可以多次提交，随时看得到自己的结果和排行榜；每道题按各子任务的最高分求和。</li>
+              <li><b>IOI(Strict)</b>：比赛期间看不到自己的结果与排行榜，结束后才公布；计分方式同 IOI。</li>
+              <li><b>XCPC</b>：按通过题数排名，同题数比总用时；每次错误提交加 20 分钟罚时。</li>
+              <li><b>Ledo</b>：多次提交会扣分，排行榜取最高分，最终得分为 <code>s × max(0.95^n, 0.7)</code>，其中 s 是本次得分、n 是本次提交前的尝试次数。</li>
+            </ul>
+            <p>时间与空间限制以题目说明为准，见上面的<a href="#limits">时间与内存限制</a>。</p>
+          </section>
+          <section class="dtoj-help-sec" id="acratio" data-group="课程与比赛">
+            <h2>通过率</h2>
+            <p>题库里显示的「通过率」是这道题的通过人数除以做过这道题的人数：同一个人交很多次也只算一次；还没有人提交过的题显示「—」。</p>
+            <p>它只是参考，不影响成绩。</p>
+          </section>
+          <section class="dtoj-help-sec" id="rp" data-group="课程与比赛">
+            <h2>等级分</h2>
+            <p>等级分由站点每天凌晨重新统计一次：做对题目会按题目难度加分，参加计入等级分的比赛会按名次升降。</p>
+            <p>分数越高排名越靠前，「等级」按分数在站内的排名划分。刚交完题不会立刻变化，要等这次统计跑完才更新。</p>
+          </section>
+          <section class="dtoj-help-sec" id="pbmdiff" data-group="课程与比赛">
+            <h2>题目难度</h2>
+            <p>题库里的「难度」是七个档位：入门、普及−、普及/提高−、普及+/提高、提高+/省选−、省选/NOI−、NOI/NOI+/CTSC，越靠后越难。难度在题目编辑页里设置，题库里没设置的显示「—」。</p>
+            <p>题库可以按难度筛选，也可以按难度从低到高、从高到低排序。</p>
+          </section>
+          <section class="dtoj-help-sec" id="domain" data-group="站点与内容">
+            <h2>域与权限</h2>
+            <p>域是互相独立的空间：每个域有自己的题库、训练、讨论和比赛，你能看到什么、能做什么，由你在这个域里的角色与权限决定。</p>
+            <p>本站默认的域是 system，打开首页就是它；别的域要用组织者给的入口地址进。域由站点管理员创建。</p>
+          </section>
+          <section class="dtoj-help-sec" id="upload" data-group="站点与内容">
+            <h2>测试数据配置</h2>
+            <p>有权限的人在题目页左侧的「文件」里上传测试数据（testdata）：文件名要与题目评测配置里引用的输入、输出文件名一致，大样例之类放在附加文件里。</p>
+            <p>详细格式见<a href="https://hydro.js.org/docs/Hydro/user/testdata">配置文档</a>。</p>
+          </section>
+          <section class="dtoj-help-sec" id="lostpass" data-group="站点与内容">
+            <h2>找回账号</h2>
+            <p>忘记密码或用户名，请联系老师或站点管理员；老师可以在「管理域 → 管理用户」里重置学生密码。</p>
+          </section>
+          <section class="dtoj-help-sec" id="markdown" data-group="站点与内容">
+            <h2>Markdown</h2>
+            <p>题面、讲义和讨论区都支持 <a href="http://commonmark.org/help/">CommonMark</a> 语法，另外扩展了这些写法：</p>
+            <ul>
+              <li>Katex 语法的数学公式：行内 <code>$E=mc^2$</code>，独立成行的 <code>$$E=mc^2$$</code>。</li>
+              <li>用 <code>==文字==</code> 高亮。</li>
+              <li>用 <code>![说明](url =100x100)</code> 指定图片显示的大小。</li>
+              <li>用 <code>[^1]</code> 写脚注。</li>
+              <li>用 <code>@[](/user/uid)</code> 提及某个用户。</li>
+              <li>用 <code>@[video](https://.../a.mp4)</code> 嵌入视频，<code>@[bilibili](BV 号)</code> 嵌入 B 站视频，<code>@[pdf](...)</code> 嵌入本站的 PDF 文件。</li>
+              <li>在题目、比赛、作业、训练里，可以用 <code>file://文件名</code> 引用该页面附件中的文件。</li>
+              <li>支持使用一部分 HTML 标签。</li>
+            </ul>
+          </section>
+        </article>
+      </div>
+    </div>
   </div>
 </div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="acratio" data-heading>{{ _('Accepted Ratio') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>通过率的影响极其恶劣，{{ name }} 不提供也不承认通过率。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="rp" data-heading>{{ _('RP Algorithm') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>RP 可由题目，活动，比赛等获得。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="pbmdiff" data-heading>{{ _('Difficulty Algorithm') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>{{ name }} 中题目的难度，根据递交数、通过率以及每个递交的递交时间和评测结果，通过算法计算得出。</p>
-    <p>因此，请注意以下几点：</p>
-    <ul>
-    <li>0. 一般地，难度的数值越大，该题目越难。</li>
-    <li>1. 新题目的难度可能不准确；在题目获得大量递交之后，难度才会变得较为准确。</li>
-    <li>2. 越早递交评测的用户代码的评测结果对题目难度影响越大。</li>
-    <li>3. 题目的难度由算法计算得出，有可能出现不准确的结果。</li>
-    </ul>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="upload" data-heading>{{ _('Dataset Format') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>详见<a href="https://hydro.js.org/docs/Hydro/user/testdata">配置文档</a></p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="lostpass" data-heading>{{ _('Forgot Password and/or Username') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>如果您无法登录，请仔细想想，是不是用户名记错了。比如，自己原本想要注册的用户名已经被注册，所以使用了一个带有前和/或后缀的用户名。</p>
-    <p>如果您确信您的账号被盗或者忘记了账号和/或密码，请及时<a href="{{ url('user_lostpass') }}">{{ _('Reset Password or Find Username') }}</a>。</p>
-  </div>
-</div>
-<div class="section" data-heading-extract-to="#menu-item-wiki_help">
-  <div class="section__header">
-    <h1 class="section__title" id="markdown" data-heading>{{ _('Markdown') }}</h1>
-  </div>
-  <div class="section__body typo">
-    <p>Hydro 的 Markdown 区域使用 <a href="http://commonmark.org/help/">CommonMark</a> 语法，并扩展了以下功能：</p>
-    <ul>
-    <li>基于 <a href="https://onemathematicalcat.org/MathJaxDocumentation/TeXSyntax.htm">Katex</a> 语法的数学公式支持。</li>
-    <li>使用 <code>@[](/user/uid)</code> 提及用户。</li>
-    <li>使用 <code>==text==</code> 高亮文本。</li>
-    <li>使用 <code>![alt](url =100x100)</code> 设置嵌入图片的大小。</li>
-    <li>使用 <code>@[video](https://.../a.mp4)</code> 嵌入视频文件。</li>
-    <li>使用 <code>@[bilibili](BVxxx)</code> 嵌入站外视频。</li>
-    <li>使用 <code>@[pdf](https://.../a.pdf)</code> 嵌入 PDF 文件。</li>
-    <li>在题目/比赛/作业/训练中，可使用 <code>file://文件名</code> 的链接格式引用对应的附件。（推荐）</li>
-    <li>支持使用一部分 HTML 标签。</li>
-    </ul>  
-  </div>
-</div>
+<script>
+  (function () {
+    const body = document.querySelector('[data-help-body]');
+    const toc = document.querySelector('[data-help-toc]');
+    const list = document.getElementById('dtoj-help-list');
+    if (!body || !toc || !list) return;
+    const secs = Array.from(body.querySelectorAll('.dtoj-help-sec[id]'));
+    if (!secs.length) return;
 
+    // 目录从正文里读，标题、锚点、分组只写在正文这一处，避免两处各抄一份对不上。
+    const byGroup = new Map();
+    secs.forEach((sec) => {
+      const group = sec.getAttribute('data-group') || '';
+      if (!byGroup.has(group)) byGroup.set(group, []);
+      byGroup.get(group).push(sec);
+    });
+    const links = new Map();
+    byGroup.forEach((items, group) => {
+      const wrap = document.createElement('li');
+      if (group) {
+        const label = document.createElement('p');
+        label.textContent = group;
+        wrap.appendChild(label);
+      }
+      const sub = document.createElement('ol');
+      items.forEach((sec) => {
+        const item = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `#${sec.id}`;
+        a.textContent = sec.querySelector('h2').textContent.trim();
+        links.set(sec.id, a);
+        item.appendChild(a);
+        sub.appendChild(item);
+      });
+      wrap.appendChild(sub);
+      list.appendChild(wrap);
+    });
+
+    // 命中线取在锚点落点（55px，见 .dtoj-help-sec）稍下面一点，
+    // 这样刚好停在该节顶部时，点亮的就是它自己。
+    const HIT_LINE = 62;
+    let current = '';
+    function mark() {
+      let hit = secs[0];
+      for (const sec of secs) {
+        if (sec.getBoundingClientRect().top <= HIT_LINE) hit = sec;
+        else break;
+      }
+      // 滚到底时最后一节可能永远够不到命中线，直接点亮它。
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+        hit = secs[secs.length - 1];
+      }
+      if (hit.id === current) return;
+      links.get(current)?.classList.remove('is-on');
+      current = hit.id;
+      links.get(current)?.classList.add('is-on');
+    }
+    let ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; mark(); });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    window.addEventListener('hashchange', onScroll);
+    mark();
+
+    const toggle = toc.querySelector('[data-help-toc-toggle]');
+    function setOpen(open) {
+      toc.classList.toggle('is-closed', !open);
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    toggle.addEventListener('click', () => setOpen(toc.classList.contains('is-closed')));
+    if (window.matchMedia('(max-width: 900px)').matches) setOpen(false);
+  })();
+</script>
 {% endblock %}
