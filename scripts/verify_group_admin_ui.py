@@ -72,15 +72,16 @@ def main() -> int:
             # 页面上有轮询（未读消息、任务状态），networkidle 永远不会触发
             page.set_default_timeout(15000)
             page.goto(f'{BASE}/group', wait_until='domcontentloaded')
-            page.wait_for_selector('.dtoj-groups__head h1')
+            page.wait_for_selector('.dtoj-groups__lead')
 
             # 列表里可能还有别人的组，凡是要看「我这个组」的信息都走这个定位
             def own_card():
                 return page.locator(f'.dtoj-groups__row:has(.dtoj-groups__name:text-is("{NAME}")) .dtoj-groups__meta')
 
             print('\n=== 顶栏与页面 ===')
-            check('顶栏有「小组」入口', page.locator('a.nav__item', has_text='小组').count() > 0, True)
-            check('页面标题', page.locator('.dtoj-groups__head h1').inner_text(), '小组')
+            check('顶栏有「管理域」入口', page.locator('.nav__list--main a.nav__item', has_text='管理域').count(), 1)
+            check('顶栏不再有「小组」入口', page.locator('.nav__list--main a.nav__item', has_text='小组').count(), 0)
+            check('页面标题', page.locator('.section__title').inner_text(), '管理小组')
             # 不假设列表是空的：库里可能有别的组（别人建的、手动试出来的），
             # 只钉死「这个临时组现在还不存在」
             check('临时组还没建', page.locator(f'.dtoj-groups__name:text-is("{NAME}")').count(), 0)
@@ -95,8 +96,8 @@ def main() -> int:
             page.screenshot(path=str(SHOT / 'group-2-create-dialog.png'), full_page=True)
             with page.expect_navigation(wait_until='domcontentloaded'):
                 page.click('#dtoj-group-create button[type=submit]')
-            page.wait_for_selector('.dtoj-groups__head h1')
-            check('建完回到列表', page.locator('.dtoj-groups__head h1').inner_text(), '小组')
+            page.wait_for_selector('.dtoj-groups__lead')
+            check('建完回到列表', page.url.endswith('/group'), True)
             check('卡片出现', page.locator(f'.dtoj-groups__name:text-is("{NAME}")').count(), 1)
             check('库里也有了', uids_of(NAME), [])
             check('新组是 0 人', '还没有成员' in own_card().inner_text(), True)
@@ -115,7 +116,7 @@ def main() -> int:
             page.screenshot(path=str(SHOT / 'group-3-members-dialog.png'), full_page=True)
             with page.expect_navigation(wait_until='domcontentloaded'):
                 page.click('#dtoj-group-edit-save')
-            page.wait_for_selector('.dtoj-groups__head h1')
+            page.wait_for_selector('.dtoj-groups__lead')
             check('名单落库', uids_of(NAME), [16])
             check('卡片上显示 1 人', '1 人' in own_card().inner_text(), True)
             check('卡片上显示了名字', '韩家成' in own_card().inner_text(), True)
@@ -135,7 +136,7 @@ def main() -> int:
             # 只点自己这一行的删除：列表里可能还有别人的组（比如手动试出来的），点第一行会误删
             with page.expect_navigation(wait_until='domcontentloaded'):
                 page.click(f'.dtoj-groups__row:has(.dtoj-groups__name:text-is("{NAME}")) form button[type=submit]')
-            page.wait_for_selector('.dtoj-groups__head h1')
+            page.wait_for_selector('.dtoj-groups__lead')
             check('组没了', uids_of(NAME), None)
             check('卡片也没了', page.locator(f'.dtoj-groups__name:text-is("{NAME}")').count(), 0)
             browser.close()

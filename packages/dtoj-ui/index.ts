@@ -1,8 +1,8 @@
 import { escapeRegExp } from 'lodash';
 import {
     canViewAllDomainRecords, ContestModel, ContestNotFoundError, Context, CreateError as Err, DocumentModel, DomainModel, ForbiddenError, Handler,
-    HomeworkNotAttendedError, HomeworkNotLiveError, NotAssignedError, ObjectId, param,
-    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, Types, UserModel, ValidationError,
+    HomeworkNotAttendedError, HomeworkNotLiveError, NotAssignedError, ObjectId, OplogModel, param,
+    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, query, Types, UserModel, ValidationError,
 } from 'hydrooj';
 import {
     askHomeworkQuestion, bridgeInboxReply, listHomeworkProgress, listHomeworkQuestions,
@@ -15,6 +15,10 @@ import {
     HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
     myGroupNames, ownsGroup,
 } from './userGroups';
+import {
+    CreateStudentsResult, createStudents, initStudentPasswords, listStudents,
+    STUDENT_DEFAULT_PASSWORD, studentRoleName,
+} from './domainUsers';
 
 export { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, myPendingHomework } from './homeworkScope';
 
@@ -385,7 +389,7 @@ class DtojGroupHandler extends DtojDataHandler {
         for (const gdoc of groups) for (const uid of gdoc.uids || []) uids.add(uid);
         const creatorOptions = [...new Set(groups.map((gdoc) => creators[gdoc.name]))]
             .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
-        this.view('dtoj_group', {
+        this.view('dtoj_domain_group', {
             groups: groups.map((gdoc) => ({
                 name: gdoc.name,
                 mine: gdoc.owner === this.user._id,
@@ -450,6 +454,76 @@ class DtojGroupDeleteHandler extends DtojDataHandler {
         if (used) throw new ValidationError('name', null, `还有 ${used} 份作业或比赛在用它，先改掉那些分派再删`);
         await UserModel.delGroup(domainId, gdoc.name);
         this.response.redirect = this.url('dtoj_group');
+    }
+}
+
+const DOMAIN_STUDENT_PAGE_SIZE = 30;
+
+/**
+ * 教师的「管理用户」。
+ *
+ * 只有三件事：看学生名单、把用户名建成学生账号、给学生重置密码。改角色、移出域、删账号
+ * 这里都没有 —— 那些还归管理员的 /domain/user（那个页面的门槛是 PERM_EDIT_DOMAIN，
+ * 拿到就等于拿到整个域）。范围收窄的实现在 domainUsers.ts 里：两个写入口都按「本域学生」
+ * 重新核一遍，不认页面传来的角色或 uid。
+ */
+class DtojDomainUserHandler extends DtojDataHandler {
+    @query('page', Types.PositiveInt, true)
+    @query('q', Types.Content, true)
+    @query('find', Types.Int, true)
+    async get(domainId: string, page = 1, q = '', find?: number) {
+        await this.renderPage(domainId, { page, q, find });
+    }
+
+    @param('usernames', Types.Content)
+    async postCreate(domainId: string, usernames: string) {
+        // 一行一个；逗号、顿号、分号也当分隔符 —— 从表格里复制出来多半是这几种
+        const names = usernames.split(/[\s,，、;；]+/).filter(Boolean);
+        if (!names.length) throw new ValidationError('usernames');
+        const result = await createStudents(domainId, names, this.request.ip);
+        await OplogModel.log(this, 'dtoj.domain.createStudents', {
+            domainId, created: result.created, linked: result.linked, failed: result.failed.map((i) => i.uname),
+        });
+        await this.renderPage(domainId, { page: 1, result });
+    }
+
+    @param('uids', Types.NumericArray, true)
+    async postInitPassword(domainId: string, uids: number[] = []) {
+        const done = await initStudentPasswords(domainId, uids);
+        await OplogModel.log(this, 'dtoj.domain.initStudentPassword', { domainId, uids: done });
+        await this.renderPage(domainId, { page: 1, initDone: done.length });
+    }
+
+    /**
+     * 列表和操作结果都从这儿出。POST 完直接重画这一页，结果就留在表单上方，
+     * 省得再想一个提示条的位置（也免了跳转后被刷新重提交的尴尬）。
+     */
+    private async renderPage(domainId: string, opts: {
+        page?: number,
+        q?: string,
+        find?: number,
+        result?: CreateStudentsResult,
+        initDone?: number,
+    }) {
+        const [domain, all] = await Promise.all([DomainModel.get(domainId), listStudents(domainId, opts.q)]);
+        // find 是 core 那边的一栏「按 uid 找人」，这里保留是为了从别处跳过来能对上号
+        const list = opts.find ? all.filter((student) => student.uid === opts.find) : all;
+        const ucount = list.length;
+        const upcount = Math.max(1, Math.ceil(ucount / DOMAIN_STUDENT_PAGE_SIZE));
+        const page = Math.min(Math.max(1, opts.page || 1), upcount);
+        this.view('dtoj_domain_user', {
+            domain,
+            rows: list.slice((page - 1) * DOMAIN_STUDENT_PAGE_SIZE, page * DOMAIN_STUDENT_PAGE_SIZE),
+            page,
+            upcount,
+            ucount,
+            q: opts.q || '',
+            find: opts.find,
+            role: studentRoleName(),
+            defaultPassword: STUDENT_DEFAULT_PASSWORD,
+            result: opts.result,
+            initDone: opts.initDone,
+        });
     }
 }
 
@@ -619,24 +693,47 @@ export async function apply(ctx: Context) {
     }, (handler: Handler) => handler.user.hasPriv(PRIV.PRIV_USER_PROFILE));
     global.Hydro.ui.inject('Nav', 'domain_dashboard', { prefix: 'domain', displayName: '管理域' }, PERM.PERM_EDIT_DOMAIN);
 
-    // 小组管理入口只给管得了组的人。管组权限是「或」（自己名下的 / 全部），
-    // inject 只能接一个权限位，所以这里给个 checker 自己判。
-    global.Hydro.ui.inject('Nav', 'dtoj_group', {
-        prefix: 'dtoj_group',
-        displayName: '小组',
-        // 插在「作业」左边：这个页面就是为布置作业服务的，放一起才找得到。
-        // 不用 after 是因为站内消息要挨着作业（见 nav.html 的未读红点）。
-        before: 'homework_main',
-    }, (handler: Handler) => handler.user.hasPerm(PERM.PERM_MANAGE_GROUP, PERM.PERM_MANAGE_GROUP_ALL));
+    // 教师的「管理域」。教师没有 PERM_EDIT_DOMAIN，进不了 core 的 /domain/dashboard，
+    // 所以另开一项指向插件自己的页面；顶栏的「小组」入口已经撤掉，都从这里进。
+    // 与之配套的是下面两个 DomainManage 侧栏项（管理小组 / 管理用户）。
+    global.Hydro.ui.inject('Nav', 'dtoj_domain', {
+        href: '/group',
+        // 侧栏两项的 page_name 都是 dtoj_domain_*，前缀取 dtoj_domain 就能在两者上都点亮
+        prefix: 'dtoj_domain',
+        displayName: '管理域',
+        after: 'domain_dashboard',
+    }, (handler: Handler) => !handler.user.hasPerm(PERM.PERM_EDIT_DOMAIN)
+        && handler.user.hasPerm(PERM.PERM_MANAGE_GROUP, PERM.PERM_MANAGE_GROUP_ALL, PERM.PERM_MANAGE_STUDENT));
+
+    // 域管理侧栏给教师的两项。core 的 7 个 DomainManage 项都要求 PERM_EDIT_DOMAIN
+    // （见 hydrooj/src/lib/ui.ts），教师一个都看不到，这里补上教师该有的两个。
+    // 侧栏文案取自 item name 的 i18n（见 domain_base.html 的 _() 调用）。
+    //
+    // 得排除掉有 PERM_EDIT_DOMAIN 的人：core 的 domain_group / domain_user 文案就是
+    // 「管理小组」「管理用户」，不判断的话管理员侧栏会出现两遍同名项。
+    const teacherOnly = (handler: Handler) => !handler.user.hasPerm(PERM.PERM_EDIT_DOMAIN);
+    global.Hydro.ui.inject('DomainManage', 'dtoj_group', { family: 'Access Control', icon: 'user' },
+        (handler: Handler) => teacherOnly(handler)
+            && handler.user.hasPerm(PERM.PERM_MANAGE_GROUP, PERM.PERM_MANAGE_GROUP_ALL));
+    global.Hydro.ui.inject('DomainManage', 'dtoj_domain_user', { family: 'Access Control', icon: 'user' },
+        (handler: Handler) => teacherOnly(handler) && handler.user.hasPerm(PERM.PERM_MANAGE_STUDENT));
 
     // Nav 项的文字取自 item.name 的 i18n 目录（见 nav.html 的 _() 调用），
     // 不注册的话顶栏会直接显示 'dtoj_courseware' 这个名字。
     ctx.i18n.load('zh', { dtoj_courseware: '课件' });
     ctx.i18n.load('zh_TW', { dtoj_courseware: '課件' });
     ctx.i18n.load('en', { dtoj_courseware: 'Courseware' });
-    ctx.i18n.load('zh', { dtoj_group: '小组' });
-    ctx.i18n.load('zh_TW', { dtoj_group: '小組' });
+    // 教师域管理侧栏的两项（名字与 core 侧栏保持同一套说法）
+    ctx.i18n.load('zh', { dtoj_group: '管理小组' });
+    ctx.i18n.load('zh_TW', { dtoj_group: '管理小組' });
     ctx.i18n.load('en', { dtoj_group: 'Groups' });
+    ctx.i18n.load('zh', { dtoj_domain_user: '管理用户' });
+    ctx.i18n.load('zh_TW', { dtoj_domain_user: '管理用戶' });
+    ctx.i18n.load('en', { dtoj_domain_user: 'Users' });
+    // 顶栏那项也走 i18n：nav.html 取的是 item.name（args 里的 displayName 模板读不到）
+    ctx.i18n.load('zh', { dtoj_domain: '管理域' });
+    ctx.i18n.load('zh_TW', { dtoj_domain: '管理域' });
+    ctx.i18n.load('en', { dtoj_domain: 'Manage' });
 
     // 课件系统据此确认来访者身份，见 DtojOjSessionHandler
     ctx.Route('dtoj_oj_session', '/oj-session', DtojOjSessionHandler);
@@ -660,6 +757,10 @@ export async function apply(ctx: Context) {
     ctx.Route('dtoj_group_create', '/group/create', DtojGroupCreateHandler, PRIV.PRIV_USER_PROFILE);
     ctx.Route('dtoj_group_members', '/group/members', DtojGroupMembersHandler, PRIV.PRIV_USER_PROFILE);
     ctx.Route('dtoj_group_delete', '/group/delete', DtojGroupDeleteHandler, PRIV.PRIV_USER_PROFILE);
+
+    // 教师的「管理用户」，见 DtojDomainUserHandler。挂 PERM_MANAGE_STUDENT：
+    // 这个权限位只够看学生、建学生、重置学生密码，拿不到改角色和域设置。
+    ctx.Route('dtoj_domain_user', '/domain/student', DtojDomainUserHandler, PERM.PERM_MANAGE_STUDENT);
 
     // 题目页侧栏的「添加作业」，见 DtojProblemAddHomeworkHandler
     ctx.Route(

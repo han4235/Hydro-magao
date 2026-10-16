@@ -68,13 +68,17 @@ inject('ControlPanel', 'manage_user_import');
 inject('ControlPanel', 'manage_user_priv');
 inject('ControlPanel', 'manage_setting');
 inject('ControlPanel', 'manage_config');
-inject('DomainManage', 'domain_dashboard', { family: 'Properties', icon: 'info' });
-inject('DomainManage', 'domain_edit', { family: 'Properties', icon: 'info' });
-inject('DomainManage', 'domain_join_applications', { family: 'Properties', icon: 'info' });
-inject('DomainManage', 'domain_role', { family: 'Access Control', icon: 'user' });
-inject('DomainManage', 'domain_user', { family: 'Access Control', icon: 'user' });
-inject('DomainManage', 'domain_permission', { family: 'Access Control', icon: 'user' });
-inject('DomainManage', 'domain_group', { family: 'Access Control', icon: 'user' });
+// 域管理侧栏。每项都挂上它自己那个页面真正要求的权限位 —— 默认（没有 checker）是
+// 「谁进得来就全看得见」，而域管理区现在不止管理员会进（教师有「管自己名下的组」
+// 和「管理学生账号」两个窄权限，走插件自己的页面），不加就等于把编辑域设置、
+// 管理角色、管理权限这些入口摆给教师看。
+inject('DomainManage', 'domain_dashboard', { family: 'Properties', icon: 'info' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_edit', { family: 'Properties', icon: 'info' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_join_applications', { family: 'Properties', icon: 'info' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_role', { family: 'Access Control', icon: 'user' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_user', { family: 'Access Control', icon: 'user' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_permission', { family: 'Access Control', icon: 'user' }, PERM.PERM_EDIT_DOMAIN);
+inject('DomainManage', 'domain_group', { family: 'Access Control', icon: 'user' }, PERM.PERM_EDIT_DOMAIN);
 
 global.Hydro.ui.inject = inject;
 global.Hydro.ui.nodes = nodes as any;

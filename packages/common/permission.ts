@@ -13,6 +13,9 @@ export const PERM = {
     // 「管全部组」留给管理员，别拿 PERM_EDIT_DOMAIN 一刀切）
     PERM_MANAGE_GROUP: 1n << 3n,
     PERM_MANAGE_GROUP_ALL: 1n << 11n,
+    // 学生账号（建号、重置密码）。同样不跟 PERM_EDIT_DOMAIN 合并：老师要的是
+    // 「把新生录进来」，不是「改域设置 / 改角色表」。
+    PERM_MANAGE_STUDENT: 1n << 23n,
 
     // Problem
     PERM_CREATE_PROBLEM: 1n << 4n,
