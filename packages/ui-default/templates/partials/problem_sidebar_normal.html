@@ -158,6 +158,11 @@
         <span class="icon icon-statistics"></span> {{ _('Statistics') }}
       </a></li>
     {% endif %}
+    {% if page_name == 'problem_detail' and hwAdd %}
+      <li class="menu__item"><a class="menu__link" href="javascript:;" name="problem-sidebar__add-homework" id="dtoj-hw-add-open">
+        <span class="icon icon-calendar"></span> 添加作业
+      </a></li>
+    {% endif %}
     {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
       <li class="menu__seperator"></li>
       {% if page_name == 'problem_detail' %}
@@ -238,4 +243,220 @@
     {% endfor %}
   {% endif %}
 </section>
+{% endif %}
+{#
+  「添加作业」弹层：给这道题现建一份作业，分给勾中的分组或同学。
+  清单由 dtoj-ui 在 ProblemDetail#get 之后挂到 body.hwAdd 上（只给建得了作业的人算），
+  没有 hwAdd 的页面连菜单项带弹层一起不渲染。
+  两个列表的勾选都算数（切页签不丢选择），页签上的数字就是各自的已选数。
+#}
+{% if page_name == 'problem_detail' and hwAdd %}
+<style>
+  .dtoj-hw-add .dtoj-group-dialog__panel { width: min(520px, calc(100vw - 32px)); max-height: min(620px, calc(100vh - 64px)); }
+  .dtoj-hw-add-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 20px; }
+  .dtoj-hw-add-field { display: flex; flex-direction: column; gap: 6px; flex: none; margin: 14px 0 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+  .dtoj-hw-add-field input {
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .dtoj-hw-add-field input:focus,
+  .dtoj-hw-add-search:focus {
+    outline: none;
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+  .dtoj-hw-add-when { flex: none; margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .dtoj-hw-add-when b { color: var(--ink); font-weight: 700; }
+  .dtoj-hw-add-tabs { display: flex; flex: none; gap: 8px; margin: 14px 0 0; }
+  .dtoj-hw-add-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-hw-add-tab b { font-weight: 800; }
+  .dtoj-hw-add-tab.is-on { border-color: transparent; background: var(--brand-deep); color: #fff; }
+  .dtoj-hw-add-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .dtoj-hw-add-pane[hidden] { display: none; }
+  /* 行本身是 flex 的 label，光靠 hidden 属性压不住 display，得显式收掉 */
+  .dtoj-hw-add-pane [data-hw-add-row][hidden] { display: none; }
+  .dtoj-hw-add-pane .dtoj-group-dialog__list { margin-top: 10px; padding: 0; }
+  .dtoj-hw-add-search {
+    flex: none;
+    height: 38px;
+    margin-top: 10px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+  }
+  .dtoj-hw-add-em { margin-left: auto; color: var(--muted); font-size: 12px; font-style: normal; font-weight: 600; }
+  .dtoj-hw-add-sub { color: var(--muted); font-size: 12px; font-style: normal; font-weight: 600; }
+  .dtoj-hw-add-empty { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  /* 「还没勾人」的提示。不拦提交、只把提交按钮按住，免得撞上全局的防连点保护 */
+  .dtoj-hw-add-note { flex: none; margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .dtoj-hw-add-note[hidden] { display: none; }
+  .dtoj-hw-add .dtoj-user-btn--primary:disabled { border-color: transparent; background: #cbd5e1; color: #fff; cursor: not-allowed; }
+</style>
+<div class="dtoj-group-dialog dtoj-hw-add" id="dtoj-hw-add-dialog" hidden>
+  <div class="dtoj-group-dialog__mask" data-hw-add-close></div>
+  <div class="dtoj-group-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="dtoj-hw-add-title">
+    <div class="dtoj-group-dialog__head">
+      <h2 id="dtoj-hw-add-title">添加作业</h2>
+      <button type="button" class="dtoj-group-dialog__close" data-hw-add-close aria-label="{{ _('Close') }}">&times;</button>
+    </div>
+    <form method="post" action="{{ url('dtoj_problem_add_homework', pid=pdoc.pid|default(pdoc.docId)) }}" id="dtoj-hw-add-form">
+      <p class="dtoj-group-dialog__hint">把这题布置下去：勾上要分给的分组或同学，提交后就有一份只含这道题的作业。</p>
+      <div class="dtoj-hw-add-body">
+        <label class="dtoj-hw-add-field">作业标题
+          <input type="text" name="title" value="{{ pdoc['title'] }}" maxlength="64" required>
+        </label>
+        <p class="dtoj-hw-add-when">开始 <b>{{ hwAdd.beginText }}</b>（现在）· 截止 <b>{{ hwAdd.endText }}</b>（一个月后）</p>
+        <div class="dtoj-hw-add-tabs">
+          <button type="button" class="dtoj-hw-add-tab is-on" data-hw-add-tab="group">
+            按分组 <b data-hw-add-count="group">0</b>
+          </button>
+          <button type="button" class="dtoj-hw-add-tab" data-hw-add-tab="student">
+            按学生 <b data-hw-add-count="student">0</b>
+          </button>
+        </div>
+        <div class="dtoj-hw-add-pane" data-hw-add-pane="group">
+          {% if hwAdd.groups.length %}
+          <div class="dtoj-group-dialog__list">
+            {% for g in hwAdd.groups %}
+            <label class="dtoj-group-dialog__item">
+              <input type="checkbox" data-hw-add-pick value="{{ g.name }}">
+              <span>{{ g.name }}</span>
+              <em class="dtoj-hw-add-em">{{ g.count }} 人</em>
+            </label>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="dtoj-hw-add-empty">域里还没有分组，切到「按学生」按人布置，或先去管理域里建组。</p>
+          {% endif %}
+        </div>
+        <div class="dtoj-hw-add-pane" data-hw-add-pane="student" hidden>
+          <input type="search" class="dtoj-hw-add-search" data-hw-add-search placeholder="搜姓名或账号">
+          <div class="dtoj-group-dialog__list">
+            {% for s in hwAdd.students %}
+            <label class="dtoj-group-dialog__item" data-hw-add-row data-hw-add-key="{{ s.name }} {{ s.uname }} {{ s.uid }}">
+              <input type="checkbox" data-hw-add-pick value="{{ s.uid }}">
+              <span>{{ s.name }}{% if s.name != s.uname %} <i class="dtoj-hw-add-sub">{{ s.uname }}</i>{% endif %}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <input type="hidden" name="assign" id="dtoj-hw-add-assign">
+        <p class="dtoj-hw-add-note" id="dtoj-hw-add-note">先勾上分组或同学，「创建作业」就能点了。</p>
+      </div>
+      <div class="dtoj-group-dialog__foot">
+        <button type="button" class="dtoj-user-btn" data-hw-add-close>取消</button>
+        <button type="submit" class="dtoj-user-btn dtoj-user-btn--primary" id="dtoj-hw-add-submit" disabled>创建作业</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var dialog = document.getElementById('dtoj-hw-add-dialog');
+  var trigger = document.getElementById('dtoj-hw-add-open');
+  var form = document.getElementById('dtoj-hw-add-form');
+  if (!dialog || !trigger || !form) return;
+  var assignInput = document.getElementById('dtoj-hw-add-assign');
+  var note = document.getElementById('dtoj-hw-add-note');
+  var submitBtn = document.getElementById('dtoj-hw-add-submit');
+  var search = dialog.querySelector('[data-hw-add-search]');
+
+  function picks() {
+    return Array.prototype.slice.call(dialog.querySelectorAll('[data-hw-add-pick]'));
+  }
+
+  /*
+   * 已选数写回页签上的角标（免得切到另一页签后看不见这里还勾着谁），
+   * 顺手把「没人可发」的提交按钮按住：没勾东西时压根不给点，
+   * 就不用靠 preventDefault 拦提交 —— 那会撞上全局的防连点保护，五秒内点不动。
+   */
+  function refresh() {
+    var n = { group: 0, student: 0 };
+    var total = 0;
+    picks().forEach(function (el) {
+      if (!el.checked) return;
+      var pane = el.closest('[data-hw-add-pane]');
+      if (pane) n[pane.getAttribute('data-hw-add-pane')]++;
+      total++;
+    });
+    dialog.querySelectorAll('[data-hw-add-count]').forEach(function (el) {
+      el.textContent = n[el.getAttribute('data-hw-add-count')];
+    });
+    submitBtn.disabled = !total;
+    note.hidden = !!total;
+  }
+
+  function open(on) {
+    dialog.hidden = !on;
+    document.body.classList.toggle('dtoj-group-dialog-open', on);
+    if (on) refresh();
+  }
+
+  trigger.addEventListener('click', function () { open(true); });
+  dialog.addEventListener('click', function (e) {
+    if (e.target.closest('[data-hw-add-close]')) open(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !dialog.hidden) open(false);
+  });
+
+  dialog.addEventListener('change', function (e) {
+    if (e.target.closest('[data-hw-add-pick]')) refresh();
+  });
+
+  dialog.querySelectorAll('[data-hw-add-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.getAttribute('data-hw-add-tab');
+      dialog.querySelectorAll('[data-hw-add-tab]').forEach(function (other) {
+        other.classList.toggle('is-on', other === btn);
+      });
+      dialog.querySelectorAll('[data-hw-add-pane]').forEach(function (pane) {
+        pane.hidden = pane.getAttribute('data-hw-add-pane') !== mode;
+      });
+    });
+  });
+
+  if (search) {
+    search.addEventListener('input', function () {
+      var q = search.value.trim().toLowerCase();
+      dialog.querySelectorAll('[data-hw-add-row]').forEach(function (row) {
+        var key = (row.getAttribute('data-hw-add-key') || '').toLowerCase();
+        row.hidden = !!q && key.indexOf(q) === -1;
+      });
+    });
+  }
+
+  // 提交时才把勾中的塞进 assign：组名和 uid 可以混着写
+  form.addEventListener('submit', function () {
+    var values = [];
+    picks().forEach(function (el) { if (el.checked) values.push(el.value); });
+    assignInput.value = values.join(',');
+  });
+})();
+</script>
 {% endif %}
