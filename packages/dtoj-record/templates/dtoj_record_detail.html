@@ -199,12 +199,58 @@
     }
     bar.hidden = false;
     if (label) label.textContent = tile.getAttribute('data-case-no') || '';
-    if (btnIn) {
-      btnIn.disabled = !tile.getAttribute('data-in-url');
+    if (btnIn) syncSampleButton(btnIn, '输入', tile.getAttribute('data-in-url'), tile.getAttribute('data-in-size'));
+    if (btnOut) syncSampleButton(btnOut, '输出', tile.getAttribute('data-out-url'), tile.getAttribute('data-out-size'));
+  }
+
+  // 样例预览的体积上限。样例动辄几 MB，整段塞进 <pre> 光是排版就要好几秒
+  // （实测 7.6MB 约 1.6s、22MB 约 3.4s，期间页面完全点不动），而这么大的内容
+  // 本来也没法用眼睛读。超过上限就不预览了，按钮直接变成下载。
+  var SAMPLE_PREVIEW_MAX_BYTES = 200 * 1024;
+  // 兜底：文件大小拿不到时仍会走预览，内容若还是过大就截断渲染
+  var SAMPLE_PREVIEW_LIMIT = 200000;
+
+  function humanSize(bytes) {
+    var n = Number(bytes) || 0;
+    if (!n) return '';
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024) return Math.round(n / 1024) + ' KB';
+    return n + ' B';
+  }
+
+  function sampleTooLarge(bytes) {
+    return (Number(bytes) || 0) > SAMPLE_PREVIEW_MAX_BYTES;
+  }
+
+  // 去掉 noDisposition=1，让后端照常发 Content-Disposition，下载才拿得到文件名
+  function sampleDownloadUrl(url) {
+    return url.replace(/([?&])noDisposition=1(?=&|$)/, '$1').replace(/[?&]$/, '');
+  }
+
+  // 体积过大时按钮改叫「下载样例X」，点了直接下载，不再走预览
+  function syncSampleButton(btn, kind, url, size) {
+    btn.disabled = !url;
+    btn.removeAttribute('title');
+    if (!url) {
+      btn.textContent = '查看样例' + kind;
+      return;
     }
-    if (btnOut) {
-      btnOut.disabled = !tile.getAttribute('data-out-url');
+    if (sampleTooLarge(size)) {
+      var text = humanSize(size);
+      btn.textContent = '下载样例' + kind + (text ? '（' + text + '）' : '');
+      btn.title = '样例体积较大' + (text ? '（' + text + '）' : '') + '，无法在页面内预览，点击直接下载';
+      return;
     }
+    btn.textContent = '查看样例' + kind;
+  }
+
+  function triggerDownload(url) {
+    var a = document.createElement('a');
+    a.href = sampleDownloadUrl(url);
+    a.setAttribute('download', '');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   function closeCaseSampleModal() {
@@ -212,7 +258,55 @@
     if (modal) modal.remove();
   }
 
-  function showCaseSampleModal(title, text) {
+  // 复制整段文本。超限的样例在页面上只渲染了开头，这里给的是取回来的全文
+  function copyFullText(text, btn) {
+    var label = btn.textContent;
+    function flash(msg) {
+      btn.textContent = msg;
+      setTimeout(function () { btn.textContent = label; }, 2000);
+    }
+    if (text && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { flash('已复制'); },
+        function () { flash('复制失败，请下载'); });
+      return;
+    }
+    flash('复制失败，请下载');
+  }
+
+  function buildSampleNotice(text, url) {
+    var notice = document.createElement('div');
+    notice.className = 'dtoj-case-sample-modal__notice';
+    var msg = document.createElement('p');
+    msg.className = 'dtoj-case-sample-modal__notice-text';
+    var size = humanSize(text.length);
+    msg.appendChild(document.createTextNode('这份样例有 ' + size + '，超出预览上限，这里只显示开头部分。完整内容请 '));
+    if (url) {
+      var dl = document.createElement('a');
+      dl.href = sampleDownloadUrl(url);
+      dl.setAttribute('download', '');
+      dl.textContent = '下载';
+      msg.appendChild(dl);
+      msg.appendChild(document.createTextNode(' 或 '));
+      var open = document.createElement('a');
+      open.href = url;
+      open.target = '_blank';
+      open.rel = 'noopener';
+      open.textContent = '在新标签页打开';
+      msg.appendChild(open);
+    }
+    msg.appendChild(document.createTextNode('。'));
+    notice.appendChild(msg);
+    var copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'dtoj-btn dtoj-btn--ghost dtoj-case-sample-modal__notice-copy';
+    copy.textContent = '复制全部';
+    copy.title = '复制完整样例内容（' + humanSize(text.length) + '）';
+    copy.addEventListener('click', function () { copyFullText(text, copy); });
+    notice.appendChild(copy);
+    return notice;
+  }
+
+  function showCaseSampleModal(title, text, url) {
     closeCaseSampleModal();
     var modal = document.createElement('div');
     modal.className = 'dtoj-case-sample-modal';
@@ -220,22 +314,41 @@
       + '<div class="dtoj-case-sample-modal__head"><span></span>'
       + '<button type="button" class="dtoj-btn dtoj-btn--ghost" data-close>关闭</button></div>'
       + '<pre class="dtoj-case-sample-modal__body"></pre></div>';
+    var panel = modal.querySelector('.dtoj-case-sample-modal__panel');
+    var body = modal.querySelector('.dtoj-case-sample-modal__body');
     modal.querySelector('.dtoj-case-sample-modal__head span').textContent = title;
-    modal.querySelector('.dtoj-case-sample-modal__body').textContent = text || '（空文件）';
+    if (text && text.length > SAMPLE_PREVIEW_LIMIT) {
+      // 截到上限前的最后一个换行，别把一行切一半
+      var cut = text.lastIndexOf('\n', SAMPLE_PREVIEW_LIMIT);
+      if (cut < SAMPLE_PREVIEW_LIMIT / 2) cut = SAMPLE_PREVIEW_LIMIT;
+      panel.insertBefore(buildSampleNotice(text, url), body);
+      body.textContent = text.slice(0, cut);
+    } else {
+      body.textContent = text || '（空文件）';
+    }
     modal.addEventListener('click', function (e) {
       if (e.target === modal || e.target.closest('[data-close]')) closeCaseSampleModal();
     });
     document.body.appendChild(modal);
   }
 
+  // 取样例正文。第一跳按 JSON 拿的是「签名下载地址」，所以请求得带上
+  // Pragma: no-cache —— Service Worker 见到这个头就完全不碰缓存，否则这份 JSON 会被
+  // 按 URL 记进 cache。而这个 URL 恰恰就是页面上「下载样例 / 在新标签页打开」要打开的
+  // 地址，用户之后点开就会被吐回一坨 JSON（看着就像页面坏了）。
+  // 上游的 preview.page.ts 用同一招，签名地址那一跳不用带（/fs/ 本来就不进缓存）。
+  function fetchNoCache(url, dataType) {
+    return window.jQuery.ajax({ url: url, dataType: dataType, headers: { Pragma: 'no-cache' } });
+  }
+
   function fetchTestdataText(url) {
     if (window.jQuery) {
-      return window.jQuery.getJSON(url).then(function (data) {
+      return fetchNoCache(url, 'json').then(function (data) {
         if (data && data.url) return window.jQuery.get(data.url, null, 'text');
-        return window.jQuery.get(url, null, 'text');
+        return fetchNoCache(url, 'text');
       });
     }
-    return fetch(url, { credentials: 'same-origin' }).then(function (res) {
+    return fetch(url, { credentials: 'same-origin', headers: { Pragma: 'no-cache' } }).then(function (res) {
       var ct = res.headers.get('content-type') || '';
       if (ct.indexOf('json') >= 0) {
         return res.json().then(function (data) {
@@ -248,13 +361,39 @@
     });
   }
 
+  /* 善后：以前这里是用 jQuery.getJSON 取样例的，而 Service Worker 会按 URL 把这坨
+     JSON 存进 cache（文件名带点就落进它的缓存条件）。之后用户点「下载样例 / 在新标签
+     页打开」打开同一个地址，SW 直接把这份 JSON 递回来，页面看着就坏了。
+     现在取样例的请求带了 Pragma: no-cache，不会再存新的；这里把以前存下的删掉。 */
+  function purgeCachedTestdata() {
+    if (!window.caches) return;
+    caches.keys().then(function (names) {
+      return Promise.all(names.map(function (name) {
+        return caches.open(name).then(function (cache) {
+          return cache.keys().then(function (keys) {
+            return Promise.all(keys.filter(function (k) {
+              return k.url.indexOf('type=testdata') >= 0;
+            }).map(function (k) { return cache.delete(k); }));
+          });
+        });
+      }));
+    }).catch(function () {});
+  }
+
   function openCaseSample(kind) {
     if (!selectedCaseEl) return;
-    var url = kind === 'in' ? selectedCaseEl.getAttribute('data-in-url') : selectedCaseEl.getAttribute('data-out-url');
+    var isIn = kind === 'in';
+    var url = isIn ? selectedCaseEl.getAttribute('data-in-url') : selectedCaseEl.getAttribute('data-out-url');
+    var size = isIn ? selectedCaseEl.getAttribute('data-in-size') : selectedCaseEl.getAttribute('data-out-size');
     if (!url) return;
-    var title = (selectedCaseEl.getAttribute('data-case-no') || '') + (kind === 'in' ? ' 样例输入' : ' 样例输出');
+    // 体积超限就不取内容也不弹窗，直接下载
+    if (sampleTooLarge(size)) {
+      triggerDownload(url);
+      return;
+    }
+    var title = (selectedCaseEl.getAttribute('data-case-no') || '') + (isIn ? ' 样例输入' : ' 样例输出');
     fetchTestdataText(url).then(function (text) {
-      showCaseSampleModal(title, text);
+      showCaseSampleModal(title, text, url);
     }).catch(function () {
       window.open(url, '_blank');
     });
@@ -296,6 +435,7 @@
       if (selectedCaseEl && !statusRoot.contains(selectedCaseEl)) syncCaseSampleBar(null);
     }).observe(statusRoot, { childList: true, subtree: true });
   }
+  purgeCachedTestdata();
   var summaryRoot = document.getElementById('summary');
   if (statusRoot) new MutationObserver(syncSidebarFromSummary).observe(statusRoot, mo);
   if (summaryRoot) new MutationObserver(syncSidebarFromSummary).observe(summaryRoot, mo);
