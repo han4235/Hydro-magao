@@ -166,7 +166,11 @@
     letter-spacing: normal;
     line-height: 1.85;
   }
-  /* 题干 Markdown 反引号 → <p><code>…</code></p>，覆盖全局 code 的 rem 小号字 */
+  /* 题干 Markdown 反引号 → <p><code>…</code></p>，覆盖全局 code 的 rem 小号字。
+     下面这些规则一律要排除 KaTeX 子树（`:not(.katex):not(.katex *)`）：
+     KaTeX 的公式整体由 <span> 组成，被这些 !important 规则套上站点字体后，
+     私有区字形（如 \ne 的叠加斜杠 U+E020）在站点字体里不存在，不等式会只剩下等号；
+     强改字号还会把下标压成正文大小（16px 而非 0.7em）。 */
   .dtoj-problem .typo p,
   .dtoj-problem .typo li {
     font-size: 16px;
@@ -174,7 +178,7 @@
   }
   .dtoj-problem .typo p code,
   .dtoj-problem .typo p font,
-  .dtoj-problem .typo p span,
+  .dtoj-problem .typo p span:not(.katex):not(.katex *),
   .dtoj-problem .typo p .token,
   .dtoj-problem .typo li code,
   .dtoj-problem .typo li font,
@@ -252,14 +256,14 @@
     margin: 0 8px 0 0;
     vertical-align: -2px;
   }
-  /* 选项内红色/行内代码：覆盖题面小号字与 <font size> */
+  /* 选项内红色/行内代码：覆盖题面小号字与 <font size>；同样排除 KaTeX 子树 */
   .dtoj-problem .problem-content .typo label.radiobox,
-  .dtoj-problem .problem-content .typo label.radiobox *:not(input) {
+  .dtoj-problem .problem-content .typo label.radiobox *:not(input):not(.katex):not(.katex *) {
     font-size: 16px !important;
     line-height: 1.6 !important;
   }
   .dtoj-problem .problem-content .typo label.radiobox code,
-  .dtoj-problem .problem-content .typo label.radiobox span,
+  .dtoj-problem .problem-content .typo label.radiobox span:not(.katex):not(.katex *),
   .dtoj-problem .problem-content .typo label.radiobox font,
   .dtoj-problem .problem-content .typo label.radiobox .token,
   .dtoj-problem .problem-content .typo label.radiobox code[class*="language-"] {
@@ -1127,6 +1131,7 @@
   function fixRadioboxFonts() {
     document.querySelectorAll('.problem-content label.radiobox').forEach(function (lab) {
       lab.querySelectorAll('font, span, code, .token').forEach(function (el) {
+        if (el.closest('.katex')) return;   // 公式自带字号，别动
         el.removeAttribute('size');
         el.style.setProperty('font-size', '16px', 'important');
         el.style.setProperty('line-height', '1.6', 'important');
@@ -1139,6 +1144,7 @@
       if (block.closest('label.radiobox')) return;
       block.querySelectorAll('code, font, span, .token').forEach(function (el) {
         if (el.closest('pre')) return;
+        if (el.closest('.katex')) return;   // 公式自带字号，别动
         el.removeAttribute('size');
         el.style.setProperty('font-size', '16px', 'important');
         el.style.setProperty('line-height', '1.85', 'important');
