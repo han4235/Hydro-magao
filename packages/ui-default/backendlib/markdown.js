@@ -24,6 +24,7 @@ const MergeCells = require('markdown-it-merge-cells');
 // @[pdf](https://foo.com/bar.pdf)
 const { Media } = require('./markdown-it-media');
 const { default: Katex } = require('./markdown-it-katex');
+const { mathPipes } = require('./markdown-it-math-pipes');
 const { xssProtector } = require('./markdown-it-xss');
 
 class Markdown extends MarkdownIt {
@@ -39,6 +40,7 @@ class Markdown extends MarkdownIt {
     this.use(Mark);
     this.use(Anchor);
     this.use(TOC);
+    this.use(mathPipes);
     this.use(Katex);
     this.use(MergeCells);
     this.use(xssProtector);

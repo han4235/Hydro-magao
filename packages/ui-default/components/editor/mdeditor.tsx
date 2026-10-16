@@ -10,6 +10,7 @@ import React from 'react';
 import { allToolbar, config, DropdownToolbar, MdEditor } from 'md-editor-rt';
 import Imsize from '../../backendlib/markdown-it-imsize';
 import katex from '../../backendlib/markdown-it-katex';
+import { mathPipes } from '../../backendlib/markdown-it-math-pipes';
 import { Media } from '../../backendlib/markdown-it-media';
 import { xssProtector } from '../../backendlib/markdown-it-xss';
 
@@ -37,6 +38,7 @@ config({
     mdit.use(TOC);
     mdit.use(MergeCells);
     mdit.use(xssProtector);
+    mdit.use(mathPipes);
     mdit.use(katex);
     if (filePreviewPrefix) {
       mdit.core.ruler.before('normalize', 'xss', (state) => {
