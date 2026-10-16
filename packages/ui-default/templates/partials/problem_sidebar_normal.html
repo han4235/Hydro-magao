@@ -167,7 +167,9 @@
       <li class="menu__seperator"></li>
       {% if page_name == 'problem_detail' %}
       <li class="menu__item">
-        <form method="post" action="{{ url('dtoj_ai_problem_sample', pid=pdoc.docId) }}">
+        {# 再生会重做标程与全部测试数据，完成后自动覆盖本题，先让用户确认再进任务页 #}
+        <form method="post" action="{{ url('dtoj_ai_problem_sample', pid=pdoc.docId) }}"
+              onsubmit='return confirm("AI 样例再生会重新调用模型生成标程与测试数据，完成后自动覆盖本题现有的样例与数据。过程需要几分钟，确定开始吗？");'>
           <button type="submit" class="menu__link" name="problem-sidebar__ai-sample">
             <span class="icon icon-refresh"></span> AI样例再生
           </button>

@@ -1,0 +1,22 @@
+{% set layout_name = "dtoj_auth" %}
+{% extends "layout/html5.html" %}
+{% block body %}
+{#
+  登录/注册这一组页面的专用布局：只留 html5 的 head 与脚本，不要顶栏、页脚、
+  侧栏和统计代码。这样整页交给模板自己铺满视口，做到真正的全屏。
+
+  不直接复用 basic.html 是因为它的 nav、footer、移动端 header 都会占据视口高度，
+  而这几张页面本身就是一个完整的分栏画面，塞进去只能得到「卡片浮在页面里」的效果。
+
+  样式不写在 partials/dtoj_auth_style.html 里：那份 partial 被 error.html 也引用了，
+  里面出现 body/html 级选择器会连带影响错误页。
+#}
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { background: #fff; }
+  #panel { display: block; }
+</style>
+{% block content %}{% endblock %}
+{% endblock %}
+{% block ogp %}
+{% endblock %}

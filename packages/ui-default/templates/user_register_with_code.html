@@ -1,22 +1,22 @@
 {% set page_name = "user_register" %}
-{% extends "layout/basic.html" %}
+{% extends "layout/dtoj_auth.html" %}
 {% block content %}
 {% include "dtoj_style.html" %}
 {% include "partials/dtoj_auth_style.html" %}
-<div class="row">
-  <div class="medium-12 columns dtoj-auth-page">
-    <div class="dtoj-auth-shell">
-      <aside class="dtoj-auth-brand">
-        <div class="dtoj-auth-logo">
-          <img src="{{ ctx.setting.get('ui-default.nav_logo_dark') }}" alt="{{ model.system.get('server.name') }}">
-          <span>{{ model.system.get('server.name') }}</span>
-        </div>
-        <div class="dtoj-auth-hero">
-          <h1>设置账号</h1>
-          <p>邮箱已确认。填写用户名和密码后即可开始训练。</p>
-        </div>
-      </aside>
-      <section class="dtoj-auth-panel">
+<div class="dtoj-auth-page">
+  <div class="dtoj-auth-shell">
+    <aside class="dtoj-auth-brand">
+      <div class="dtoj-auth-logo">
+        <img src="{{ ctx.setting.get('ui-default.nav_logo_dark') }}" alt="{{ model.system.get('server.name') }}">
+        <span>{{ model.system.get('server.name') }}</span>
+      </div>
+      <div class="dtoj-auth-hero">
+        <h1>设置账号</h1>
+        <p>邮箱已确认。填写用户名和密码后即可开始训练。</p>
+        <a class="dtoj-auth-ghost" href="{{ url('dtoj_problems') }}">先逛逛题库</a>
+      </div>
+    </aside>
+    <section class="dtoj-auth-panel">
         <div class="dtoj-auth-panel-head">
           <nav class="dtoj-auth-tabs" aria-label="账号">
             <a href="{{ url('user_login') }}">登录</a>
@@ -50,8 +50,7 @@
           <li><span>3</span>开始使用</li>
         </ol>
         <p class="dtoj-auth-bottom">已有账号？<a href="{{ url('user_login') }}">直接登录</a></p>
-      </section>
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}

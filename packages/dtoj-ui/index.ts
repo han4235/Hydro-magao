@@ -2,7 +2,7 @@ import { escapeRegExp } from 'lodash';
 import {
     canViewAllDomainRecords, ContestModel, ContestNotFoundError, Context, CreateError as Err, DocumentModel, DomainModel, ForbiddenError, Handler,
     HomeworkNotAttendedError, HomeworkNotLiveError, NotAssignedError, ObjectId, param,
-    PERM, ProblemModel, ProblemNotFoundError, PRIV, Types, UserModel, ValidationError,
+    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, Types, UserModel, ValidationError,
 } from 'hydrooj';
 import {
     askHomeworkQuestion, bridgeInboxReply, listHomeworkProgress, listHomeworkQuestions,
@@ -10,7 +10,11 @@ import {
 } from './homeworkQA';
 import { applyInboxNotices } from './inboxNotices';
 import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
-import { applyUserGroups, joinableGroupNames, myGroupNames } from './userGroups';
+import {
+    addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
+    HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
+    myGroupNames, ownsGroup,
+} from './userGroups';
 
 export { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, myPendingHomework } from './homeworkScope';
 
@@ -22,9 +26,6 @@ export const HomeworkSubmittedError = Err(
 );
 
 const DOMAIN_ROLE_SETTING_KEYS = new Set(['default.userRole', 'default.teacherRole']);
-
-/** 域用户列表不展示的系统内置账号（Hydro 安装账号、评测账号） */
-const HIDDEN_DOMAIN_USER_IDS = new Set([1, 2]);
 
 /**
  * 题目页「添加作业」建的作业用的扣分规则，抄自 partials/homework_default_penalty_rules.yaml。
@@ -346,6 +347,113 @@ class DtojUserGroupHandler extends Handler {
 }
 
 /**
+ * 教师视角的小组管理。
+ *
+ * 为什么不复用 /domain/group：那个页面的门槛是 PERM_EDIT_DOMAIN（拿到就等于拿到整个域，
+ * 连角色表都能改），组员还是个裸 uid 输入框。这边只要管组权限，组员从名单里勾。
+ *
+ * 三条硬约束，理由分散在下面各处：
+ *   1. 只看得见、只能动自己名下的组（除非有 PERM_MANAGE_GROUP_ALL）
+ *   2. 组名建完不许改 —— tdoc.assign 存的就是组名字符串，改名会让历史分派全断
+ *   3. 只能加没有管理权限的账号 —— 组参与 assign，不能拿它给自己开门
+ */
+function requireGroupManager(handler: Handler) {
+    if (!canManageGroups(handler.user)) throw new PermissionError(PERM.PERM_MANAGE_GROUP);
+}
+
+/** 取出这个组并要求归我管。不存在的组、别人的组，一律按没权限处理，不区分对待。 */
+async function requireMyGroup(handler: Handler, domainId: string, name: string) {
+    const [gdoc] = await UserModel.listGroup(domainId, undefined, [name]);
+    if (!gdoc || !ownsGroup(handler.user, gdoc)) throw new PermissionError(PERM.PERM_MANAGE_GROUP);
+    return gdoc;
+}
+
+class DtojGroupHandler extends DtojDataHandler {
+    // 这个 get 没有查询参数、也就没有 @param，而 domainId 的注入是挂在 @param 上面的
+    // （见 framework/framework/decorators.ts 的 domainIdStyle 分支），所以这里照 core 的
+    // DomainUserGroupHandler 那样从 args 里取，别写成 get(domainId: string)。
+    async get({ domainId }: { domainId: string }) {
+        requireGroupManager(this);
+        const [groups, members] = await Promise.all([
+            manageableGroups(domainId, this.user),
+            addableGroupMembers(domainId),
+        ]);
+        const usage = await groupUsageCounts(domainId, groups.map((gdoc) => gdoc.name));
+        const creators = await groupCreators(domainId, groups);
+        // 组员里可能有不在「可加入」名单上的人（后来当了老师之类），名字单独取一遍
+        const uids = new Set<number>(members.map((m) => m.uid));
+        for (const gdoc of groups) for (const uid of gdoc.uids || []) uids.add(uid);
+        const creatorOptions = [...new Set(groups.map((gdoc) => creators[gdoc.name]))]
+            .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+        this.view('dtoj_group', {
+            groups: groups.map((gdoc) => ({
+                name: gdoc.name,
+                mine: gdoc.owner === this.user._id,
+                creator: creators[gdoc.name],
+                uids: [...(gdoc.uids || [])],
+                used: usage[gdoc.name] || 0,
+            })),
+            creatorOptions,
+            members,
+            names: await memberNames(domainId, [...uids]),
+            canManageAll: managesAllGroups(this.user),
+        });
+    }
+}
+
+/** 建组。组名不可重复、建完不可改；owner 记成建组人。 */
+class DtojGroupCreateHandler extends DtojDataHandler {
+    @param('name', Types.Name)
+    async post(domainId: string, name: string) {
+        requireGroupManager(this);
+        const want = (name || '').trim();
+        // 纯数字的组名要挡掉：UserModel.listGroup 会给每个 uid 补一条同名合成组，
+        // 建一个叫「16」的组，assign 里的「16」就分不清是人还是组了
+        if (Number.isSafeInteger(+want)) throw new ValidationError('name');
+        if (!await UserModel.createGroup(domainId, want, this.user._id)) {
+            throw new ValidationError('name', null, `已经有一个叫「${want}」的小组了，换个名字`);
+        }
+        this.response.redirect = this.url('dtoj_group');
+    }
+}
+
+/** 保存组员。逐个人按名单核过才写得进去，不靠前端那个勾选框。 */
+class DtojGroupMembersHandler extends DtojDataHandler {
+    @param('name', Types.Name)
+    @param('uids', Types.NumericArray, true)
+    async post(domainId: string, name: string, uids: number[] = []) {
+        const gdoc = await requireMyGroup(this, domainId, name);
+        const allowed = new Set((await addableGroupMembers(domainId)).map((m) => m.uid));
+        const current = new Set(gdoc.uids || []);
+        // 名单外的老组员原样留着，这次只是改不动他们 —— 老师一保存就把老数据抹掉更糟
+        const want = new Set([...current].filter((uid) => !allowed.has(uid)));
+        for (const uid of uids) if (allowed.has(uid)) want.add(uid);
+        // 按人做原子的增删，不整表覆盖。学生自助加入和老师保存名单赶在一起时，
+        // 覆盖式写入会把对方刚加的人抹掉，逐人增删不会
+        await Promise.all([
+            ...[...want].filter((uid) => !current.has(uid))
+                .map((uid) => UserModel.addGroupUser(domainId, gdoc.name, uid)),
+            ...[...current].filter((uid) => !want.has(uid))
+                .map((uid) => UserModel.removeGroupUser(domainId, gdoc.name, uid)),
+        ]);
+        this.response.redirect = this.url('dtoj_group');
+    }
+}
+
+/** 删自己的组。assign 里有它的作业/比赛会变成死引用，所以有引用就不给删。 */
+class DtojGroupDeleteHandler extends DtojDataHandler {
+    @param('name', Types.Name)
+    async post(domainId: string, name: string) {
+        const gdoc = await requireMyGroup(this, domainId, name);
+        const usage = await groupUsageCounts(domainId, [gdoc.name]);
+        const used = usage[gdoc.name] || 0;
+        if (used) throw new ValidationError('name', null, `还有 ${used} 份作业或比赛在用它，先改掉那些分派再删`);
+        await UserModel.delGroup(domainId, gdoc.name);
+        this.response.redirect = this.url('dtoj_group');
+    }
+}
+
+/**
  * 供课件系统（ppt-system）确认「当前来访者是谁」。
  *
  * ppt-system 与 OJ 同域部署（/ppt/），浏览器会把 OJ 的 sid Cookie 一并带过去，
@@ -442,7 +550,12 @@ export async function apply(ctx: Context) {
         const body = that.response.body as Record<string, any> | undefined;
         if (!body?.isSelfProfile) return;
         // 只给本人看：别人的主页上没有加入分组这个入口
-        body.joinableGroups = await joinableGroupNames(that.args.domainId);
+        const groups = await joinableGroups(that.args.domainId);
+        body.joinableGroups = groups;
+        // 弹层顶部按创建者筛选用的选项，去重后排序。只有一种创建者时模板不渲染它。
+        // 与教师的小组管理页同一套算法（见 DtojGroupHandler），两边改动要一起看。
+        body.groupCreatorOptions = [...new Set(groups.map((g) => g.creator))]
+            .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
         body.myGroups = await myGroupNames(that.args.domainId, that.user._id);
     });
 
@@ -506,11 +619,24 @@ export async function apply(ctx: Context) {
     }, (handler: Handler) => handler.user.hasPriv(PRIV.PRIV_USER_PROFILE));
     global.Hydro.ui.inject('Nav', 'domain_dashboard', { prefix: 'domain', displayName: '管理域' }, PERM.PERM_EDIT_DOMAIN);
 
+    // 小组管理入口只给管得了组的人。管组权限是「或」（自己名下的 / 全部），
+    // inject 只能接一个权限位，所以这里给个 checker 自己判。
+    global.Hydro.ui.inject('Nav', 'dtoj_group', {
+        prefix: 'dtoj_group',
+        displayName: '小组',
+        // 插在「作业」左边：这个页面就是为布置作业服务的，放一起才找得到。
+        // 不用 after 是因为站内消息要挨着作业（见 nav.html 的未读红点）。
+        before: 'homework_main',
+    }, (handler: Handler) => handler.user.hasPerm(PERM.PERM_MANAGE_GROUP, PERM.PERM_MANAGE_GROUP_ALL));
+
     // Nav 项的文字取自 item.name 的 i18n 目录（见 nav.html 的 _() 调用），
     // 不注册的话顶栏会直接显示 'dtoj_courseware' 这个名字。
     ctx.i18n.load('zh', { dtoj_courseware: '课件' });
     ctx.i18n.load('zh_TW', { dtoj_courseware: '課件' });
     ctx.i18n.load('en', { dtoj_courseware: 'Courseware' });
+    ctx.i18n.load('zh', { dtoj_group: '小组' });
+    ctx.i18n.load('zh_TW', { dtoj_group: '小組' });
+    ctx.i18n.load('en', { dtoj_group: 'Groups' });
 
     // 课件系统据此确认来访者身份，见 DtojOjSessionHandler
     ctx.Route('dtoj_oj_session', '/oj-session', DtojOjSessionHandler);
@@ -527,6 +653,13 @@ export async function apply(ctx: Context) {
 
     // 个人主页自助加入分组，见 DtojUserGroupHandler
     ctx.Route('dtoj_user_group', '/user/:uid/group', DtojUserGroupHandler, PRIV.PRIV_USER_PROFILE);
+
+    // 教师的小组管理，见 DtojGroupHandler 上面那段说明。
+    // 只挂登录门槛（管组权限是「或」，路由上表达不了），实际判定在方法里。
+    ctx.Route('dtoj_group', '/group', DtojGroupHandler, PRIV.PRIV_USER_PROFILE);
+    ctx.Route('dtoj_group_create', '/group/create', DtojGroupCreateHandler, PRIV.PRIV_USER_PROFILE);
+    ctx.Route('dtoj_group_members', '/group/members', DtojGroupMembersHandler, PRIV.PRIV_USER_PROFILE);
+    ctx.Route('dtoj_group_delete', '/group/delete', DtojGroupDeleteHandler, PRIV.PRIV_USER_PROFILE);
 
     // 题目页侧栏的「添加作业」，见 DtojProblemAddHomeworkHandler
     ctx.Route(

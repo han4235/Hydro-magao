@@ -1164,6 +1164,32 @@
   .dtoj-group-dialog__hint { margin: 10px 20px 0; color: var(--muted); font-size: 13px; line-height: 1.7; flex: none; }
   /* 表单是滚动容器：分组多了只滚列表，头和按钮钉住 */
   .dtoj-group-dialog__panel form { display: flex; flex-direction: column; min-height: 0; }
+  /* 建组人筛选：一排胶囊。横向滚动而不是换行，免得创建者多了把列表挤没 */
+  .dtoj-group-dialog__creators {
+    display: flex;
+    gap: 6px;
+    flex: none;
+    margin-top: 12px;
+    padding: 0 20px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .dtoj-group-dialog__creator {
+    flex: none;
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .dtoj-group-dialog__creator:hover { border-color: rgba(37, 99, 235, 0.35); color: var(--ink); }
+  .dtoj-group-dialog__creator.is-on { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+  .dtoj-group-dialog__creator:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3); }
   .dtoj-group-dialog__list {
     display: flex;
     flex-direction: column;
@@ -1187,6 +1213,10 @@
   }
   .dtoj-group-dialog__item:hover { border-color: rgba(37, 99, 235, 0.35); background: #f8fafc; }
   .dtoj-group-dialog__item input { margin: 0; }
+  /* 同上：display:flex 会盖掉 [hidden]，筛选和搜索得显式关掉 */
+  .dtoj-group-dialog__item[hidden] { display: none; }
+  /* 建组人：挤到行尾，压得比组名轻 */
+  .dtoj-group-dialog__sub { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; font-style: normal; }
   .dtoj-group-dialog__foot { display: flex; justify-content: flex-end; gap: 8px; flex: none; padding: 16px 20px 20px; }
   .dtoj-group-dialog .dtoj-user-btn { font-family: inherit; }
   .dtoj-user-stats {
