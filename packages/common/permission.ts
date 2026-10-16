@@ -9,6 +9,11 @@ export const PERM = {
     PERM_VIEW_USER_PRIVATE_INFO: 1n << 67n,
     PERM_MOD_BADGE: 1n << 2n,
 
+    // Group（用户组决定 tdoc.assign 能分给谁，所以给老师开的是「管自己名下的组」，
+    // 「管全部组」留给管理员，别拿 PERM_EDIT_DOMAIN 一刀切）
+    PERM_MANAGE_GROUP: 1n << 3n,
+    PERM_MANAGE_GROUP_ALL: 1n << 11n,
+
     // Problem
     PERM_CREATE_PROBLEM: 1n << 4n,
     PERM_EDIT_PROBLEM: 1n << 5n,

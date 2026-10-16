@@ -38,6 +38,11 @@ services:
       - ../../packages/ui-default/templates:/opt/hydro/packages/ui-default/templates
       # dtoj-record 镜像里没有 node_modules，可以整包挂载；模板和 dtojRecordDetail.ts 都要改
       - ../../packages/dtoj-record:/opt/hydro/packages/dtoj-record
+      # hydrooj 与 common 也在改（小组的原子增删、新权限位 PERM_MANAGE_GROUP*）。
+      # hydrooj 镜像里带 node_modules，所以逐子目录挂；common 没有，整包挂。
+      - ../../packages/hydrooj/src:/opt/hydro/packages/hydrooj/src
+      - ../../packages/hydrooj/locales:/opt/hydro/packages/hydrooj/locales
+      - ../../packages/common:/opt/hydro/packages/common
     # !override 是替换而非追加：docker-compose.yml 里的 "80:8888" 会被丢掉，
     # 否则 80 仍被 oj-backend 占着，oj-proxy 起不来。
     # 8888 绑到 127.0.0.1，仅供本机直连调试（对外统一走 oj-proxy 的 80）。

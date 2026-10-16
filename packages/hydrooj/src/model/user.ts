@@ -598,6 +598,39 @@ class UserModel {
         deleteUserCache(domainId);
         return collGroup.updateOne({ domainId, name }, { $set: { uids } }, { upsert: true });
     }
+
+    /**
+     * 建组。名字已被占用时什么都不改，靠 upsertedCount 说明到底建上没有 ——
+     * 调用方不能先查再建，否则两个人同时建同名组会互相盖掉 owner。
+     *
+     * 建组人只记在 owner 上，不进 uids：uids 的语义是「这套作业分给谁」，
+     * 把自己塞进去会让老师在作业列表里看到自己布置的东西待认领。
+     */
+    static async createGroup(domainId: string, name: string, owner: number) {
+        deleteUserCache(domainId);
+        const res = await collGroup.updateOne(
+            { domainId, name },
+            { $setOnInsert: { owner, uids: [] } },
+            { upsert: true },
+        );
+        return res.upsertedCount > 0;
+    }
+
+    /**
+     * 加减一个组员。
+     *
+     * 不用 updateGroup 那种「读出来改数组再整体写回」—— 两个人同时改同一个组会丢更新，
+     * 这里两个操作都是原子的。
+     */
+    static addGroupUser(domainId: string, name: string, uid: number) {
+        deleteUserCache(domainId);
+        return collGroup.updateOne({ domainId, name }, { $addToSet: { uids: uid } });
+    }
+
+    static removeGroupUser(domainId: string, name: string, uid: number) {
+        deleteUserCache(domainId);
+        return collGroup.updateOne({ domainId, name }, { $pull: { uids: uid } });
+    }
 }
 
 export async function apply() {

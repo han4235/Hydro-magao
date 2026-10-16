@@ -261,12 +261,21 @@
       <button type="button" class="dtoj-group-dialog__close" data-group-dialog-close aria-label="{{ _('Close') }}">&times;</button>
     </div>
     <form method="post" action="{{ url('dtoj_user_group', uid=udoc._id) }}">
-      <p class="dtoj-group-dialog__hint">勾上要加入的分组，取消勾选就退出该分组，保存后立刻生效。</p>
+      <p class="dtoj-group-dialog__hint">勾上要加入的分组，取消勾选就退出该分组，保存后立刻生效。分组后面标的是建它的老师或管理员。{% if groupCreatorOptions.length > 1 %}分组多的时候，可以用下面一排按创建者筛。{% endif %}</p>
+      {% if groupCreatorOptions.length > 1 %}
+      <div class="dtoj-group-dialog__creators" role="group" aria-label="按创建者筛选">
+        <button type="button" class="dtoj-group-dialog__creator is-on" data-group-creator-filter="" aria-pressed="true">全部</button>
+        {% for creator in groupCreatorOptions %}
+        <button type="button" class="dtoj-group-dialog__creator" data-group-creator-filter="{{ creator }}" aria-pressed="false">{{ creator }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
       <div class="dtoj-group-dialog__list">
-        {% for gname in joinableGroups %}
-        <label class="dtoj-group-dialog__item">
-          <input type="checkbox" name="groups" value="{{ gname }}"{% if myGroups.includes(gname) %} checked{% endif %}>
-          <span>{{ gname }}</span>
+        {% for g in joinableGroups %}
+        <label class="dtoj-group-dialog__item" data-creator="{{ g.creator }}">
+          <input type="checkbox" name="groups" value="{{ g.name }}"{% if myGroups.includes(g.name) %} checked{% endif %}>
+          <span>{{ g.name }}</span>
+          <em class="dtoj-group-dialog__sub">{{ g.creator }}</em>
         </label>
         {% endfor %}
       </div>
@@ -286,6 +295,8 @@
     dialog.hidden = !open;
     document.body.classList.toggle('dtoj-group-dialog-open', open);
     if (open) {
+      // 每次打开都回到「全部」：留着上次的筛选，会把分组少一半说成「没了」
+      applyCreatorFilter('');
       var first = dialog.querySelector('input[type=checkbox]');
       if (first) first.focus();
     }
@@ -296,6 +307,26 @@
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !dialog.hidden) toggle(false);
+  });
+
+  // 按创建者筛选。列表是服务端渲染好的，这儿只按 data-creator 收放。
+  // 被筛掉的行只是隐藏，勾选状态原样留着，保存时照旧提交 —— 不会因为「这会儿看不见」被退组。
+  var creatorBtns = dialog.querySelectorAll('[data-group-creator-filter]');
+  var groupRows = dialog.querySelectorAll('.dtoj-group-dialog__item');
+  function applyCreatorFilter(want) {
+    Array.prototype.forEach.call(creatorBtns, function (btn) {
+      var on = btn.getAttribute('data-group-creator-filter') === want;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(groupRows, function (row) {
+      row.hidden = Boolean(want) && row.getAttribute('data-creator') !== want;
+    });
+  }
+  Array.prototype.forEach.call(creatorBtns, function (btn) {
+    btn.addEventListener('click', function () {
+      applyCreatorFilter(btn.getAttribute('data-group-creator-filter'));
+    });
   });
 })();
 </script>

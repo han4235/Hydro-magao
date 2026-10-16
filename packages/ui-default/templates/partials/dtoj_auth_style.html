@@ -1,193 +1,211 @@
 <style>
+  /*
+   * 登录/注册这一组页面的样式（登录、注册、验证码设置、邮件已发送四张共用）。
+   *
+   * 版式是全屏左右分栏：左栏一块蓝灰渐变面板承担品牌与一句主张，右栏白底放表单。
+   * 左栏的渐变全部由多层 radial-gradient 叠出来，不引图片 —— 它要随窗口任意伸缩，
+   * 位图在超宽屏上会糊。
+   *
+   * 这些页面挂 layout/dtoj_auth.html，那个布局里已经没有顶栏页脚，所以这里可以
+   * 直接按 100vh 铺满；但**不要**在这里写 body/html 级选择器，error.html 也引了这份文件。
+   */
   .dtoj-auth-page {
-    --auth-ink: #111827;
-    --auth-muted: #3e4c59;
-    --auth-brand: #2563eb;
-    --auth-brand-deep: #1e40af;
-    --auth-mint: #6fa7b3;
-    --auth-field: #e8eef5;
-    --auth-path: #172237;
-    --auth-path-ink: #f6f8fd;
-    min-height: calc(100vh - 120px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 28px 20px 48px;
-    background:
-      radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.14), transparent 34%),
-      radial-gradient(circle at 90% 6%, rgba(111, 167, 179, 0.16), transparent 30%),
-      var(--auth-field);
+    --auth-ink: #0f172a;
+    --auth-muted: #5b6472;
+    --auth-line: #e4e8ef;
+    --auth-cta: #101828;
+    --auth-cta-hover: #1f2b3d;
+    --auth-brand: #1f4fa8;
     color: var(--auth-ink);
+    background: #fff;
   }
-  .dtoj-auth-page ::selection { background: #dbe7fb; color: var(--auth-ink); }
+  .dtoj-auth-page ::selection { background: #dbe4f3; color: var(--auth-ink); }
+
   .dtoj-auth-shell {
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    width: min(100%, 960px);
-    min-height: 540px;
-    border-radius: 30px;
-    overflow: hidden;
-    background: #fff;
-    box-shadow: 0 28px 70px rgba(28, 39, 64, 0.1);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 100vh;
   }
+
+  /* ---------- 左栏：渐变面板 ---------- */
   .dtoj-auth-brand {
     position: relative;
-    padding: 40px 40px 32px;
-    background: var(--auth-path);
-    color: var(--auth-path-ink);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 28px;
-  }
-  .dtoj-auth-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .dtoj-auth-logo img { height: 36px; width: auto; max-width: 168px; object-fit: contain; }
-  .dtoj-auth-logo span {
-    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    letter-spacing: -0.04em;
+    gap: 40px;
+    padding: 52px 56px 48px;
     color: #fff;
+    background:
+      /* 深度靠右下角的暗部做，不靠左上角的高光：左上是 logo 与主张所在，
+         高光一大，白字就压不住 4.5:1。这层只留一点点，做出受光的方向感。 */
+      radial-gradient(120% 95% at 10% 0%, rgba(168, 196, 232, 0.16), transparent 58%),
+      radial-gradient(90% 75% at 96% 102%, rgba(4, 9, 20, 0.72), transparent 64%),
+      radial-gradient(70% 60% at 0% 92%, rgba(96, 126, 168, 0.22), transparent 58%),
+      linear-gradient(152deg, #506384 0%, #3c4d67 42%, #26354a 76%, #172032 100%);
   }
-  .dtoj-auth-hero { max-width: 18em; }
+  .dtoj-auth-logo { display: flex; align-items: center; gap: 12px; }
+  .dtoj-auth-logo img { height: 34px; width: auto; max-width: 168px; object-fit: contain; }
+  .dtoj-auth-logo span { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+
+  /* margin-block:auto 把主张块推到面板竖直中央，logo 顶在上沿 */
+  .dtoj-auth-hero { margin-block: auto; max-width: 30em; }
   .dtoj-auth-hero h1 {
-    margin: 0 0 16px;
-    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
-    font-size: clamp(32px, 4vw, 44px);
+    margin: 0 0 20px;
+    font-size: clamp(32px, 3.1vw, 44px);
     font-weight: 700;
-    letter-spacing: -0.045em;
-    line-height: 1.16;
+    letter-spacing: -0.035em;
+    line-height: 1.18;
     color: #fff;
-  }
-  .dtoj-auth-hero h1::after {
-    content: "";
-    display: block;
-    width: 52px;
-    height: 3px;
-    margin-top: 16px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--auth-brand), var(--auth-mint));
   }
   .dtoj-auth-hero p {
-    margin: 0;
-    max-width: 28em;
+    margin: 0 0 32px;
+    max-width: 26em;
     font-size: 15px;
     line-height: 1.8;
-    color: #e7eef8;
+    color: rgba(255, 255, 255, 0.86);
   }
-  .dtoj-auth-panel {
-    padding: 36px 40px 32px;
-    background: rgba(255, 255, 255, 0.96);
-    display: flex;
-    flex-direction: column;
-  }
-  .dtoj-auth-panel-head {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 8px;
-  }
-  .dtoj-auth-tabs { display: flex; gap: 22px; font-size: 14px; font-weight: 700; }
-  .dtoj-auth-tabs a {
-    color: var(--auth-muted);
+  .dtoj-auth-ghost {
+    display: inline-flex;
+    align-items: center;
+    height: 46px;
+    padding: 0 26px;
+    border-radius: 999px;
+    background: #fff;
+    color: #101828;
+    font-size: 15px;
+    font-weight: 700;
     text-decoration: none;
-    padding-bottom: 8px;
-    border-bottom: 2px solid transparent;
+    transition: background 0.2s ease;
   }
-  .dtoj-auth-tabs a:hover { color: var(--auth-brand-deep); }
-  .dtoj-auth-tabs a.is-on { color: var(--auth-brand-deep); border-bottom-color: var(--auth-brand); }
+  .dtoj-auth-ghost:hover { background: rgba(255, 255, 255, 0.86); }
+  .dtoj-auth-ghost:focus-visible,
   .dtoj-auth-tabs a:focus-visible,
   .dtoj-auth-row a:focus-visible,
   .dtoj-auth-bottom a:focus-visible,
-  .dtoj-auth-submit:focus-visible,
-  .dtoj-auth-field input:focus {
+  .dtoj-auth-submit:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.35);
   }
+  /* 深底上要反过来用浅色环，否则焦点看不出来 */
+  .dtoj-auth-brand :focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7); }
+
+  /* ---------- 右栏：表单 ---------- */
+  /* 直接子元素统一收进 400px 一列并居中，省掉一层包裹 div */
+  .dtoj-auth-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 48px 32px;
+    background: #fff;
+  }
+  .dtoj-auth-panel > * { width: 100%; max-width: 400px; margin-inline: auto; }
+  .dtoj-auth-panel-head { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+
+  .dtoj-auth-tabs { display: flex; gap: 20px; font-size: 14px; font-weight: 600; }
+  .dtoj-auth-tabs a {
+    color: var(--auth-muted);
+    text-decoration: none;
+    padding-bottom: 6px;
+    border-bottom: 2px solid transparent;
+  }
+  .dtoj-auth-tabs a:hover { color: var(--auth-ink); }
+  .dtoj-auth-tabs a.is-on { color: var(--auth-ink); border-bottom-color: var(--auth-cta); }
+
   .dtoj-auth-panel h2 {
-    margin: 8px 0 8px;
-    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    margin: 4px 0 10px;
     font-size: 32px;
     font-weight: 700;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.035em;
     line-height: 1.2;
     color: var(--auth-ink);
   }
-  .dtoj-auth-sub { margin: 0 0 28px; font-size: 14px; line-height: 1.8; color: var(--auth-muted); }
-  .dtoj-auth-hint { margin: 10px 0 20px; font-size: 13px; line-height: 1.6; color: var(--auth-muted); }
+  .dtoj-auth-sub { margin: 0 0 30px; font-size: 14px; line-height: 1.75; color: var(--auth-muted); }
+  .dtoj-auth-hint { margin: 10px 0 20px; font-size: 13px; line-height: 1.7; color: var(--auth-muted); }
   .dtoj-auth-field + .dtoj-auth-hint { margin-top: 8px; }
-  .dtoj-auth-field { display: block; margin-bottom: 18px; }
+
+  .dtoj-auth-field { display: block; margin-bottom: 16px; }
   .dtoj-auth-field > span {
     display: block;
     margin-bottom: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--auth-ink);
   }
+  /* 输入框做成胶囊形，和按钮同一档圆角，整页只有这一种形状 */
   .dtoj-auth-field input[type="text"],
   .dtoj-auth-field input[type="email"],
   .dtoj-auth-field input[type="password"] {
     width: 100%;
     box-sizing: border-box;
-    height: 50px;
-    padding: 0 14px;
-    border: 1px solid rgba(30, 41, 59, 0.16);
-    border-radius: 11px;
-    background: #f4f7fb;
+    height: 52px;
+    padding: 0 22px;
+    border: 1px solid var(--auth-line);
+    border-radius: 999px;
+    background: #fff;
     font-size: 15px;
     color: var(--auth-ink);
-    caret-color: var(--auth-brand);
+    caret-color: var(--auth-cta);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
   }
-  .dtoj-auth-field input:disabled { color: var(--auth-muted); background: #e8eef5; }
+  .dtoj-auth-field input:focus {
+    outline: none;
+    border-color: var(--auth-cta);
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+  }
+  .dtoj-auth-field input:disabled { color: var(--auth-muted); background: #f4f6fa; }
+
   .dtoj-auth-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: 22px;
+    margin-bottom: 24px;
     font-size: 14px;
   }
   .dtoj-auth-row label { display: flex; align-items: center; gap: 8px; min-height: 44px; color: var(--auth-ink); }
-  .dtoj-auth-row a { color: var(--auth-brand-deep); font-weight: 700; text-decoration: none; }
+  /* 主题没给复选框焦点态，键盘走到「记住我」会看不到自己在哪 */
+  .dtoj-auth-row input[type="checkbox"]:focus-visible { outline: 2px solid var(--auth-cta); outline-offset: 2px; }
+  .dtoj-auth-row a { color: var(--auth-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* 主按钮：纯黑胶囊，和左栏的白色胶囊互为呼应。整页就这一个重色块 */
   .dtoj-auth-submit {
     width: 100%;
-    height: 50px;
+    height: 52px;
     border: none;
-    border-radius: 11px;
-    background: linear-gradient(90deg, var(--auth-brand), var(--auth-mint));
+    border-radius: 999px;
+    background: var(--auth-cta);
     color: #fff;
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+    transition: background 0.2s ease;
   }
-  .dtoj-auth-submit:hover { transform: translateY(-1px); }
-  .dtoj-auth-submit:active { transform: translateY(0); }
+  .dtoj-auth-submit:hover { background: var(--auth-cta-hover); }
+
   .dtoj-auth-oauth { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
   .dtoj-auth-oauth a {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 50px;
-    border-radius: 11px;
-    border: 1px solid rgba(30, 41, 59, 0.12);
-    color: var(--auth-brand-deep);
-    font-weight: 700;
+    height: 52px;
+    border-radius: 999px;
+    border: 1px solid var(--auth-line);
+    color: var(--auth-ink);
+    font-weight: 600;
     text-decoration: none;
-    background: rgba(255, 255, 255, 0.9);
+    background: #fff;
+    transition: border-color 0.18s ease;
   }
-  .dtoj-auth-oauth a:hover { transform: translateY(-1px); }
+  .dtoj-auth-oauth a:hover { border-color: #c9d2e0; }
+
   .dtoj-auth-steps {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
-    margin: 28px 0 0;
-    padding: 20px 0 0;
-    border-top: 1px solid rgba(30, 41, 59, 0.09);
+    margin: 30px 0 0;
+    padding: 22px 0 0;
+    border-top: 1px solid var(--auth-line);
     list-style: none;
   }
   .dtoj-auth-steps li {
@@ -196,7 +214,7 @@
     align-items: flex-start;
     gap: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--auth-muted);
   }
   .dtoj-auth-steps span {
@@ -206,24 +224,24 @@
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    border: 1px solid rgba(30, 41, 59, 0.2);
+    border: 1px solid #cdd5e0;
     font-size: 12px;
-    color: var(--auth-ink);
+    color: var(--auth-muted);
   }
-  .dtoj-auth-steps .is-on { color: var(--auth-brand-deep); }
-  .dtoj-auth-steps .is-on span { background: var(--auth-brand); border-color: var(--auth-brand); color: #fff; }
-  .dtoj-auth-bottom { margin-top: 28px; text-align: center; font-size: 14px; color: var(--auth-muted); }
-  .dtoj-auth-bottom a { color: var(--auth-brand-deep); font-weight: 700; text-decoration: none; }
-  @media (max-width: 768px) {
-    .dtoj-auth-page { padding: 16px 12px 32px; background: #fff; }
-    .dtoj-auth-shell {
-      grid-template-columns: 1fr;
-      border-radius: 0;
-      box-shadow: none;
-      background: transparent;
-    }
-    .dtoj-auth-brand { display: none; }
-    .dtoj-auth-panel { padding: 8px 4px 24px; background: transparent; }
-    .dtoj-auth-submit { background: var(--auth-path); box-shadow: none; }
+  .dtoj-auth-steps .is-on { color: var(--auth-ink); }
+  .dtoj-auth-steps .is-on span { background: var(--auth-cta); border-color: var(--auth-cta); color: #fff; }
+
+  .dtoj-auth-bottom { margin-top: 30px; text-align: center; font-size: 14px; color: var(--auth-muted); }
+  .dtoj-auth-bottom a { color: var(--auth-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---------- 窄屏 ---------- */
+  /* 分栏让位给表单：品牌块压成顶部一条渐变横条，保留 logo 与主张，不再占半屏 */
+  @media (max-width: 900px) {
+    .dtoj-auth-shell { grid-template-columns: 1fr; min-height: 0; }
+    .dtoj-auth-brand { gap: 0; padding: 32px 24px 34px; }
+    .dtoj-auth-hero { margin-block: 28px 0; }
+    .dtoj-auth-hero h1 { font-size: 28px; margin-bottom: 14px; }
+    .dtoj-auth-hero p { margin-bottom: 24px; font-size: 14px; }
+    .dtoj-auth-panel { justify-content: flex-start; padding: 32px 24px 48px; }
   }
 </style>

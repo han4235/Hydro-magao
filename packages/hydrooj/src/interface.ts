@@ -119,6 +119,10 @@ export interface GDoc {
     domainId: string;
     name: string;
     uids: number[];
+    /** 建组人。老数据没有这个字段，一律按「管理员组」处理（见 dtoj-ui 的小组管理） */
+    owner?: number;
+    /** 能一起维护这个组的其他人 */
+    maintainers?: number[];
 }
 
 export interface UserPreferenceDoc {
