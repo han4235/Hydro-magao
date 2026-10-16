@@ -73,6 +73,57 @@ function findTestdataOutFile(pdoc: ProblemDoc, caseId: number) {
     return undefined;
 }
 
+function testdataSize(pdoc: ProblemDoc, filename?: string) {
+    if (!filename) return undefined;
+    return (pdoc.data || []).find((f) => f.name === filename)?.size;
+}
+
+type CaseFilePair = { input?: string; output?: string; inputSize?: number; outputSize?: number };
+
+/** 子任务模式下 tc.id 只是小组内的序号，直接拿它拼 "3.in"
+ *  会串到别的小组第 3 个文件上（于是每个小组的第 1 个点都指向 1.in）。
+ *  这里按「小组升序、组内按 id 升序」把测试点换算成全局序号，才对应得上
+ *  1.in / 2.in 这种按数据文件顺序的命名。 */
+function buildCaseIndexMap(
+    testCases: { id?: number; subtaskId?: number }[],
+): Map<string, number> {
+    const groups = new Map<number, { id?: number; subtaskId?: number }[]>();
+    for (const tc of testCases) {
+        const sid = tc.subtaskId ?? 0;
+        const list = groups.get(sid);
+        if (list) list.push(tc);
+        else groups.set(sid, [tc]);
+    }
+    const map = new Map<string, number>();
+    let offset = 0;
+    for (const sid of [...groups.keys()].sort((a, b) => a - b)) {
+        const list = groups.get(sid)!.slice().sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+        list.forEach((tc, i) => {
+            map.set(`${sid}:${tc.id ?? 0}`, offset + i + 1);
+        });
+        offset += list.length;
+    }
+    return map;
+}
+
+/** 某个测试点对应的输入/输出文件名，附带文件大小。
+ *  大小交给前端判断「能不能在页面内预览」，大了就直接给下载。 */
+function caseFilenames(
+    pdoc: ProblemDoc,
+    indexMap: Map<string, number>,
+    tc: { id?: number; subtaskId?: number },
+): CaseFilePair {
+    const caseId = indexMap.get(`${tc.subtaskId ?? 0}:${tc.id ?? 0}`) ?? tc.id ?? 0;
+    const input = findTestdataInFile(pdoc, caseId);
+    const output = findTestdataOutFile(pdoc, caseId);
+    return {
+        input,
+        output,
+        inputSize: testdataSize(pdoc, input),
+        outputSize: testdataSize(pdoc, output),
+    };
+}
+
 export function canViewProblemTestdataFiles(handler: Handler, pdoc?: ProblemDoc | null) {
     return !!pdoc && (
         pdoc.owner === handler.user._id
@@ -89,7 +140,7 @@ function testdataDownloadUrl(handler: Handler, pdoc: ProblemDoc, filename: strin
     });
 }
 
-export type CaseFileUrls = { in?: string; out?: string };
+export type CaseFileUrls = { in?: string; out?: string; inSize?: number; outSize?: number };
 
 export function buildCaseFileUrlMap(
     handler: Handler,
@@ -98,15 +149,18 @@ export function buildCaseFileUrlMap(
 ): Record<string, CaseFileUrls> {
     if (!canViewProblemTestdataFiles(handler, pdoc) || !pdoc) return {};
     const map: Record<string, CaseFileUrls> = {};
+    const indexMap = buildCaseIndexMap(rdoc.testCases || []);
     for (const tc of rdoc.testCases || []) {
-        const caseId = tc.id ?? 0;
-        const key = `${tc.subtaskId ?? 0}:${caseId}`;
-        const inName = findTestdataInFile(pdoc, caseId);
-        const outName = findTestdataOutFile(pdoc, caseId);
-        if (!inName && !outName) continue;
+        const key = `${tc.subtaskId ?? 0}:${tc.id ?? 0}`;
+        const {
+            input, output, inputSize, outputSize,
+        } = caseFilenames(pdoc, indexMap, tc);
+        if (!input && !output) continue;
         map[key] = {
-            in: inName ? testdataDownloadUrl(handler, pdoc, inName) : undefined,
-            out: outName ? testdataDownloadUrl(handler, pdoc, outName) : undefined,
+            in: input ? testdataDownloadUrl(handler, pdoc, input) : undefined,
+            out: output ? testdataDownloadUrl(handler, pdoc, output) : undefined,
+            inSize: inputSize,
+            outSize: outputSize,
         };
     }
     return map;
@@ -137,14 +191,18 @@ export function buildDtojRecordDetailView(
         }));
     const canReadData = canViewProblemTestdataFiles(handler, pdoc);
     const caseFiles = buildCaseFileUrlMap(handler, pdoc, rdoc);
-    const downloads: { num: number; url: string }[] = [];
+    // 下载列表的编号跟卡片保持一致：多子任务时形如 10-3，否则就是 3
+    const indexMap = buildCaseIndexMap(rdoc.testCases || []);
+    const multiGroup = new Set((rdoc.testCases || []).map((tc) => tc.subtaskId ?? 0)).size > 1;
+    const downloads: { num: string; url: string }[] = [];
     if (canReadData && pdoc) {
         for (const tc of rdoc.testCases || []) {
             if (tc.status === STATUS.STATUS_ACCEPTED) continue;
-            const filename = findTestdataFile(pdoc, tc.id ?? 0);
+            const caseNo = indexMap.get(`${tc.subtaskId ?? 0}:${tc.id ?? 0}`) ?? tc.id ?? 0;
+            const filename = caseFilenames(pdoc, indexMap, tc).input || findTestdataFile(pdoc, caseNo);
             if (!filename) continue;
             downloads.push({
-                num: tc.id ?? 0,
+                num: multiGroup ? `${(tc.subtaskId ?? 0) + 1}-${tc.id ?? 0}` : String(tc.id ?? 0),
                 url: handler.url('problem_file_download', {
                     pid: pdoc.docId,
                     filename,

@@ -2,6 +2,7 @@
   .dtoj-page,
   .dtoj-skin {
     --ink: #1c2833;
+    --ink-2: #3e4c59;
     --muted: #3e4c59;
     --accent: #2f5d82;
     --wash: #f4f7f8;
@@ -1592,6 +1593,14 @@
     gap: 8px;
   }
   .dtoj-case-sample-modal {
+    /* 弹窗挂在 body 下，不在 .dtoj-page 作用域里，令牌得自己带一套，
+       否则 var(--line) / var(--ink-2) 解析为空，表头分隔线和文字色会悄悄失效。 */
+    --ink: #111827;
+    --ink-2: #3e4c59;
+    --muted: #5f6b7a;
+    --brand: #2563eb;
+    --brand-deep: #1e40af;
+    --line: rgba(30, 41, 59, 0.09);
     position: fixed;
     inset: 0;
     z-index: 1200;
@@ -1610,6 +1619,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* 弹窗不继承页面正文色：它是挂在 body 下的独立浮层，自己定色才不受主题与页面影响 */
+    color: var(--ink);
   }
   .dtoj-case-sample-modal__head {
     display: flex;
@@ -1631,6 +1642,31 @@
     word-break: break-word;
     background: #f8fafb;
     flex: 1;
+    min-height: 0;
+  }
+  /* 样例过大时的提示条：说明只给了开头，并把完整内容的两个出口摆出来 */
+  .dtoj-case-sample-modal__notice {
+    flex: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0dcae;
+    background: #fff8e6;
+    color: #6b5000;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .dtoj-case-sample-modal__notice-text { flex: 1; min-width: 0; margin: 0; }
+  /* 复制按钮贴提示条右缘，别被上面那句话挤变形；
+     边框不能沿用 --line（在弹窗作用域里只有 9% 黑），黄底上几乎看不见 */
+  .dtoj-case-sample-modal__notice-copy { flex: none; border-color: #dcbe72; }
+  .dtoj-case-sample-modal__notice strong { font-weight: 700; }
+  .dtoj-case-sample-modal__notice a {
+    color: #1d4ed8;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .dtoj-record-hint {
     margin: 0 0 var(--s3);

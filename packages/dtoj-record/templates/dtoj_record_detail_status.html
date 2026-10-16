@@ -16,7 +16,7 @@
     {% set caseMem = (tc.memory / 1024)|round(2) ~ 'MB' if tc.memory >= 1024 else (tc.memory|round(0) ~ 'KB') %}
     {% set caseKey = (tc.subtaskId|default(0)) ~ ':' ~ (tc.id|default(loop.index)) %}
     {% set caseUrls = caseFiles[caseKey] if caseFiles else null %}
-    <div class="dtoj-case {{ model.builtin.STATUS_CODES[tc.status] }}{% if canViewCaseFiles and caseUrls and (caseUrls.in or caseUrls.out) %} dtoj-case--pickable{% endif %}" data-case-no="#{{ caseNo }}"{% if caseUrls and caseUrls.in %} data-in-url="{{ caseUrls.in }}"{% endif %}{% if caseUrls and caseUrls.out %} data-out-url="{{ caseUrls.out }}"{% endif %} data-tooltip="测试点 #{{ caseNo }}<br>{{ caseName }}<br>得分 {{ caseScore }}<br>用时 {{ caseTime }}ms，内存 {{ caseMem }}">
+    <div class="dtoj-case {{ model.builtin.STATUS_CODES[tc.status] }}{% if canViewCaseFiles and caseUrls and (caseUrls.in or caseUrls.out) %} dtoj-case--pickable{% endif %}" data-case-no="#{{ caseNo }}"{% if caseUrls and caseUrls.in %} data-in-url="{{ caseUrls.in }}" data-in-size="{{ caseUrls.inSize|default(0) }}"{% endif %}{% if caseUrls and caseUrls.out %} data-out-url="{{ caseUrls.out }}" data-out-size="{{ caseUrls.outSize|default(0) }}"{% endif %} data-tooltip="测试点 #{{ caseNo }}<br>{{ caseName }}<br>得分 {{ caseScore }}<br>用时 {{ caseTime }}ms，内存 {{ caseMem }}">
       <span class="dtoj-case-num">#{{ caseNo }}</span>
       <span class="dtoj-case-verdict">{{ model.builtin.STATUS_SHORT_TEXTS[tc.status] or caseName }}</span>
       <span class="dtoj-case-meta">{{ caseTime }}ms/{{ caseMem }}</span>

@@ -30,7 +30,14 @@ services:
   oj-backend:
     volumes:
       - ../../packages/dtoj-ui:/opt/hydro/packages/dtoj-ui
+      - ../../packages/dtoj-home:/opt/hydro/packages/dtoj-home
+      - ../../packages/dtoj-ai:/opt/hydro/packages/dtoj-ai
+      # ui-default 逐子目录挂：backendlib 是题面渲染（含表格/公式）要改的地方，
+      # templates 是页面模板。整个 ui-default 不能挂，镜像里它的 node_modules 有内容。
+      - ../../packages/ui-default/backendlib:/opt/hydro/packages/ui-default/backendlib
       - ../../packages/ui-default/templates:/opt/hydro/packages/ui-default/templates
+      # dtoj-record 镜像里没有 node_modules，可以整包挂载；模板和 dtojRecordDetail.ts 都要改
+      - ../../packages/dtoj-record:/opt/hydro/packages/dtoj-record
     # !override 是替换而非追加：docker-compose.yml 里的 "80:8888" 会被丢掉，
     # 否则 80 仍被 oj-backend 占着，oj-proxy 起不来。
     # 8888 绑到 127.0.0.1，仅供本机直连调试（对外统一走 oj-proxy 的 80）。
