@@ -1,40 +1,236 @@
+{#
+  提交页（/p/:pid/submit）。沿用 dtoj_style.html 的冷色训练台：
+  深色场地、白卡片、衬线标题加一条蓝青短线，和题目页、题解页做成一家人。
+
+  这是「从别处粘代码」的兜底入口，真正的编辑器在题目页的编辑器里，
+  页面顶部那条提示由 problem_submit.page.tsx 注入，这里只负责把它摆正。
+#}
 {% extends "layout/basic.html" %}
 {% block content %}
 {{ set(UiContext, 'pdoc', pdoc) }}
+{% include "dtoj_style.html" %}
+<style>
+  /* 语言选择。languageselect 会渲染两个下拉（语言 / 版本），各带一份「代码语言」标签，
+     这里并成一组：标签只在第一个显示，两个下拉底部对齐。
+     无脚本时 form_select 自己带一层 .row，一并摆平。 */
+  #codelang-selector,
+  .dtoj-sub-langs > .hasjs--hide > .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin: 0;
+  }
+  .dtoj-sub-langs .form__item {
+    float: none;
+    width: auto;
+    flex: 0 1 232px;
+    min-width: 168px;
+    padding: 0;
+  }
+  .dtoj-sub-langs label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  /* 第二个下拉的文字标签隐去，只留它的下拉框与第一个对齐 */
+  .dtoj-sub-langs .form__item + .form__item label { color: transparent; }
+  /* dtoj_style 的 .dtoj-home .select 用 background 简写盖掉了主题的箭头图，这里补回来 */
+  .dtoj-sub-langs .select {
+    min-height: 44px;
+    padding: 0 34px 0 12px;
+    border-radius: 11px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' fill='none' stroke='%235f6b7a' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
+  }
+  .dtoj-sub-langs .select:focus { outline: 0; border-color: rgba(37, 99, 235, 0.45); }
+
+  /* 代码输入。原生 textarea 包一层编辑框：边框、圆角、聚焦环都放在外层。
+     这列同时带 columns 与 end（form_begin 默认给最后一列加 end），会命中
+     Foundation 的 .end.columns:last-child:last-child{float:left}（特异度 0,4,0），
+     光写 float:none 压不住，整列会缩成 shrink-to-fit 的窄条。
+     所以把 .row 改成纵向 flex：float 对 flex 子项直接失效，列宽交给 stretch 撑满。 */
+  .dtoj-sub-code .row {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+  }
+  .dtoj-sub-code .form__item { width: 100%; padding: 0; }
+  .dtoj-sub-code label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .dtoj-sub-code .textarea-container {
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .dtoj-sub-code .textarea-container:focus-within {
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+  .dtoj-sub-code textarea.textbox,
+  .dtoj-sub-code textarea.textbox:focus,
+  .dtoj-sub-code textarea.textbox:focus-visible {
+    display: block;
+    width: 100%;
+    height: 380px;
+    min-height: 240px;
+    margin: 0;
+    padding: 14px 16px;
+    border: 0;
+    border-radius: 14px;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.7;
+    tab-size: 4;
+    resize: vertical;
+  }
+
+  /* 上传。原生 file 控件套一层虚线行，按钮跟着次按钮的样子走 */
+  .dtoj-sub-upload {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin: 0;
+    padding: 12px 16px;
+    border: 1px dashed #c5d4e8;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .dtoj-sub-upload input[type="file"] {
+    max-width: 100%;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .dtoj-sub-upload input[type="file"]::file-selector-button {
+    height: 34px;
+    margin-right: 12px;
+    padding: 0 16px;
+    border: 1px solid #c5d4e8;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--brand-deep);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+  }
+  .dtoj-sub-upload input[type="file"]::file-selector-button:hover {
+    border-color: #a8bdd4;
+    background: #f4f7fb;
+    transform: translateY(-1px);
+  }
+
+  /* 主按钮。只补布局，底色交给 dtoj-go（窄屏会换成一块深青） */
+  .dtoj-sub-actions { display: flex; align-items: center; gap: 12px; margin: 0; }
+  .dtoj-sub-actions input.dtoj-go {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 168px;
+    padding: 0 28px;
+    border: 0;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  /* 页面结构 */
+  .dtoj-submit-body { margin-top: 20px; }
+  .dtoj-submit-body form { display: flex; flex-direction: column; gap: 18px; }
+  .dtoj-submit-body > [name="hint"] { margin: 0 0 18px; }
+  .dtoj-submit-body blockquote {
+    margin: 0;
+    padding: 12px 16px;
+    border: 0;
+    border-left: 3px solid var(--brand);
+    border-radius: 12px;
+    background: var(--note);
+    color: var(--note-ink);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .dtoj-submit-body blockquote p { margin: 0 0 6px; }
+  .dtoj-submit-body blockquote p:last-child { margin-bottom: 0; }
+  .dtoj-submit-body blockquote a {
+    color: var(--brand-deep);
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+</style>
 <div class="row">
-  <div class="medium-9 columns">
-    <div class="section">
-      <div class="section__header">
-        <h1 class="section__title">{{ _('Submit to Judge') }}</h1>
-      </div>
-      <div class="section__body typo" name="submit_section">
-        <form method="post" enctype="multipart/form-data">
-          <div class="hasjs--hide">
-            {{ form.form_select({
-                label:'Code language',
-                options:langRange,
-                name:'lang',
-                value:handler.user.codeLang
-              }) }}
+  <div class="medium-12 columns dtoj-page dtoj-home">
+    <div class="dtoj-shell dtoj-problem-sub">
+      <p class="dtoj-problem-back">
+        <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">返回题目</a>
+      </p>
+      <div class="dtoj-problem-layout">
+        <div class="dtoj-panel dtoj-problem-main dtoj-submit-main">
+          <header class="dtoj-sub-head">
+            <h1>{{ _('Submit to Judge') }}</h1>
+            <div class="dtoj-rule" aria-hidden="true"></div>
+            <p class="dtoj-sub-lead">
+              <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.pid|default(pdoc.docId) }} · {{ pdoc.title }}</a>
+              <span>把代码粘贴到下面，或上传一个源文件。</span>
+            </p>
+          </header>
+          <div class="dtoj-submit-body" name="submit_section">
+            <form method="post" enctype="multipart/form-data">
+              <div class="dtoj-sub-langs">
+                <div class="hasjs--hide">
+                  {{ form.form_select({
+                      label:'Code language',
+                      options:langRange,
+                      name:'lang',
+                      value:handler.user.codeLang
+                    }) }}
+                </div>
+                <div class="nojs--hide" id="codelang-selector"></div>
+              </div>
+              <div class="dtoj-sub-code">
+                {{ form.form_textarea({label:'Code', columns:12, name:'code', extra_class:'monospace', autofocus:true, nospellcheck:true, placeholder:'在此粘贴代码，或上传源文件。'}) }}
+              </div>
+              <p class="dtoj-sub-upload">
+                <span>{{ _('Or upload a file:') }}</span>
+                <input type="file" name="file">
+              </p>
+              <div class="dtoj-sub-actions">
+                <input type="submit" class="dtoj-go" value="{{ _('Submit') }}">
+              </div>
+            </form>
           </div>
-          <div class="row nojs--hide" id="codelang-selector"></div>
-          {{ form.form_textarea({label:'Code', columns:12, name:'code', extra_class:'monospace', autofocus:true, nospellcheck:true}) }}
-          <div class="row">
-            <div class="medium-12 columns">
-              <p>{{ _('Or upload a file:') }} <input type="file" name="file"></p>
-              <br />
-            </div>
-          </div>
-          <div class="row"><div class="columns">
-            <input type="submit" class="rounded primary button" value="{{ _('Submit') }}">
-          </div></div>
-        </form>
+        </div>
+        <aside class="dtoj-problem-aside">
+          {% include "partials/problem_sidebar.html" %}
+        </aside>
       </div>
     </div>
   </div>
-  <div class="medium-3 columns">
-    {% include "partials/problem_sidebar.html" %}
-  </div>
 </div>
-
 {% endblock %}

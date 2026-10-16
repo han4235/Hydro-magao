@@ -1,0 +1,600 @@
+{% extends "layout/basic.html" %}
+{% set type = 'homework' if tdoc.rule == 'homework' else 'contest' %}
+{% set isHw = tdoc.rule == 'homework' %}
+{{ set(UiContext, 'tdoc', tdoc) }}
+{{ set(UiContext, 'tsdoc', tsdoc) }}
+{% block content %}
+{%- if isHw -%}
+{% include "dtoj_style.html" %}
+{#
+  作业成绩表。沿用 dtoj_style.html 的冷色场地和白卡片，和作业详情页做成一家人：
+  返回链接、衬线标题、状态胶囊、等宽数字。
+
+  这一页只重排外壳，表格本体仍然 include core 的 partials/scoreboard.html。
+  原因是这张表每 3 分钟会被页面 JS 用 pjax 换掉（contest_scoreboard.page.ts 里
+  UiContext.scoreboardUrl），换回来的是 partial 的原始结构；外壳自己写、表格交给
+  partial，刷新前后才是同一份 DOM，样式不会跳。所以这里的 CSS 全部写成
+  .dtoj-sb 下的后代选择器，不去改 partial。
+
+  不能动的东西（动了页面 JS 就失效，见 contest_scoreboard.page.ts）：
+    - table.data-table 与 tbody tr        —— 筛选靠 show()/hide() 这些行
+    - button.star / .user--<uid>          —— 星标按 uid 打标
+    - .rank--unrank                       —— 「排名用户」筛选项据此隐藏打星号的行
+    - select.select.filter                —— 筛选下拉，选中值写进 #filter= 哈希
+    - [data-fragment-id="scoreboard"]     —— pjax 就换这一块
+#}
+{% set hwDone = model.contest.isDone(tdoc) %}
+{% set hwSoon = model.contest.isNotStarted(tdoc) %}
+{% set hwExtended = model.contest.isExtended(tdoc) %}
+{% set hwState = 'late' if hwExtended else ('done' if hwDone else ('soon' if hwSoon else 'live')) %}
+{% set hwStateText = '延期递交' if hwExtended else ('未开始' if hwSoon else _(model.contest.statusText(tdoc))) %}
+{% set hwPids = tdoc.pids|length %}
+{% set boardCount = 0 if (rows|length) == 0 else (rows|length - 1) %}
+{# 和 partials/scoreboard.html 同一套判断：能不能点开别人的提交 #}
+{% set canViewAll = handler.user.own(tdoc) or model.contest.canShowRecord.call(handler, tdoc) %}
+{% if hwSoon %}
+{% set hwBoardSub = '作业还没开始，题目放出来之后成绩表才会有内容。' %}
+{% elif hwExtended %}
+{% set hwBoardSub = '截止时间已经过了，延期窗口里交的题会按老师设的规则扣分。' %}
+{% elif hwDone %}
+{% set hwBoardSub = '这次作业已经结束，成绩表会一直留着，方便回头对一下。' %}
+{% else %}
+{% set hwBoardSub = '这次作业还在进行，交上来的卷子会算进这张表。' %}
+{% endif %}
+{# 卡片头只讲怎么读这张表，状态和时间窗口留给上面的头部，两边不重复 #}
+{% if boardCount == 0 %}
+{% set hwHeadNote = '还没有人上榜。' %}
+{% elif canViewAll %}
+{% set hwHeadNote = '分数从红到绿，越绿分越高；点分数可以打开那次提交。' %}
+{% else %}
+{% set hwHeadNote = '分数从红到绿，越绿分越高。' %}
+{% endif %}
+
+<style>
+  /* 外壳 */
+  .dtoj-sb .dtoj-sb-back { margin: 0; }
+  .dtoj-sb .dtoj-sb-back a {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.6;
+    text-decoration: none;
+  }
+  .dtoj-sb .dtoj-sb-back a:hover { color: var(--brand-deep); }
+
+  /* 头部 */
+  .dtoj-sb .dtoj-sb-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px 32px;
+    padding: 24px 26px 22px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-sb .dtoj-sb-hero-main { flex: 1 1 340px; min-width: 0; }
+  .dtoj-sb .dtoj-sb-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+  .dtoj-sb .dtoj-sb-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 760;
+    letter-spacing: -0.04em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  /* 状态胶囊：和作业列表、作业详情同一套配色，四页的「已结束/进行中」才是同一个绿黄灰 */
+  .dtoj-sb .dtoj-sb-state {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .dtoj-sb .dtoj-sb-state[data-state="live"] { background: #e7eefb; color: var(--brand-deep); }
+  .dtoj-sb .dtoj-sb-state[data-state="soon"] { background: #f8efd2; color: #6b5528; }
+  .dtoj-sb .dtoj-sb-state[data-state="late"] { background: #f6e7d4; color: #7a4a12; }
+  .dtoj-sb .dtoj-sb-state[data-state="done"] { background: #eef1f5; color: var(--muted); }
+  .dtoj-sb .dtoj-sb-sub { margin: 8px 0 0; max-width: 52ch; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .dtoj-sb .dtoj-sb-facts { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 14px 0 0; padding: 0; }
+  .dtoj-sb .dtoj-sb-facts > div { display: flex; align-items: baseline; gap: 8px; }
+  .dtoj-sb .dtoj-sb-facts dt { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.6; }
+  .dtoj-sb .dtoj-sb-facts dd {
+    margin: 0;
+    color: var(--ink);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 导出与解锁：一排安静的次级动作，不要做成第二枚蓝青主按钮 */
+  .dtoj-sb .dtoj-sb-hero-side { display: flex; flex-direction: column; gap: 10px; }
+  .dtoj-sb .dtoj-sb-side-label {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+  }
+  .dtoj-sb .dtoj-sb-exports { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dtoj-sb .dtoj-sb-exports form { display: flex; margin: 0; }
+  .dtoj-sb .dtoj-sb-exports a,
+  .dtoj-sb .dtoj-sb-exports button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    margin: 0;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    box-shadow: none;
+    color: var(--brand-deep);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+  }
+  .dtoj-sb .dtoj-sb-exports a:hover,
+  .dtoj-sb .dtoj-sb-exports button:hover {
+    border-color: #a8bdd4;
+    background: #f4f7fb;
+    transform: translateY(-1px);
+  }
+  .dtoj-sb .dtoj-sb-exports .icon { font-size: 13px; line-height: 1; }
+
+  /* 成绩表卡片 */
+  .dtoj-sb .dtoj-sb-card {
+    margin: 0;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07);
+  }
+  .dtoj-sb .dtoj-sb-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtoj-sb .dtoj-sb-card-head h2 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.4;
+  }
+  .dtoj-sb .dtoj-sb-card-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .dtoj-sb .dtoj-sb-tools { display: flex; align-items: center; gap: 10px; }
+  .dtoj-sb .dtoj-sb-filter { display: flex; align-items: center; gap: 8px; margin: 0; }
+  .dtoj-sb .dtoj-sb-filter-label { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+  .dtoj-sb .dtoj-sb-tools .select {
+    width: auto;
+    min-width: 168px;
+    min-height: 38px;
+    height: 38px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    box-shadow: none;
+  }
+  .dtoj-sb .dtoj-sb-foot {
+    margin: 0;
+    padding: 12px 22px 16px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  /* 空表：表体没有数据行时补一句说明。用 :has 兜住 pjax —— 一旦有人交题、
+     tbody 里出现行，这段就自动让位 */
+  .dtoj-sb .dtoj-sb-empty {
+    padding: 34px 22px 40px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.9;
+    text-align: center;
+  }
+  .dtoj-sb .dtoj-sb-card:has(.data-table tbody tr) .dtoj-sb-empty { display: none; }
+
+  /* 表格：把 core 的 data-table 接到这套卡片里。
+     表宽固定 100%，列宽由这里给死，所以不会横向溢出 */
+  .dtoj-sb .data-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  /* 列宽是相对值：table-layout: fixed 下浏览器会按比例把它们放大到整表宽度，
+     所以用户列写得宽一些，多出来的地方才落在名字上，不平均撒到题目格上。 */
+  .dtoj-sb .data-table col.col--rank { width: 56px; }
+  .dtoj-sb .data-table col.col--user { width: 340px; }
+  .dtoj-sb .data-table col.col--total_score { width: 100px; }
+  .dtoj-sb .data-table col.col--time { width: 100px; }
+  .dtoj-sb .data-table col.col--problem,
+  .dtoj-sb .data-table col.col--record { width: 100px; }
+  .dtoj-sb .data-table col.col--team { width: 200px; }
+
+  .dtoj-sb .data-table tr { border: 0; background: transparent; }
+  .dtoj-sb .data-table tbody tr:nth-child(even) { background: transparent; }
+  .dtoj-sb .data-table tbody tr:nth-child(even) td { background: rgba(244, 247, 251, 0.6); }
+  .dtoj-sb .data-table tbody tr:hover td { background: #f1f6fc; }
+
+  .dtoj-sb .data-table th,
+  .dtoj-sb .data-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    line-height: 1.6;
+  }
+  /* 题目列一格就是一个成绩块，左右不需要那么多留白 */
+  .dtoj-sb .data-table tbody tr:last-child td { border-bottom: 0; }
+
+  /* 表头：页面 JS 的 StyledTable 会把 thead 搬进一张克隆表（.section__table-header），
+     再用 sticky-kit 把这张表固定在导航条下面，偏移量它自己按 .nav 的高度算。
+     所以这里不要自己写 position: sticky —— 两套吸顶会互相打架，只负责把表头画好看。 */
+  .dtoj-sb .data-table thead th {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    background: #f8fafc;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: left;
+  }
+  /* 吸顶后是一张 position: fixed 的表，要压住下面的成绩行 */
+  .dtoj-sb .section__table-header { z-index: 10; border-radius: 23px 23px 0 0; }
+  .dtoj-sb .section__table-header th:first-child { border-top-left-radius: 23px; }
+  .dtoj-sb .section__table-header th:last-child { border-top-right-radius: 23px; }
+  /* 注意：table 外面被套了一层 .section__table-container，所以 core 那条
+     .section__body > .data-table td:first-child 已经打不中了，首尾内边距自己补。 */
+  .dtoj-sb .data-table th:first-child,
+  .dtoj-sb .data-table td:first-child { padding-left: 22px; }
+  .dtoj-sb .data-table th:last-child,
+  .dtoj-sb .data-table td:last-child { padding-right: 22px; }
+  /* 放在上面两条之后：题目列（尤其最后一格）也要收到窄内边距，
+     一格就是一个成绩块，边上多出来的留白会把块挤小。 */
+  .dtoj-sb .data-table td.col--problem,
+  .dtoj-sb .data-table td.col--record,
+  .dtoj-sb .data-table th.col--problem,
+  .dtoj-sb .data-table th.col--record { padding-left: 5px; padding-right: 5px; }
+
+  /* 排名列：前三名给圆牌，第四名往后只是等宽数字，避免整列都是色块 */
+  .dtoj-sb .data-table .col--rank { text-align: center; }
+  .dtoj-sb .data-table .col--rank .rank--normal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-sb .data-table tbody tr:nth-child(1) .col--rank .rank--normal {
+    background: var(--brand-deep);
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(30, 64, 175, 0.24);
+  }
+  .dtoj-sb .data-table tbody tr:nth-child(2) .col--rank .rank--normal { background: #e7eefb; color: var(--brand-deep); }
+  .dtoj-sb .data-table tbody tr:nth-child(3) .col--rank .rank--normal { background: #eef3f8; color: var(--brand-deep); }
+  .dtoj-sb .data-table .col--rank .rank--unrank { color: #b6c0cc; font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; }
+
+  /* 用户列：星标平时压暗，鼠标到行上再亮起来；自己那一行和标过的行给一条左侧竖线 */
+  .dtoj-sb .data-table .col--user { min-width: 0; }
+  .dtoj-sb .data-table .star {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 6px 0 0;
+    color: #c2ccd8;
+    opacity: 0.5;
+    vertical-align: middle;
+    cursor: pointer;
+    transition: opacity 0.15s ease, color 0.15s ease;
+  }
+  .dtoj-sb .data-table tbody tr:hover .star,
+  .dtoj-sb .data-table .star:focus-visible { opacity: 1; }
+  .dtoj-sb .data-table .star:hover { color: var(--gold-deep); }
+  .dtoj-sb .data-table .star.activated { opacity: 1; color: var(--gold); }
+  .dtoj-sb .data-table .star .starred--hide,
+  .dtoj-sb .data-table .star .starred--show { line-height: 1; }
+  .dtoj-sb .data-table tbody tr.star-highlight td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+  .dtoj-sb .data-table tbody tr.star-highlight td { background: #f4f8ff; }
+  .dtoj-sb .data-table .user-profile-link { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; max-width: 100%; }
+  .dtoj-sb .data-table .user-profile-avatar {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid rgba(30, 41, 59, 0.08);
+    background: #eef2f7;
+    object-fit: cover;
+  }
+  .dtoj-sb .data-table .user-profile-name {
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .dtoj-sb .data-table .user-profile-name:hover { color: var(--brand-deep); }
+  .dtoj-sb .data-table .supplementary { color: var(--muted); }
+
+  /* 分数与总耗时：等宽，分数保留 core 给的红到绿（那是得分高低，不是装饰） */
+  .dtoj-sb .data-table .col--total_score,
+  .dtoj-sb .data-table .col--time { text-align: center; }
+  .dtoj-sb .data-table .col--total_score span {
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-sb .data-table .col--time span {
+    color: var(--muted);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 题目列：一格就是一个成绩块。块撑满列宽，题目多少道都不会被挤破；
+     第一行是这道题拿到的分（放大、保留 core 给的红到绿），第二行是用时 */
+  .dtoj-sb .data-table tbody .col--problem,
+  .dtoj-sb .data-table tbody .col--record { text-align: center; }
+  .dtoj-sb .data-table tbody .col--problem a,
+  .dtoj-sb .data-table tbody .col--record a {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: #f2f7fc;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dtoj-sb .data-table tbody .col--problem a:hover,
+  .dtoj-sb .data-table tbody .col--record a:hover { border-color: #b9cde6; background: #fff; }
+  .dtoj-sb .data-table tbody .col--problem a span,
+  .dtoj-sb .data-table tbody .col--record a span {
+    display: block;
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+  .dtoj-sb .data-table tbody .col--problem a span::first-line,
+  .dtoj-sb .data-table tbody .col--record a span::first-line { font-size: 15px; }
+  .dtoj-sb .data-table tbody .col--problem span,
+  .dtoj-sb .data-table tbody .col--record span { font-variant-numeric: tabular-nums; }
+
+  /* 题号表头：上面是题号，下面是这道题的通过/提交次数 */
+  .dtoj-sb .data-table thead th.col--problem,
+  .dtoj-sb .data-table thead th.col--record { text-align: center; }
+  .dtoj-sb .data-table thead th.col--problem a,
+  .dtoj-sb .data-table thead th.col--record a {
+    display: block;
+    color: var(--muted);
+    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-decoration: none;
+  }
+  .dtoj-sb .data-table thead th.col--problem a:hover,
+  .dtoj-sb .data-table thead th.col--record a:hover { color: var(--brand-deep); }
+  .dtoj-sb .data-table thead th.col--problem a::first-line,
+  .dtoj-sb .data-table thead th.col--record a::first-line {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  /* 冻结成绩表的提示（partial 里的 blockquote.note） */
+  .dtoj-sb .section__body > .note {
+    margin: 16px 22px;
+    padding: 12px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--note);
+    color: var(--note-ink);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  @media (min-width: 901px) {
+    .dtoj-sb .dtoj-sb-hero-side { align-items: flex-end; text-align: right; }
+  }
+  @media (max-width: 900px) {
+    .dtoj-sb .dtoj-sb-hero { padding: 20px 18px; }
+    .dtoj-sb .dtoj-sb-card-head { padding: 16px 18px 12px; }
+    .dtoj-sb .dtoj-sb-foot { padding: 12px 18px 14px; }
+    .dtoj-sb .data-table th:first-child,
+    .dtoj-sb .data-table td:first-child { padding-left: 16px; }
+    .dtoj-sb .data-table th:last-child,
+    .dtoj-sb .data-table td:last-child { padding-right: 16px; }
+    .dtoj-sb .data-table td.col--problem:first-child,
+    .dtoj-sb .data-table td.col--problem:last-child,
+    .dtoj-sb .data-table th.col--problem:first-child,
+    .dtoj-sb .data-table th.col--problem:last-child { padding-left: 5px; padding-right: 5px; }
+  }
+  @media (max-width: 600px) {
+    /* 手机上一行放不下题目格，core 的 homework_scoreboard.page.styl 会收掉题目列；
+       剩下的宽度按「名字优先」重分：分数和耗时只要放得下两三个字，其余都给用户列 */
+    .dtoj-sb .data-table col.col--rank { width: 48px; }
+    .dtoj-sb .data-table col.col--total_score,
+    .dtoj-sb .data-table col.col--time { width: 62px; }
+    .dtoj-sb .data-table col.col--user { width: auto; }
+    .dtoj-sb .data-table .col--rank,
+    .dtoj-sb .data-table .col--total_score,
+    .dtoj-sb .data-table .col--time { padding-left: 6px; padding-right: 6px; }
+    .dtoj-sb .dtoj-sb-tools { width: 100%; }
+    .dtoj-sb .dtoj-sb-filter { width: 100%; }
+    .dtoj-sb .dtoj-sb-tools .select { flex: 1; min-width: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dtoj-sb .dtoj-sb-exports a:hover,
+    .dtoj-sb .dtoj-sb-exports button:hover { transform: none; }
+  }
+</style>
+
+<div class="row">
+  <div class="medium-12 columns dtoj-page dtoj-home dtoj-sb">
+    <div class="dtoj-shell">
+      <p class="dtoj-sb-back">
+        <a href="{{ url('homework_detail', tid=tdoc.docId) }}" data-dtoj-back-fallback="{{ url('homework_detail', tid=tdoc.docId) }}">← 返回作业</a>
+      </p>
+
+      <header class="dtoj-sb-hero">
+        <div class="dtoj-sb-hero-main">
+          <div class="dtoj-sb-title-row">
+            <h1 class="dtoj-sb-title">{{ tdoc.title }}</h1>
+            <span class="dtoj-sb-state" data-state="{{ hwState }}">{{ hwStateText }}</span>
+          </div>
+          <p class="dtoj-sb-sub">{{ hwBoardSub }}</p>
+          <dl class="dtoj-sb-facts">
+            <div><dt>题目</dt><dd>{{ hwPids }}</dd></div>
+            <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }}</dd></div>
+            <div><dt>上榜</dt><dd>{{ boardCount }}</dd></div>
+          </dl>
+        </div>
+        <div class="dtoj-sb-hero-side">
+          <p class="dtoj-sb-side-label">导出成绩表</p>
+          <div class="dtoj-sb-exports">
+            {%- for ext in ['HTML', 'CSV', 'Ghost'] -%}
+            <a target="_blank" rel="noopener" href="{{ url(type + '_scoreboard_view', tid=tdoc.docId, view=ext.toLowerCase()) }}">
+              <span class="icon icon-download"></span> {{ ext }}
+            </a>
+            {%- endfor -%}
+            {% for id, name in availableViews %}{% if not ['html', 'csv', 'default', 'ghost'].includes(id) %}
+            <a target="_blank" rel="noopener" href="{{ url(type + '_scoreboard_view', tid=tdoc.docId, view=id) }}">
+              <span class="icon icon-copy"></span> {{ _(name) }}
+            </a>
+            {% endif %}{% endfor %}
+            {% if model.contest.isDone(tdoc) and tdoc.lockAt and handler.user.own(tdoc) and not tdoc.unlocked %}
+            <form method="POST">
+              <input type="hidden" name="operation" value="unlock">
+              <button type="submit">
+                <span class="icon icon-feeling-lucky"></span> 解锁成绩表
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </header>
+
+      <section class="dtoj-sb-card">
+        <div class="dtoj-sb-card-head">
+          <div>
+            <h2>成绩表</h2>
+            <p>{{ hwHeadNote }}</p>
+          </div>
+          <div class="dtoj-sb-tools">
+            <label class="dtoj-sb-filter">
+              <span class="dtoj-sb-filter-label">筛选</span>
+              <select class="select filter" name="list">
+                <option value="all">{{ _('All Users') }}</option>
+                <option value="star">{{ _('Starred Users') }}</option>
+                <option value="rank">{{ _('Ranked Users') }}</option>
+                {% for group in groups %}
+                <option value="{{ group.uids.join(',') }}">{{ group.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {% include "partials/scoreboard.html" %}
+
+        {% if boardCount == 0 %}
+        <div class="dtoj-sb-empty">还没有人交题。同学交完卷之后，这一行就会变成成绩表。</div>
+        {% endif %}
+
+        <p class="dtoj-sb-foot">
+          星标和筛选只记在这台浏览器里，不会写进站上数据。作业进行中时，这张表每 3 分钟自动刷新一次。
+        </p>
+      </section>
+    </div>
+  </div>
+</div>
+{%- else -%}
+{# 比赛成绩表照旧走 core 的版式：比赛那边是「沿用评测站的榜单」，这次不一起改。 #}
+<div class="row"><div class="medium-12 columns scoreboard--{{ tdoc.rule }}">
+  <div class="section visible">
+    <div class="section__header">
+      <h1 class="section__title">
+      {{ tdoc.title }}&nbsp;&nbsp;
+      {%- for ext in ['HTML', 'CSV', 'Ghost'] -%}
+        <a class="button" target="_blank" href="{{ url(type + '_scoreboard_view', tid=tdoc.docId, view=ext.toLowerCase()) }}">
+          <span class="icon icon-download"></span> {{ _('Export as {0}').format(ext) }}
+        </a>
+      {%- endfor -%}
+      {% for id, name in availableViews %}{% if not ['html', 'csv', 'default', 'ghost'].includes(id) %}
+        <a class="button" target="_blank" href="{{ url(type + '_scoreboard_view', tid=tdoc.docId, view=id) }}">
+          <span class="icon icon-copy"></span> {{ _(name) }}
+        </a>
+      {% endif %}{% endfor %}
+      {% if model.contest.isDone(tdoc) and tdoc.lockAt and handler.user.own(tdoc) and not tdoc.unlocked %}
+        <form method="POST">
+          <input type="hidden" name="operation" value="unlock">
+          <button type="submit" class="button">
+            <span class="icon icon-feeling-lucky"></span> {{ _('Unlock scoreboard') }}
+          </button>
+        </form>
+      {% endif %}
+      </h1>
+      <div class="section__tools">
+        <select class="select filter" name="list">
+          <option value="all">{{ _('All Users') }}</option>
+          <option value="star">{{ _('Starred Users') }}</option>
+          <option value="rank">{{ _('Ranked Users') }}</option>
+          {% for group in groups %}
+            <option value="{{ group.uids.join(',') }}">{{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% include "partials/scoreboard.html" %}
+  </div>
+</div></div>
+{%- endif -%}
+{% endblock %}
