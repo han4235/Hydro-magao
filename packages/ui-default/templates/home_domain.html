@@ -7,10 +7,12 @@
     {% if handler.user.hasPriv(model.builtin.PRIV.PRIV_CREATE_DOMAIN) %}
       <a class="primary rounded button" href="{{ url('home_domain_create') }}"><span class="icon icon-add"></span> {{ _('Create Domain') }}</a>
     {% endif %}
-    {% if handler.user.hasPriv(model.builtin.PRIV.PRIV_USER_PROFILE) %}
+    {# 加入域只留给管理员：学生和教师的域由老师建好、直接分配，自己摸号加进来会绕过名单。
+       按钮的 JS 是委托在 document 上的，不渲染这个按钮就等于这个入口不存在。 #}
+    {% if handler.user.hasPriv(model.builtin.PRIV.PRIV_USER_PROFILE) and handler.user.hasPerm(perm.PERM_EDIT_DOMAIN) %}
       <button class="primary rounded button nojs--hide" id="join-domain-button"><span class="icon icon-add"></span> {{ _('Join Domain') }}</button>
     {% endif %}
-      <a class="tool-button" href="{{ url('wiki_help', anchor='domain') }}"><span class="icon icon-help"></span> {{ _("What's domain?") }}</a>
+    {# 「什么是域？」原来挂在这里，已收进导航栏最右端的「帮助」菜单（见 partials/nav.html） #}
     </div>
   </div>
   <div class="section__body no-padding">

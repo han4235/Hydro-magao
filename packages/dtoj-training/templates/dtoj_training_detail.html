@@ -146,6 +146,62 @@
   .dtoj-col-id { width: 120px; }
   .dtoj-col-diff { width: 160px; }
   .dtoj-col-rate { width: 132px; }
+  /* 管理员和教师多出来的两列：左边拖动手柄，右边红叉 */
+  .dtoj-col-grip { width: 44px; }
+  .dtoj-col-drop { width: 52px; }
+  .dtoj-manage-hint {
+    margin: 0 0 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #e7eefb;
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .dtoj-stage-meta { display: inline-flex; align-items: center; gap: 12px; }
+  .dtoj-save-note { color: var(--muted); font-size: 13px; font-weight: 700; }
+  .dtoj-save-note.is-bad { color: #b42318; }
+  .dtoj-sheet .dtoj-col-grip,
+  .dtoj-sheet .dtoj-col-drop { padding-left: 0; padding-right: 0; text-align: center; }
+  /* 多了两列之后，窄窗口下 fixed 布局会把「题目名称」挤到几乎看不见。
+     别让它挤：给个下限，让 .dtoj-sheet 自己的横向滚动条出来。
+     只对加了两列的这张表生效，学生那边看到的还是老样子。 */
+  .dtoj-practice[data-manage-problems] .dtoj-sheet table { min-width: 780px; }
+  .dtoj-grip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: #94a3b8;
+    cursor: grab;
+    /* 手柄上不要留给浏览器滚页面：按住才拖得动 */
+    touch-action: none;
+  }
+  .dtoj-grip:hover { background: #eef2f8; color: var(--ink); }
+  .dtoj-grip svg { width: 16px; height: 16px; }
+  .dtoj-sheet tr.is-lifting { background: #f4f7fb; box-shadow: 0 10px 24px rgba(28, 39, 64, 0.14); }
+  .dtoj-sheet tr.is-lifting .dtoj-grip { cursor: grabbing; color: var(--brand); }
+  .dtoj-drop {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: #d92d20;
+    cursor: pointer;
+  }
+  .dtoj-drop:hover { background: #fee4e2; }
+  .dtoj-drop svg { width: 15px; height: 15px; }
   .dtoj-name .is-locked { color: var(--muted); font-weight: 600; cursor: default; }
   .dtoj-sheet th {
     padding: 10px 12px;
@@ -325,6 +381,9 @@
     .dtoj-facts,
     .dtoj-stats,
     .dtoj-members { grid-template-columns: 1fr; }
+    /* 上面那条 1fr 其实是 minmax(auto, 1fr)：练习表有列宽地板，会把整列顶宽、页面跟着横向滚。
+       练习区单独改成 minmax(0, 1fr)，宽度交给里面的 .dtoj-sheet 自己滚。 */
+    .dtoj-practice { grid-template-columns: minmax(0, 1fr); }
     .dtoj-side { position: static; }
     .dtoj-course-body { padding: 16px; }
     .dtoj-course-title { align-items: flex-start; flex-direction: column; }
@@ -385,48 +444,65 @@
         </section>
         {% elif part == '练习' %}
         <section>
-          <div class="dtoj-practice">
+          <div class="dtoj-practice"{% if canManageProblems %} data-manage-problems{% endif %}>
             <div>
+              {% if canManageProblems %}
+              <p class="dtoj-manage-hint">按住每行左侧的手柄上下拖动可以调整顺序，点右侧的红叉把这道题从本章移走。改动立刻生效。</p>
+              {% endif %}
               {% for ch in chapters %}
               <article class="dtoj-stage" id="chapter-{{ ch.index }}">
                 <div class="dtoj-stage-head">
                   <h2>章节 {{ ch.index }}. {{ ch.title }}</h2>
-                  {% if ch.state %}<span class="dtoj-state is-{{ ch.stateKey }}"><i></i>{{ ch.state }}</span>{% endif %}
+                  <span class="dtoj-stage-meta">
+                    {% if ch.state %}<span class="dtoj-state is-{{ ch.stateKey }}"><i></i>{{ ch.state }}</span>{% endif %}
+                    {% if canManageProblems %}<span class="dtoj-save-note" data-save-note></span>{% endif %}
+                  </span>
                 </div>
                 <div class="dtoj-sheet">
                   <table>
                     <colgroup>
+                      {% if canManageProblems %}<col class="dtoj-col-grip">{% endif %}
                       <col class="dtoj-col-state">
                       <col class="dtoj-col-id">
                       <col>
                       <col class="dtoj-col-diff">
                       <col class="dtoj-col-rate">
+                      {% if canManageProblems %}<col class="dtoj-col-drop">{% endif %}
                     </colgroup>
                     <thead>
                       <tr>
-                        <th>状态</th>
-                        <th>ID</th>
+                        {% if canManageProblems %}<th class="dtoj-col-grip"></th>{% endif %}
+                        <th class="dtoj-col-state">状态</th>
+                        <th class="dtoj-col-id">ID</th>
                         <th class="dtoj-name">题目名称</th>
-                        <th class="dtoj-col-diff" aria-sort="ascending">
-                          <button type="button" class="dtoj-practice-sort-btn" data-sort="asc">
+                        <th class="dtoj-col-diff">
+                          <button type="button" class="dtoj-practice-sort-btn">
                             难度
-                            <span class="dtoj-practice-sort" aria-hidden="true"><i class="up is-on"></i><i class="down"></i></span>
+                            <span class="dtoj-practice-sort" aria-hidden="true"><i class="up"></i><i class="down"></i></span>
                           </button>
                         </th>
-                        <th>通过率</th>
+                        <th class="dtoj-col-rate">通过率</th>
+                        {% if canManageProblems %}<th class="dtoj-col-drop"></th>{% endif %}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody data-node-id="{{ ch.id }}">
                       {% for item in ch.problems %}
-                      <tr data-diff="{% if item.difficulty %}{{ item.difficulty }}{% endif %}">
-                        <td>
+                      <tr data-diff="{% if item.difficulty %}{{ item.difficulty }}{% endif %}"{% if canManageProblems %} data-pid="{{ item.pid }}"{% endif %}>
+                        {% if canManageProblems %}
+                        <td class="dtoj-col-grip">
+                          <button type="button" class="dtoj-grip" data-grip aria-label="按住拖动调整顺序" title="按住拖动调整顺序">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><circle cx="6" cy="3.4" r="1.3"/><circle cx="10" cy="3.4" r="1.3"/><circle cx="6" cy="8" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="6" cy="12.6" r="1.3"/><circle cx="10" cy="12.6" r="1.3"/></g></svg>
+                          </button>
+                        </td>
+                        {% endif %}
+                        <td class="dtoj-col-state">
                           {% if item.mine == 'pass' %}
                           <span class="dtoj-pass"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>AC</span>
                           {% elif item.mine == 'try' %}
                           <span class="dtoj-try">{% if item.mineScore or item.mineScore == 0 %}得分 {{ item.mineScore }}{% else %}已提交{% endif %}</span>
                           {% endif %}
                         </td>
-                        <td>{{ item.show }}</td>
+                        <td class="dtoj-col-id">{{ item.show }}</td>
                         <td class="dtoj-name">
                           {% if item.missing %}
                           {{ item.show }} 题库里没有这道题
@@ -436,15 +512,22 @@
                           <span class="is-locked" title="请先点击「参加训练计划」">{{ item.title }}</span>
                           {% endif %}
                         </td>
-                        <td>{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>
-                        <td>
+                        <td class="dtoj-col-diff">{% if item.level %}<span class="dtoj-diff" data-diff="{{ item.difficulty }}">{{ item.level }}</span>{% else %}—{% endif %}</td>
+                        <td class="dtoj-col-rate">
                           {% if item.rate or item.rate == 0 %}
                           <span class="dtoj-rate"><b><i style="width: {{ item.rate }}%"></i></b>{{ item.rate }}%</span>
                           {% else %}—{% endif %}
                         </td>
+                        {% if canManageProblems %}
+                        <td class="dtoj-col-drop">
+                          <button type="button" class="dtoj-drop" data-drop-problem data-title="{{ item.title or item.show }}" aria-label="把这道题从本章移除" title="从本章移除">
+                            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                          </button>
+                        </td>
+                        {% endif %}
                       </tr>
                       {% else %}
-                      <tr><td colspan="5">这一章还没有题目。</td></tr>
+                      <tr><td colspan="{% if canManageProblems %}7{% else %}5{% endif %}">这一章还没有题目。</td></tr>
                       {% endfor %}
                     </tbody>
                   </table>
@@ -602,7 +685,8 @@
     return 9999;
   }
   function practiceIdKey(row) {
-    var cell = row.cells && row.cells[1];
+    // 按类名找，别按下标：管理员和教师那边行首多了一列手柄
+    var cell = row.querySelector('.dtoj-col-id');
     return (cell && cell.textContent ? cell.textContent.trim() : '') || '';
   }
   function sortPracticeTable(table, dir) {
@@ -621,23 +705,166 @@
   }
   function setPracticeSortUi(btn, dir) {
     var th = btn.closest('th');
-    if (th) th.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
+    if (th) {
+      if (dir) th.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
+      else th.removeAttribute('aria-sort');
+    }
     btn.setAttribute('data-sort', dir);
     var up = btn.querySelector('.up');
     var down = btn.querySelector('.down');
     if (up) up.classList.toggle('is-on', dir === 'asc');
     if (down) down.classList.toggle('is-on', dir === 'desc');
   }
+  var canManage = {{ 'true' if canManageProblems else 'false' }};
   document.querySelectorAll('.dtoj-practice .dtoj-sheet table').forEach(function (table) {
     var btn = table.querySelector('.dtoj-practice-sort-btn');
     if (!btn) return;
-    sortPracticeTable(table, 'asc');
-    setPracticeSortUi(btn, 'asc');
+    // 能拖动排序的人看到的是库里存的顺序。一进来就按难度重排的话，刚拖完的排法
+    // 下一次刷新就被盖掉，拖了等于白拖；难度排序留给他们当一次性视图用。
+    if (canManage) setPracticeSortUi(btn, '');
+    else {
+      sortPracticeTable(table, 'asc');
+      setPracticeSortUi(btn, 'asc');
+    }
     btn.addEventListener('click', function () {
       var next = btn.getAttribute('data-sort') === 'asc' ? 'desc' : 'asc';
       sortPracticeTable(table, next);
       setPracticeSortUi(btn, next);
     });
+  });
+})();
+(function () {
+  // 练习列表上的「拖排序 / 移出本章」，只有管理员和教师页面上才有那个标记
+  var root = document.querySelector('[data-manage-problems]');
+  if (!root) return;
+
+  function save(url, payload) {
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (res) {
+      if (!res.ok) throw new Error(String(res.status));
+    });
+  }
+
+  function noteOf(tbody) {
+    var stage = tbody.closest('.dtoj-stage');
+    return stage ? stage.querySelector('[data-save-note]') : null;
+  }
+
+  function say(el, text, bad) {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('is-bad', !!bad);
+    window.clearTimeout(el.dataset.timer);
+    // 失败的提示留在屏幕上，成功的过两秒自己收走
+    if (!bad) el.dataset.timer = String(window.setTimeout(function () { el.textContent = ''; }, 2000));
+  }
+
+  function pidsOf(tbody) {
+    return Array.prototype.map.call(tbody.querySelectorAll('tr[data-pid]'), function (tr) {
+      return Number(tr.getAttribute('data-pid'));
+    });
+  }
+
+  root.addEventListener('click', function (event) {
+    var btn = event.target.closest ? event.target.closest('[data-drop-problem]') : null;
+    if (!btn) return;
+    var tbody = btn.closest('tbody');
+    var tr = btn.closest('tr[data-pid]');
+    if (!tbody || !tr) return;
+    var label = btn.getAttribute('data-title') || '这道题';
+    if (!window.confirm('把「' + label + '」从这一章移走？')) return;
+    btn.disabled = true;
+    save(window.location.pathname, {
+      operation: 'dropProblem',
+      nodeId: Number(tbody.getAttribute('data-node-id')),
+      pid: Number(tr.getAttribute('data-pid')),
+    }).then(function () {
+      // 章节状态、本章题数、总题数都是服务端算出来的，重画一遍最省事也最不会对不上
+      window.location.reload();
+    }).catch(function () {
+      btn.disabled = false;
+      window.alert('没移走，刷新页面再试。');
+    });
+  });
+
+  var drag = null;
+
+  function rowAt(x, y, self) {
+    var stack = document.elementsFromPoint(x, y);
+    for (var i = 0; i < stack.length; i++) {
+      var tr = stack[i].closest && stack[i].closest('tr[data-pid]');
+      if (tr && tr !== self && tr.parentNode === self.parentNode) return tr;
+    }
+    return null;
+  }
+
+  function onMove(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    event.preventDefault();
+    var tr = drag.tr;
+    // 让指针下面那层能点到别的行：自己挡着的话 elementsFromPoint 永远返回自己
+    tr.style.pointerEvents = 'none';
+    var target = rowAt(event.clientX, event.clientY, tr);
+    tr.style.pointerEvents = '';
+    if (!target) return;
+    var box = target.getBoundingClientRect();
+    if (event.clientY < box.top + box.height / 2) {
+      if (tr.nextSibling !== target) {
+        drag.tbody.insertBefore(tr, target);
+        drag.moved = true;
+      }
+    } else if (tr !== target.nextSibling) {
+      drag.tbody.insertBefore(tr, target.nextSibling);
+      drag.moved = true;
+    }
+  }
+
+  function endDrag() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    var current = drag;
+    drag = null;
+    if (!current) return;
+    current.tr.classList.remove('is-lifting');
+    try { current.grip.releasePointerCapture(current.id); } catch (err) {}
+    if (!current.moved) return;
+    var tbody = current.tbody;
+    save(window.location.pathname, {
+      operation: 'reorderProblems',
+      nodeId: Number(tbody.getAttribute('data-node-id')),
+      pids: pidsOf(tbody),
+    }).then(function () {
+      say(noteOf(tbody), '顺序已保存');
+    }).catch(function () {
+      say(noteOf(tbody), '顺序没存上，刷新页面再试', true);
+    });
+  }
+
+  function onUp(event) {
+    if (drag && event.pointerId === drag.id) endDrag();
+  }
+
+  root.addEventListener('pointerdown', function (event) {
+    if (drag) return;
+    var grip = event.target.closest ? event.target.closest('[data-grip]') : null;
+    if (!grip) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    var tr = grip.closest('tr[data-pid]');
+    if (!tr) return;
+    event.preventDefault();
+    drag = {
+      tr, tbody: tr.parentNode, grip, id: event.pointerId, moved: false,
+    };
+    tr.classList.add('is-lifting');
+    try { grip.setPointerCapture(event.pointerId); } catch (err) {}
+    document.addEventListener('pointermove', onMove, { passive: false });
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
   });
 })();
 </script>

@@ -163,6 +163,11 @@
         <span class="icon icon-calendar"></span> 添加作业
       </a></li>
     {% endif %}
+    {% if page_name == 'problem_detail' and courseAdd and courseAdd.courses.length %}
+      <li class="menu__item"><a class="menu__link" href="javascript:;" name="problem-sidebar__add-course" id="dtoj-course-add-open">
+        <span class="icon icon-book"></span> 添加至课程
+      </a></li>
+    {% endif %}
     {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
       <li class="menu__seperator"></li>
       {% if page_name == 'problem_detail' %}
@@ -298,7 +303,8 @@
   .dtoj-hw-add-pane[hidden] { display: none; }
   /* 行本身是 flex 的 label，光靠 hidden 属性压不住 display，得显式收掉 */
   .dtoj-hw-add-pane [data-hw-add-row][hidden] { display: none; }
-  .dtoj-hw-add-pane .dtoj-group-dialog__list { margin-top: 10px; padding: 0; }
+  /* 外层已经留了 20px，这里只补上间距；内边距交给共享的 __list（有边框，行不能贴边） */
+  .dtoj-hw-add-pane .dtoj-group-dialog__list { margin: 10px 0 0; }
   .dtoj-hw-add-search {
     flex: none;
     height: 38px;
@@ -459,6 +465,298 @@
     picks().forEach(function (el) { if (el.checked) values.push(el.value); });
     assignInput.value = values.join(',');
   });
+})();
+</script>
+{% endif %}
+
+{#
+  「添加至课程」弹层：把这道题塞进已有课程的某一章里。
+  课程章节清单由 dtoj-training 在 ProblemDetail#get 之后挂到 body.courseAdd 上
+  （只给改得了章节题目的人算），没有 courseAdd 的页面连菜单项带弹层一起不渲染。
+  勾选框直接叫 targets，值写成「课程 id:章节 id」，一次可以跨课程多选。
+  已经收过这题的章节勾着但不给改（disabled 的框不会提交），免得重复添加。
+#}
+{% if page_name == 'problem_detail' and courseAdd and courseAdd.courses.length %}
+<style>
+  /* 方向 / 类型两行胶囊，照 /training 列表页那套做（同一个词表、同样的选中配色），
+     只是尺寸收小：弹层可用宽只有 480px，34px 的胶囊会把列表挤没。 */
+  .dtoj-course-add__facets { flex: none; margin: 10px 20px 0; }
+  .dtoj-course-add__facet { display: flex; align-items: flex-start; gap: 8px; }
+  .dtoj-course-add__facet + .dtoj-course-add__facet { margin-top: 6px; }
+  .dtoj-course-add__facet[hidden] { display: none; }
+  .dtoj-course-add__facet-name { flex: none; width: 26px; padding-top: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .dtoj-course-add__tags { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .dtoj-course-add__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-course-add__tag b { color: var(--muted); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dtoj-course-add__tag:hover { background: #e7eefb; }
+  .dtoj-course-add__tag.is-on,
+  .dtoj-course-add__tag.is-on:hover { border-color: transparent; background: var(--brand); color: #fff; }
+  .dtoj-course-add__tag.is-on b { color: rgba(255, 255, 255, 0.86); }
+  /* 这类标签点了只会得到空清单，按住不给点；但当前选中的那个不受此限（否则取消不掉） */
+  .dtoj-course-add__tag.is-empty,
+  .dtoj-course-add__tag.is-empty:hover {
+    border-color: var(--line);
+    background: #fff;
+    color: var(--muted);
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .dtoj-course-add__tag:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  /* 窄屏上这 13 个标签要占 6 行（约 190px），620px 的面板扣完只剩 4 行列表。
+     屏幕还有余量就多给点高度，别让标签把清单挤没。 */
+  @media (max-width: 480px) {
+    .dtoj-course-add .dtoj-group-dialog__panel { max-height: calc(100vh - 24px); }
+  }
+  /* 一门课一块，块之间用淡线分开；标题比章节行轻，只是分组标签 */
+  .dtoj-course-add__group { display: flex; flex-direction: column; gap: 2px; }
+  .dtoj-course-add__group + .dtoj-course-add__group {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .dtoj-course-add__group[hidden] { display: none; }
+  .dtoj-course-add__course {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 2px 10px 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-course-add__course b { color: var(--ink); font-size: 13px; font-weight: 800; }
+  /* 章节行：标题自己会换行，右边的「第 N 章」不被挤掉 */
+  .dtoj-course-add__title { min-width: 0; overflow-wrap: anywhere; }
+  .dtoj-course-add__note { flex: none; margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; font-style: normal; white-space: nowrap; }
+  .dtoj-course-add .dtoj-group-dialog__item:has(input:disabled) .dtoj-course-add__note { color: #6a4b00; }
+</style>
+<div class="dtoj-group-dialog dtoj-course-add" id="dtoj-course-add-dialog" hidden>
+  <div class="dtoj-group-dialog__mask" data-course-add-close></div>
+  <div class="dtoj-group-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="dtoj-course-add-title">
+    <div class="dtoj-group-dialog__head">
+      <h2 id="dtoj-course-add-title">添加至课程</h2>
+      <button type="button" class="dtoj-group-dialog__close" data-course-add-close aria-label="{{ _('Close') }}">&times;</button>
+    </div>
+    <form method="post" action="{{ url('dtoj_problem_add_course', pid=pdoc.pid|default(pdoc.docId)) }}" id="dtoj-course-add-form">
+      <p class="dtoj-group-dialog__hint">勾上要去的位置，可跨课程多选；已经收过这题的章节会标出来。</p>
+      <input type="search" class="dtoj-group-dialog__search" id="dtoj-course-add-search" placeholder="搜课程或章节">
+      <div class="dtoj-course-add__facets">
+        {# 词表与顺序都取自 /training 那套（body.courseAdd.directions / kinds），
+           计数由脚本按当前搜索词现算，所以这里先摆 0。 #}
+        <div class="dtoj-course-add__facet" data-course-add-facet="direction">
+          <span class="dtoj-course-add__facet-name">方向</span>
+          <div class="dtoj-course-add__tags">
+            <button type="button" class="dtoj-course-add__tag is-on" data-tag-dir="">全部<b>0</b></button>
+            {% for d in courseAdd.directions %}
+            <button type="button" class="dtoj-course-add__tag" data-tag-dir="{{ d }}">{% if d == '其他' %}其他课程{% else %}{{ d }}{% endif %}<b>0</b></button>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="dtoj-course-add__facet" data-course-add-facet="kind">
+          <span class="dtoj-course-add__facet-name">类型</span>
+          <div class="dtoj-course-add__tags">
+            <button type="button" class="dtoj-course-add__tag is-on" data-tag-kind="">全部<b>0</b></button>
+            {% for k in courseAdd.kinds %}
+            <button type="button" class="dtoj-course-add__tag" data-tag-kind="{{ k }}">{{ k }}<b>0</b></button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <p class="dtoj-group-dialog__count">
+        <span>已选 <b id="dtoj-course-add-picked">0</b> 章</span>
+        <span id="dtoj-course-add-total">共 {{ courseAdd.total }} 章</span>
+      </p>
+      <div class="dtoj-group-dialog__list" id="dtoj-course-add-list">
+        {% for c in courseAdd.courses %}
+        <div class="dtoj-course-add__group" data-course-add-group data-course-add-dir="{{ c.direction }}" data-course-add-kind="{{ c.kind }}">
+          <p class="dtoj-course-add__course">
+            <span>{{ c.title }}</span>
+            <b>{{ c.chapters.length }} 章</b>
+          </p>
+          {% for ch in c.chapters %}
+          <label class="dtoj-group-dialog__item" data-course-add-row data-course-add-key="{{ c.title }} {{ ch.title }}">
+            <input type="checkbox" name="targets" data-course-add-pick value="{{ c.id }}:{{ ch.nodeId }}"{% if ch.has %} checked disabled{% endif %}>
+            <span class="dtoj-course-add__title">{{ ch.title }}</span>
+            <em class="dtoj-course-add__note">第 {{ ch.index }} 章{% if ch.has %} · 已在此章{% endif %}</em>
+          </label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="dtoj-group-dialog__foot">
+        <button type="button" class="dtoj-user-btn" data-course-add-close>取消</button>
+        <button type="submit" class="dtoj-user-btn dtoj-user-btn--primary" id="dtoj-course-add-submit" disabled>添加</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var dialog = document.getElementById('dtoj-course-add-dialog');
+  var trigger = document.getElementById('dtoj-course-add-open');
+  var form = document.getElementById('dtoj-course-add-form');
+  if (!dialog || !trigger || !form) return;
+  var list = document.getElementById('dtoj-course-add-list');
+  var search = document.getElementById('dtoj-course-add-search');
+  var pickedEl = document.getElementById('dtoj-course-add-picked');
+  var totalEl = document.getElementById('dtoj-course-add-total');
+  var submitBtn = document.getElementById('dtoj-course-add-submit');
+  var groups = Array.prototype.slice.call(list.querySelectorAll('[data-course-add-group]'));
+  var tags = Array.prototype.slice.call(dialog.querySelectorAll('[data-tag-dir], [data-tag-kind]'));
+  // 选了哪个方向、哪个类型。空串就是「全部」，两组各管各的。
+  var pick = { direction: '', kind: '' };
+
+  function rows() {
+    return Array.prototype.slice.call(list.querySelectorAll('[data-course-add-row]'));
+  }
+
+  function rowsOf(group) {
+    return Array.prototype.slice.call(group.querySelectorAll('[data-course-add-row]'));
+  }
+
+  /* 标签按钮的属性名故意跟课程块上的 data-course-add-dir / -kind 分开：
+     混用的话 querySelectorAll 会连课程块一起选中，往它们的 <b>N 章</b> 里写计数。 */
+  function markOfTag(btn) {
+    var isDir = btn.hasAttribute('data-tag-dir');
+    return { field: isDir ? 'direction' : 'kind', key: isDir ? 'data-tag-dir' : 'data-tag-kind' };
+  }
+
+  function textOfRow(row) {
+    return (row.getAttribute('data-course-add-key') || '').toLowerCase();
+  }
+
+  /*
+   * 计数行 + 提交按钮。
+   *
+   * 「已选」只算能提交的：已经在这一章里的框是勾着但 disabled 的（表单不会提交它们），
+   * 照勾选数算的话，打开就是「已选 1 章」，按钮还亮着，但点下去什么也不会发生。
+   * 同理，一个能提交的都没勾时按住按钮 —— 不靠 preventDefault 拦提交，
+   * 那会撞上全局的防连点保护，五秒内点不动。
+   */
+  function refresh() {
+    var all = rows();
+    var shown = 0;
+    var picked = 0;
+    all.forEach(function (row) {
+      if (!row.hidden) shown += 1;
+      var box = row.querySelector('[data-course-add-pick]');
+      if (box && box.checked && !box.disabled) picked += 1;
+    });
+    pickedEl.textContent = String(picked);
+    totalEl.textContent = shown === all.length
+      ? '共 ' + all.length + ' 章'
+      : '筛出 ' + shown + ' / ' + all.length + ' 章';
+    submitBtn.disabled = !picked;
+    submitBtn.textContent = picked ? '添加（' + picked + ' 章）' : '添加';
+  }
+
+  /*
+   * 标签上的数字按「当前搜索词下有多少章」现算，口径跟计数行的「共 N 章」一致 ——
+   * 点了一个写着 16 的标签就该看到 16 章，写课程数的话两边数字对不上。
+   * 只跟搜索词联动，不跟另一组标签联动：跟 /training 列表页的做法一样，
+   * 否则点一下方向，另一行的数字跟着变，反而看不清每类到底有多少。
+   */
+  function paintTags(q) {
+    var byDir = {};
+    var byKind = {};
+    var total = 0;
+    groups.forEach(function (group) {
+      var dir = group.getAttribute('data-course-add-dir') || '';
+      var kind = group.getAttribute('data-course-add-kind') || '';
+      rowsOf(group).forEach(function (row) {
+        if (q && textOfRow(row).indexOf(q) === -1) return;
+        total += 1;
+        byDir[dir] = (byDir[dir] || 0) + 1;
+        if (kind) byKind[kind] = (byKind[kind] || 0) + 1;
+      });
+    });
+    for (var i = 0; i < tags.length; i++) {
+      var btn = tags[i];
+      var meta = markOfTag(btn);
+      var value = btn.getAttribute(meta.key);
+      var n = value ? ((meta.field === 'direction' ? byDir : byKind)[value] || 0) : total;
+      var on = pick[meta.field] === value;
+      btn.querySelector('b').textContent = String(n);
+      btn.classList.toggle('is-on', on);
+      // 数字为 0 的标签点了只会得到空清单，按住不给点；当前选中的那个例外，否则取消不掉
+      var dead = !n && !on;
+      btn.classList.toggle('is-empty', dead);
+      btn.disabled = dead;
+    }
+    // 一组里除了「全部」没有别的可选项时（域里只有一种方向/类型），那一行没有筛选价值
+    ['direction', 'kind'].forEach(function (field) {
+      var row = dialog.querySelector('[data-course-add-facet="' + field + '"]');
+      if (!row) return;
+      var usable = tags.filter(function (btn) {
+        return markOfTag(btn).field === field && !btn.disabled && btn.getAttribute(markOfTag(btn).key);
+      });
+      row.hidden = !usable.length;
+    });
+  }
+
+  function filter() {
+    var q = search ? search.value.trim().toLowerCase() : '';
+    groups.forEach(function (group) {
+      var byTag = (!pick.direction || group.getAttribute('data-course-add-dir') === pick.direction)
+        && (!pick.kind || group.getAttribute('data-course-add-kind') === pick.kind);
+      var shown = 0;
+      rowsOf(group).forEach(function (row) {
+        var hit = byTag && (!q || textOfRow(row).indexOf(q) !== -1);
+        row.hidden = !hit;
+        if (hit) shown += 1;
+      });
+      // 章节全被筛掉的课程，标题也别留着，否则只剩一列光标题没有行
+      group.hidden = !shown;
+    });
+    paintTags(q);
+    refresh();
+  }
+
+  function open(on) {
+    dialog.hidden = !on;
+    document.body.classList.toggle('dtoj-group-dialog-open', on);
+    if (!on) return;
+    // 打开时重算一遍，不改筛选也不清搜索词：连着给同一批课程加题时，
+    // 刚建好的那个视图（搜了哪个词、选了哪个方向）继续留着更省事
+    filter();
+    // 光标落在搜索框，打开就能输；不落在关闭按钮上（它在 DOM 里更靠前）
+    if (search) search.focus();
+  }
+
+  trigger.addEventListener('click', function () { open(true); });
+  dialog.addEventListener('click', function (e) {
+    if (e.target.closest('[data-course-add-close]')) { open(false); return; }
+    var btn = e.target.closest('[data-tag-dir], [data-tag-kind]');
+    if (!btn || btn.disabled) return;
+    var meta = markOfTag(btn);
+    var value = btn.getAttribute(meta.key);
+    // 再点一下已选中的那个就回到「全部」
+    pick[meta.field] = pick[meta.field] === value ? '' : value;
+    filter();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !dialog.hidden) open(false);
+  });
+  dialog.addEventListener('change', function (e) {
+    if (e.target.closest('[data-course-add-pick]')) refresh();
+  });
+  if (search) search.addEventListener('input', filter);
+
+  filter();
 })();
 </script>
 {% endif %}

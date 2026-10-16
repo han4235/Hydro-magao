@@ -1,6 +1,7 @@
 import { escapeRegExp } from 'lodash';
 import {
-    Context, DomainModel, ObjectId, PERM, PRIV, ProblemModel, STATUS, StorageModel, TrainingModel, Types, UserModel, param,
+    Context, DomainModel, ObjectId, OplogModel, PERM, PRIV, ProblemModel, ProblemNotFoundError, STATUS, StorageModel, TrainingModel,
+    Types, UserModel, ValidationError, param,
 } from 'hydrooj';
 import { DtojDataHandler, dropEarlierRoutes, pick, queryOf, queryString } from 'dtoj-ui';
 import {
@@ -64,6 +65,14 @@ function pinOf(raw: unknown) {
     const n = Number(raw);
     if (!Number.isInteger(n) || n < 0) return null;
     return n;
+}
+
+/**
+ * dag 是整份写回去的，改之前先拷一层。
+ * TrainingModel.get 出来的 tdoc 可能在缓存里，直接改它的 node.pids 会改到别人手里那份。
+ */
+function cloneDag(dag: any[] = []) {
+    return dag.map((node) => ({ ...node, pids: [...(node.pids || [])] }));
 }
 
 function shortChapterTitle(title: string) {
@@ -484,6 +493,10 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
         const canEdit = this.user.own(tdoc)
             ? this.user.hasPerm(PERM.PERM_EDIT_TRAINING_SELF)
             : this.user.hasPerm(PERM.PERM_EDIT_TRAINING);
+        // 练习列表里的「移除这道题」「拖动排序」只给管理员和教师。
+        // 不能用上面那个 canEdit：学生自己建的课程是可编辑的（PERM_EDIT_TRAINING_SELF 在默认权限里），
+        // 照它放行的话学生也会看到这两个按钮。
+        const canManageProblems = this.user.hasPerm(PERM.PERM_EDIT_TRAINING);
         const stageIds = chapters.map((chapter) => String(chapter.index));
         const stagePick = pick(stage, ['', ...stageIds], '');
         const scope = stagePick ? chapters.filter((chapter) => String(chapter.index) === stagePick) : chapters;
@@ -571,6 +584,7 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
         this.view('dtoj_training_detail', {
             course: courseOf(tdoc),
             canEdit,
+            canManageProblems,
             part: chosen,
             parts: courseParts,
             loggedIn,
@@ -601,6 +615,183 @@ class DtojTrainingDetailHandler extends DtojDataHandler {
         } catch (err) {
             const name = String((err as any)?.name || (err as any)?.constructor?.name || '');
             if (!name.includes('TrainingAlreadyEnroll')) throw err;
+        }
+        this.back();
+    }
+
+    /**
+     * 把一道题从某一章里撤掉（练习列表里那个红叉）。
+     *
+     * 门槛用 PERM_EDIT_TRAINING：管理员和教师有，学生没有。跟页面上那个 canEdit 不是一回事，
+     * 后者对「自己建的课程」放行，而 PERM_EDIT_TRAINING_SELF 在默认权限里，学生也拿得到。
+     */
+    @param('tid', Types.ObjectId)
+    @param('nodeId', Types.PositiveInt)
+    @param('pid', Types.PositiveInt)
+    async postDropProblem(domainId: string, tid: ObjectId, nodeId: number, pid: number) {
+        this.checkPerm(PERM.PERM_EDIT_TRAINING);
+        const tdoc = await TrainingModel.get(domainId, tid);
+        const dag = cloneDag(tdoc.dag || []);
+        const node = dag.find((item) => +item._id === nodeId);
+        const at = node ? node.pids.findIndex((item) => +item === pid) : -1;
+        if (at < 0) {
+            this.response.status = 404;
+            this.response.body = { error: '这一章里没有这道题' };
+            this.response.template = '';
+            return;
+        }
+        node.pids.splice(at, 1);
+        await TrainingModel.edit(domainId, tid, { dag } as any);
+        await OplogModel.log(this, 'dtoj.training.dropProblem', {
+            domainId, tid, nodeId, pid, left: node.pids.length,
+        });
+        this.response.body = { ok: true, left: node.pids.length };
+        this.response.template = '';
+    }
+
+    /**
+     * 保存某一章里题目的新顺序（拖完发过来的）。
+     *
+     * 传上来的 pid 名单必须和库里那一章的完全一致，只许换顺序：少一道、多一道、有重复都按 400 顶回去。
+     * 页面可能是旧的（别人刚删过题），与其拿一份过期的名单覆盖，不如让前端刷新重来。
+     */
+    @param('tid', Types.ObjectId)
+    @param('nodeId', Types.PositiveInt)
+    @param('pids', Types.NumericArray)
+    async postReorderProblems(domainId: string, tid: ObjectId, nodeId: number, pids: number[] = []) {
+        this.checkPerm(PERM.PERM_EDIT_TRAINING);
+        const tdoc = await TrainingModel.get(domainId, tid);
+        const dag = cloneDag(tdoc.dag || []);
+        const node = dag.find((item) => +item._id === nodeId);
+        const same = !!node && pids.length === node.pids.length
+            && new Set(pids).size === pids.length
+            && pids.every((pid) => node.pids.includes(+pid));
+        if (!same) {
+            this.response.status = 400;
+            this.response.body = { error: '题目对不上，刷新页面再试' };
+            this.response.template = '';
+            return;
+        }
+        node.pids = pids.map((pid) => +pid);
+        await TrainingModel.edit(domainId, tid, { dag } as any);
+        this.response.body = { ok: true };
+        this.response.template = '';
+    }
+}
+
+/**
+ * 题目页「添加至课程」弹层要的清单：域内每门课程的每一章，外加这题在不在该章。
+ *
+ * 顺序跟 /training 列表一致（教师排过的在前，其余按置顶、再按 id 倒序），
+ * 这样老师在哪见过的课程，在弹层里还是同一批顺序。
+ * 一章都没有的课程不列 —— 放不进去，摆在那儿只会让人以为能选。
+ *
+ * direction 走 directionBucket、kind 过一遍词表，都跟 /training 的 tally 同一套规则：
+ * 不这么归一的话，弹层里的标签计数会和列表页上的数字对不上。
+ *
+ * pids 用 + 转数字再比：TrainingModel.getMulti 拿到的 dag 里 pids 可能是字符串，
+ * 只有 get() 会把它转成数字，这里走的是前者。
+ */
+async function courseAddOptions(domainId: string, pid: number) {
+    const vocab = await loadVocab(domainId);
+    const docs = sortCourses(await TrainingModel.getMulti(domainId, {}).toArray(), vocab.order);
+    const courses = [];
+    let total = 0;
+    for (const tdoc of docs) {
+        const dag = tdoc.dag || [];
+        if (!dag.length) continue;
+        total += dag.length;
+        const mark = markOf(tdoc);
+        courses.push({
+            id: courseId(tdoc),
+            title: tdoc.title,
+            direction: directionBucket(mark.direction, vocab.directions),
+            kind: vocab.kinds.includes(mark.kind) ? mark.kind : '',
+            chapters: dag.map((node, index) => {
+                const pids = (node.pids || []).map((item) => +item);
+                return {
+                    nodeId: node._id,
+                    index: index + 1,
+                    title: node.title || '',
+                    has: pids.includes(+pid),
+                };
+            }),
+        });
+    }
+    // 词表也一并给模板：标签要按 /training 的那套名字和顺序渲染
+    return { courses, total, directions: vocab.directions, kinds: vocab.kinds };
+}
+
+/**
+ * 题目页侧栏「添加至课程」：把这一题塞进若干门课程的某一章里。
+ *
+ * 门槛用 PERM_EDIT_TRAINING，跟课程详情页的「移除这道题 / 拖动排序」一致：
+ * 学生自己建的课程能改标题和章节标题（PERM_EDIT_TRAINING_SELF），
+ * 但章节里放哪些题只对管理员和教师开放。
+ *
+ * targets 是「课程 id:章节 id」的列表，来自弹层里勾中的那些行。整批先校验再写：
+ * 页面可能是旧的（别人刚删过那一章），与其写一半留下半截状态，不如整个退回让人刷新重来。
+ */
+class DtojProblemAddCourseHandler extends DtojDataHandler {
+    @param('pid', Types.ProblemId)
+    @param('targets', Types.CommaSeperatedArray)
+    async post(domainId: string, pid: string | number, targets: string[] = []) {
+        this.checkPerm(PERM.PERM_EDIT_TRAINING);
+        // 校验器按逗号切但不裁空白，空值也照收，所以这里自己清一遍
+        const picked = [...new Set(targets.map((item) => item.trim()).filter((item) => item))];
+        if (!picked.length) throw new ValidationError('targets');
+        const pdoc = await ProblemModel.get(domainId, pid);
+        if (!pdoc) throw new ProblemNotFoundError(domainId, pid);
+        // 看不见的隐藏题不能往课程里塞；门槛与 core 的题目页一致（doThrow 默认开启）
+        await ProblemModel.getList(
+            domainId, [pdoc.docId], this.user.hasPerm(PERM.PERM_VIEW_PROBLEM_HIDDEN) || this.user._id,
+        );
+
+        // 先按课程归拢：一门课只加载、只写回一次，
+        // 否则同一份 dag 会被同一批里的其余目标按加载时的旧值覆盖掉。
+        const byCourse = new Map<string, { tid: ObjectId, nodeIds: number[] }>();
+        for (const item of picked) {
+            const at = item.indexOf(':');
+            const tid = at < 0 ? '' : item.slice(0, at);
+            const nodeId = Number(item.slice(at + 1));
+            if (!/^[a-f0-9]{24}$/.test(tid) || !Number.isSafeInteger(nodeId) || nodeId <= 0) {
+                throw new ValidationError('targets');
+            }
+            const row = byCourse.get(tid) || { tid: new ObjectId(tid), nodeIds: [] };
+            row.nodeIds.push(nodeId);
+            byCourse.set(tid, row);
+        }
+
+        const plans: { tid: ObjectId, nodeIds: number[], dag: any[] }[] = [];
+        for (const row of byCourse.values()) {
+            // eslint-disable-next-line no-await-in-loop
+            const tdoc = await TrainingModel.get(domainId, row.tid);
+            const dag = cloneDag(tdoc.dag || []);
+            for (const nodeId of row.nodeIds) {
+                if (!dag.some((node) => +node._id === nodeId)) {
+                    throw new ValidationError('targets', null, '课程章节对不上，刷新页面再试');
+                }
+            }
+            plans.push({ tid: row.tid, nodeIds: row.nodeIds, dag });
+        }
+
+        for (const plan of plans) {
+            let added = 0;
+            for (const node of plan.dag) {
+                if (!plan.nodeIds.includes(+node._id)) continue;
+                // 已经在这一章里的不重复加：弹层把那几行设成勾上但不给改，正常走不到这儿，
+                // 留着是防两个人同时添同一题时插进两条一样的 pid。
+                if (node.pids.some((item) => +item === +pdoc.docId)) continue;
+                node.pids.push(pdoc.docId);
+                added += 1;
+            }
+            if (!added) continue;
+            // eslint-disable-next-line no-await-in-loop
+            await TrainingModel.edit(domainId, plan.tid, { dag: plan.dag } as any);
+            // eslint-disable-next-line no-await-in-loop
+            await OplogModel.log(this, 'dtoj.training.addProblem', {
+                domainId, tid: plan.tid, pid: pdoc.docId, nodeIds: plan.nodeIds, added,
+            });
         }
         this.back();
     }
@@ -940,7 +1131,18 @@ export async function apply(ctx: Context) {
     ctx.Route('dtoj_training_create', '/training/create', DtojTrainingEditHandler);
     ctx.Route('dtoj_training_detail', '/training/:tid', DtojTrainingDetailHandler, PERM.PERM_VIEW_TRAINING);
     ctx.Route('dtoj_training_edit', '/training/:tid/edit', DtojTrainingEditHandler);
+    // 题目页侧栏的「添加至课程」，见 DtojProblemAddCourseHandler
+    ctx.Route('dtoj_problem_add_course', '/p/:pid/add-course', DtojProblemAddCourseHandler, PERM.PERM_EDIT_TRAINING);
     dropEarlierRoutes(ctx, ['/training', '/training/create', '/training/:tid', '/training/:tid/edit']);
+
+    // 弹层要的课程章节清单。只给加得进去的人算，学生看题目页时这一段直接跳过。
+    ctx.on('handler/after/ProblemDetail#get', async (that) => {
+        const body = that.response.body as Record<string, any> | undefined;
+        if (!body?.pdoc) return;
+        if (!that.user.hasPerm(PERM.PERM_EDIT_TRAINING)) return;
+        body.courseAdd = await courseAddOptions(that.args.domainId, body.pdoc.docId);
+    });
+
     for (const lang of ['zh', 'zh_TW', 'en', 'kr']) {
         ctx.i18n.load(lang, titles);
     }

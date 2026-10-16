@@ -38,6 +38,9 @@ services:
       - ../../packages/ui-default/templates:/opt/hydro/packages/ui-default/templates
       # dtoj-record 镜像里没有 node_modules，可以整包挂载；模板和 dtojRecordDetail.ts 都要改
       - ../../packages/dtoj-record:/opt/hydro/packages/dtoj-record
+      # dtoj-training 也没有 node_modules，整包挂。课程练习列表上的「移除这道题 / 拖动排序」
+      # 要同时改它的 handler（index.ts）和模板。
+      - ../../packages/dtoj-training:/opt/hydro/packages/dtoj-training
       # hydrooj 与 common 也在改（小组的原子增删、新权限位 PERM_MANAGE_GROUP*）。
       # hydrooj 镜像里带 node_modules，所以逐子目录挂；common 没有，整包挂。
       - ../../packages/hydrooj/src:/opt/hydro/packages/hydrooj/src

@@ -920,7 +920,14 @@
 <div class="row">
   <div class="medium-12 columns dtoj-page dtoj-home">
     <div class="dtoj-shell dtoj-problem is-wide">
-      {% if not tdoc %}<p class="dtoj-problem-back" id="dtoj-problem-back-links"><a href="{{ url('dtoj_problems') }}" data-dtoj-back-fallback="{{ url('dtoj_problems') }}">返回题库</a></p>{% endif %}
+      {% if not tdoc %}
+      {# 从课程点进来的题目带 trid，此时「返回题库」是错的：上一层是训练，不是题库 #}
+      {% if handler.args.trid %}
+      <p class="dtoj-problem-back" id="dtoj-problem-back-links"><a href="{{ url('training_main') }}" data-dtoj-back-fallback="{{ url('training_main') }}" data-dtoj-training-home>返回训练</a></p>
+      {% else %}
+      <p class="dtoj-problem-back" id="dtoj-problem-back-links"><a href="{{ url('dtoj_problems') }}" data-dtoj-back-fallback="{{ url('dtoj_problems') }}">返回题库</a></p>
+      {% endif %}
+      {% endif %}
       <div class="dtoj-problem-layout">
         <div>
     <div class="section dtoj-panel dtoj-problem-main">
@@ -1063,6 +1070,11 @@
 })();
 (function () {
   try {
+    // 只有真的从课程点进来才补这个链接。sessionStorage 是按标签页活着的，
+    // 从课程逛回题库再点别的题，它还是那条旧课程 —— 那种情况下补出来的「返回课程」
+    // 指向的是一道跟当前页面无关的课程，属于路径显示错。trid 是服务端给的，
+    // 比 sessionStorage 可信。
+    if (!{{ 'true' if handler.args.trid else 'false' }}) return;
     var ret = sessionStorage.getItem('dtoj-training-return');
     var box = document.getElementById('dtoj-problem-back-links');
     if (ret && box && !box.querySelector('[data-dtoj-training-back]')) {

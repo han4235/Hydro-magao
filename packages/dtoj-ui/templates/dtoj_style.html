@@ -1264,11 +1264,13 @@
   }
   .dtoj-group-dialog__list::-webkit-scrollbar-thumb:hover { background: rgba(30, 41, 59, 0.34); }
   /* 一行一个勾选目标，36px 够点又不虚胖。
-     选择器写到 `__list > __item` 是被迫的：theme 里
+     选择器必须带一级祖先：theme 里
      `label:not(.quick-input-list-label){display:block}` 的特异性是 (0,1,1)，
      单类名的 .dtoj-group-dialog__item (0,1,0) 压不住，label 一旦是 block，
-     勾选框和名字就上下分家，行高被撑到 60px。 */
-  .dtoj-group-dialog__list > .dtoj-group-dialog__item {
+     勾选框和名字就上下分家，行高被撑到 60px。
+     也刻意不用 `__list > __item`：课程弹层把章节行套在课程分组里，
+     写死直接子级的话那批行会漏掉这条规则。 */
+  .dtoj-group-dialog .dtoj-group-dialog__item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1309,8 +1311,12 @@
   .dtoj-group-dialog__item:has(input:checked):hover { background: rgba(37, 99, 235, 0.12); }
   .dtoj-group-dialog__item:has(input:focus-visible) { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18); }
   .dtoj-group-dialog__item input[type=checkbox]:focus-visible { outline: none; }
-  /* 同上：display:flex 会盖掉 [hidden]，筛选和搜索得显式关掉 */
-  .dtoj-group-dialog__item[hidden] { display: none; }
+  /* 同上：display:flex 会盖掉 [hidden]，筛选和搜索得显式关掉。
+     带祖先是为了压过上面那条同行同级的规则（同为 (0,2,0)，靠来源顺序不稳定）。 */
+  .dtoj-group-dialog .dtoj-group-dialog__item[hidden] { display: none; }
+  /* 「已经在这一章里」的行：勾是勾着的，但不给改，也不参与提交 */
+  .dtoj-group-dialog .dtoj-group-dialog__item:has(input[type=checkbox]:disabled) { cursor: default; }
+  .dtoj-group-dialog__item input[type=checkbox]:disabled { cursor: not-allowed; opacity: 0.5; }
   /* 建组人：挤到行尾，压得比组名轻 */
   .dtoj-group-dialog__sub { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; font-style: normal; }
   .dtoj-group-dialog__foot { display: flex; justify-content: flex-end; gap: 8px; flex: none; padding: 16px 20px 20px; }
@@ -2144,8 +2150,18 @@
   }
   function goBackOrAssign(fallback, el) {
     var trainingRet = trainingReturnUrl();
-    if (trainingRet && /^\/p\//.test(location.pathname) && el.closest('#dtoj-problem-back-links, .dtoj-problem-back')) {
+    // 只有那个补出来的「返回课程」才强制指到课程。原先是按容器匹配
+    // （#dtoj-problem-back-links / .dtoj-problem-back），于是同一行里
+    // 「返回训练」「返回题库」乃至提交页的「返回题目」也一并被拐去课程：
+    // 标签写着训练、点下去落在课程，这就是「路径显示错」的来源。
+    if (trainingRet && /^\/p\//.test(location.pathname) && el.hasAttribute('data-dtoj-training-back')) {
       location.assign(trainingRet);
+      return;
+    }
+    // 「返回训练」是往上走一层到训练区，标签就是目的地，别走 history.back()：
+    // 上一页多半是课程页，落在课程上又和标签对不上。
+    if (el.hasAttribute('data-dtoj-training-home')) {
+      if (fallback) location.assign(fallback);
       return;
     }
     if (location.hash && history.replaceState) {
