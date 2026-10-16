@@ -2150,8 +2150,18 @@
   }
   function goBackOrAssign(fallback, el) {
     var trainingRet = trainingReturnUrl();
-    if (trainingRet && /^\/p\//.test(location.pathname) && el.closest('#dtoj-problem-back-links, .dtoj-problem-back')) {
+    // 只有那个补出来的「返回课程」才强制指到课程。原先是按容器匹配
+    // （#dtoj-problem-back-links / .dtoj-problem-back），于是同一行里
+    // 「返回训练」「返回题库」乃至提交页的「返回题目」也一并被拐去课程：
+    // 标签写着训练、点下去落在课程，这就是「路径显示错」的来源。
+    if (trainingRet && /^\/p\//.test(location.pathname) && el.hasAttribute('data-dtoj-training-back')) {
       location.assign(trainingRet);
+      return;
+    }
+    // 「返回训练」是往上走一层到训练区，标签就是目的地，别走 history.back()：
+    // 上一页多半是课程页，落在课程上又和标签对不上。
+    if (el.hasAttribute('data-dtoj-training-home')) {
+      if (fallback) location.assign(fallback);
       return;
     }
     if (location.hash && history.replaceState) {
