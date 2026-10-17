@@ -12,7 +12,7 @@ import { applyInboxNotices } from './inboxNotices';
 import {
     assignSignature, homeworkMergeGroups, mergeAssignLabel, mergedPids, mergedWindow, pickMergeTarget,
 } from './homeworkMerge';
-import { hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
+import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
     HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
@@ -222,16 +222,34 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
                 .filter((tdoc) => canEditAll || this.user.own(tdoc));
             // 「已认领」按名单口径，和作业行上那一列保持一致
             const candidateStats = await homeworkRosterStats(domainId, candidates);
+            // 已结束但没人认领、没交过题的作业也允许并进来：它们只贡献题目，没有历史可改
+            const empty = await emptyHomeworks(domainId, candidates);
+            const mergeGroupsRaw = homeworkMergeGroups(
+                candidates, (tdoc) => empty.has(String(tdoc.docId)),
+            );
+            // 按人布置的 assign 存的是 uid，直接摊出来就是「16」，这里换成学生名
+            const numUids = new Set<number>();
+            for (const mergeGroup of mergeGroupsRaw) {
+                for (const name of mergeGroup.assign) if (/^\d+$/.test(name)) numUids.add(+name);
+            }
+            const numUdict = numUids.size
+                ? await UserModel.getListForRender(domainId, [...numUids], false)
+                : {};
+            const nameOf = (uid: number) => numUdict[uid]?.displayName || numUdict[uid]?.uname;
             const when = (date: Date) => moment(date).tz(this.user.timeZone || 'Asia/Shanghai').format('M-D H:mm');
-            for (const merge of homeworkMergeGroups(candidates)) {
+            for (const merge of mergeGroupsRaw) {
+                const target = pickMergeTarget(merge.tdocs);
                 mergeGroups.push({
                     key: merge.key,
-                    label: mergeAssignLabel(merge.assign),
+                    label: mergeAssignLabel(merge.assign, nameOf),
                     pids: mergedPids(merge.tdocs).length,
+                    targetTid: String(target.docId),
+                    targetTitle: target.title,
                     tdocs: merge.tdocs.map((tdoc) => ({
                         tid: String(tdoc.docId),
                         title: tdoc.title,
                         pids: (tdoc.pids || []).length,
+                        done: ContestModel.isDone(tdoc),
                         beginText: when(tdoc.beginAt),
                         penaltyText: when(tdoc.penaltySince),
                         attend: candidateStats.get(String(tdoc.docId))?.claimed.size ?? (tdoc.attend || 0),
@@ -261,13 +279,13 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 /**
  * 合并作业：把分给同一批人的几份作业并成一份。
  *
- * 为什么并进「最早开始的那一份」而不是新建一份再删旧的：新建会换 docId，
+ * 为什么并进现成的一份而不是新建一份再删旧的：新建会换 docId，
  * 学生收藏的作业链接、站内消息里的链接全会失效；并进现成的一份，
- * 至少最早那条链接还能打开。
+ * 至少那条链接还能打开。优先并进还没结束的那份，这样并完作业继续在跑。
  *
  * 合并做五件事：
  *   1. 题目取并集，保留那份的题目排在最前；
- *   2. 开始取最早、截止取最晚，延期窗口跟着最晚的走；
+ *   2. 时间只按还没结束的那几份取：最早开始、最晚截止，不因已结束的旧作业把期限往后推；
  *   3. 别处的提交先挂到保留那份的 journal 上，再改 record.contest —— 只改 record
  *      不改 journal 的话，作业成绩表里看不到这些提交；
  *   4. 认领状态补齐，学生重新打开时还是「已认领」；
@@ -283,9 +301,14 @@ class DtojHomeworkMergeHandler extends DtojDataHandler {
         for (const id of ids) {
             const tdoc = ObjectId.isValid(id) ? await ContestModel.get(domainId, new ObjectId(id)) : null;
             if (tdoc?.rule !== 'homework') throw new ContestNotFoundError(domainId, id);
-            // 已经结束的作业成绩已定，不参与合并：列表里不给入口，这里再拦一道
-            if (ContestModel.isDone(tdoc)) throw new ValidationError('tids');
             tdocs.push(tdoc);
+        }
+        // 已经结束的作业成绩已定，原则上不并；唯一的例外是那份「空的」——
+        // 没人认领也没人交过题，并进来只是把题目挪过去，没有历史可改。
+        const empty = await emptyHomeworks(domainId, tdocs);
+        if (tdocs.every((tdoc) => ContestModel.isDone(tdoc))) throw new ValidationError('tids');
+        for (const tdoc of tdocs) {
+            if (ContestModel.isDone(tdoc) && !empty.has(String(tdoc.docId))) throw new ValidationError('tids');
         }
         // 自己建的作业可以合并；动别人建的作业要有「编辑任意作业」的权限
         if (!tdocs.every((tdoc) => this.user.own(tdoc))) this.checkPerm(PERM.PERM_EDIT_HOMEWORK);

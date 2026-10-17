@@ -355,7 +355,7 @@
       <section class="dtoj-sheet dtoj-hw-merge" aria-labelledby="dtoj-hw-merge-title">
         <div>
           <h2 id="dtoj-hw-merge-title">有 {{ mergeGroups|length }} 组作业可以合并</h2>
-          <p>同一批人收到了好几份作业。勾选要并的，题目取并集、时间取最早开始与最晚截止，其余几份会被删掉；学生已认领和已交的记录一起带过去。</p>
+          <p>同一批人收到了好几份作业。勾选要并的，题目取并集，起止时间沿用还在进行的那几份，其余几份会被删掉；学生已认领和已交的记录一起带过去。</p>
         </div>
         <ul class="dtoj-hw-merge-list">
           {%- for g in mergeGroups -%}
@@ -442,7 +442,7 @@
             <h2>合并作业</h2>
             <p class="dtoj-hw-merge-sub">{{ g.label }} · {{ g.tdocs|length }} 份</p>
           </div>
-          <p class="dtoj-hw-merge-hint">保留开始最早的那一份「{{ g.tdocs[0].title }}」，它原来的作业链接继续有效，其余几份会被删除。题目取并集，开始取最早、截止取最晚，已认领和已交的记录一起转过来；作业说明沿用保留的那一份。</p>
+          <p class="dtoj-hw-merge-hint">保留「{{ g.targetTitle }}」，它原来的作业链接继续有效，其余几份会被删除。题目取并集，起止时间沿用还在进行的那几份，已认领和已交的记录一起转过来；作业说明沿用保留的那一份。已经结束、又没人认领也没人交过题的作业也可以并进来，它只贡献题目，期限不会因此延长。</p>
           <ul class="dtoj-hw-merge-picks">
             {%- for item in g.tdocs -%}
             <li>
@@ -450,14 +450,14 @@
                 <input type="checkbox" name="tids" value="{{ item.tid }}" checked>
                 <span>
                   <b>{{ item.title }}</b>
-                  <span>{{ item.pids }} 题 · 开始 {{ item.beginText }} · 截止 {{ item.penaltyText }} · 已认领 {{ item.attend }}</span>
+                  <span>{{ item.pids }} 题 · 开始 {{ item.beginText }} · 截止 {{ item.penaltyText }} · 已认领 {{ item.attend }}{% if item.done %} · 已结束（无人认领、无提交）{% endif %}</span>
                 </span>
               </label>
             </li>
             {%- endfor -%}
           </ul>
           <label class="dtoj-hw-merge-field">合并后的标题
-            <input class="textbox" type="text" name="title" value="{{ g.tdocs[0].title }}" maxlength="64" required>
+            <input class="textbox" type="text" name="title" value="{{ g.targetTitle }}" maxlength="64" required>
           </label>
           <div class="dtoj-hw-merge-actions">
             <button type="submit" class="dtoj-go">确认合并</button>

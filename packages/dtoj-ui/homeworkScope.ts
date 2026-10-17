@@ -118,3 +118,25 @@ export async function homeworkRosterStats(domainId: string, tdocs: any[]) {
     return out;
 }
 
+/**
+ * 哪些作业是「空的」：没有任何人认领，也没有任何提交。
+ *
+ * 只有这类已结束的作业才允许被并进另一份：没有历史成绩可改，
+ * 它只是把题目交出来。
+ */
+export async function emptyHomeworks(domainId: string, tdocs: any[]) {
+    const ids = tdocs.map((tdoc) => tdoc.docId);
+    const empty = new Set<string>(tdocs.filter((tdoc) => !tdoc.attend).map((tdoc) => String(tdoc.docId)));
+    if (!ids.length || !empty.size) return empty;
+    const trows = await ContestModel.getMultiStatus(domainId, {
+        docId: { $in: ids }, attend: { $gte: 1 },
+    }).project({ docId: 1 }).toArray();
+    for (const row of trows) empty.delete(String(row.docId));
+    if (!empty.size) return empty;
+    const rrows = await RecordModel.getMulti(domainId, {
+        contest: { $in: ids },
+    }, { projection: { contest: 1 } }).toArray();
+    for (const row of rrows) empty.delete(String(row.contest));
+    return empty;
+}
+
