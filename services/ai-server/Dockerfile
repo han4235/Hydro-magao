@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY ojimport ./ojimport
+COPY solution ./solution
 
 ENV JOB_DATA_DIR=/data/jobs
 EXPOSE 8090

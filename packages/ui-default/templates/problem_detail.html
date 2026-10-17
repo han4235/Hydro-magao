@@ -420,6 +420,18 @@
   .dtoj-problem .section--problem-sidebar [name="problem-sidebar__open-scratchpad"] .icon,
   .dtoj-problem .section--problem-sidebar [name="problem-sidebar__quit-scratchpad"] .icon,
   .dtoj-problem .section--problem-sidebar a.menu__link.active .icon { color: var(--brand); }
+  /* 「AI 生成题解」的字标：菜单里其余项都是 18px 的图标字体，这里用一枚同宽的方块字标占位，
+     视觉重量才对得上，也不用为它往图标字体里加字形。 */
+  .dtoj-problem .section--problem-sidebar .dtoj-ai-glyph {
+    flex: none;
+    width: 18px;
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 18px;
+    text-align: center;
+  }
   .dtoj-problem .section--problem-sidebar .menu__seperator {
     height: 0;
     margin: 6px 12px;

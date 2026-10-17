@@ -41,6 +41,19 @@ python3 scripts/phase_b_submit_theory.py
 
 搬题姬步骤与模板在 `ojimport/`（随 Docker 镜像部署）。发版前执行 `python -m app.ojimport_spec`；线上 `/health` 须 `ojimport.bundle_ok` 为 true。
 
+## 题解生成（skill=problem_solution）
+
+题目详情页的「AI 生成题解」走这条线，流程取自 `md-playwright-solution`（NOI 金牌教练题解规范），
+材料在 `solution/`（随镜像部署）：`SKILL.md`、`steps/*.md`、`references/solution-spec.md`，
+另外 `solution/prompts/solution_preamble.md` 说明本服务与 skill 原文的差异（不抓网页、不落盘、直接输出 Markdown）。
+
+- 入口：`POST /internal/jobs`，`skill=problem_solution`、`kind=solution`、`domain_id` + `doc_id`
+- 产出：`payload.content` 是整篇题解 Markdown，后端写为置顶题解
+- 自检：`app/skills/problem_solution.py` 的 `issues_of()` 按 step 07 核对标题层级、版本/档位对齐、代码完整性、正文行数；
+  不过关就把问题回抛给模型补齐，最多 3 轮，**不降级输出**
+- skill 更新：`scripts/sync_solution_from_skill.sh` 覆盖 `solution/SKILL.md`、`steps/`、`references/`
+- 发版前执行 `python -m app.solution_spec`；`/health.solution.bundle_ok` 须为 true，缺材料时创建任务返回 503
+
 ## 模型
 
 ai-server 不直连厂商。Skill 需要模型时调用 `ctx.llm.chat()`，请求发到旁边的 `one-api` 容器。厂商密钥只配在 one-api 的渠道里。

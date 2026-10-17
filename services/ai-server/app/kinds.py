@@ -4,11 +4,12 @@ KINDS = {
     'single': '单题',
     'theory': '理论试卷',
     'sample_regen': 'AI 样例再生',
+    'solution': 'AI 生成题解',
 }
 
 
 def require_kind(value: str) -> str:
     kind = (value or '').strip()
     if kind not in KINDS:
-        raise ValueError('请求不合理：必须标明生成单题还是理论试卷')
+        raise ValueError('请求不合理：必须标明生成单题、理论试卷、样例再生还是题解')
     return kind

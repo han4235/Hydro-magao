@@ -12,6 +12,7 @@ from app.llm import LlmClient
 from app.ojimport_spec import bundle_missing
 from app.skills.base import SkillContext
 from app.skills.registry import get_skill
+from app.solution_spec import bundle_missing as solution_bundle_missing
 from app.training import classify
 
 JOBS: dict[str, dict] = {}
@@ -106,6 +107,34 @@ async def _worker():
                 if not result.payload:
                     job['status'] = 'failed'
                     job['errors'].append('未生成样例 payload')
+                    continue
+                job['payload'] = result.payload
+                job['status'] = 'done'
+                continue
+            if job['skill'] == 'problem_solution':
+                miss = solution_bundle_missing()
+                if miss:
+                    job['status'] = 'failed'
+                    job['errors'].append(f'题解技能材料缺失: {", ".join(miss[:5])}')
+                    continue
+                skill = get_skill(job['skill'])
+                src = ROOT / job_id / job['filename']
+                meta = job.get('meta') or {}
+                opts = {
+                    'kind': job['kind'],
+                    'domain_id': meta.get('domainId', ''),
+                    'doc_id': meta.get('docId', ''),
+                }
+                ctx = SkillContext(job_id, ROOT / job_id, opts, LlmClient())
+                result = await skill.run(ctx, src)
+                job['logs'].extend(result.logs)
+                if result.errors:
+                    job['status'] = 'failed'
+                    job['errors'].extend(result.errors)
+                    continue
+                if not result.payload:
+                    job['status'] = 'failed'
+                    job['errors'].append('未生成题解 payload')
                     continue
                 job['payload'] = result.payload
                 job['status'] = 'done'

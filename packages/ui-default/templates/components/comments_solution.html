@@ -80,7 +80,7 @@
 {% endif %}
 {%- for doc in docs -%}
   {% set udoc = udict[doc.owner] %}
-  <li class="dczcomments__item">
+  <li class="dczcomments__item{% if doc.top %} dczcomments__item--top{% endif %}">
   <div class="media">
     <div class="media__left top">
       <div class="vote vote--discussion">
@@ -99,9 +99,22 @@
     <div class="media__body top">
       <div class="clearfix">
         <div class="supplementary dczcomments__supplementary">
+          {% if doc.top %}<span class="dtoj-solution-top-mark">置顶</span>{% endif %}
           {{ user.render_inline(udoc) }} @ {{ datetimeSpan(doc._id)|safe }}
         </div>
         <div class="dczcomments__operations nojs--hide">
+        {# 置顶：管理员与教师（有「编辑他人题解」权限）才渲染。用表单提交而不是脚本，
+           不开 JS 也能用，刷新后置顶的题解已经排到最前，顺序本身就是反馈。 #}
+        {% if handler.user.hasPerm(perm.PERM_EDIT_PROBLEM_SOLUTION) %}
+          <form method="post" class="dtoj-solution-pin">
+            <input type="hidden" name="psid" value="{{ doc._id }}">
+            <button type="submit" name="operation" value="pin_solution"
+              class="dtoj-solution-pin-btn{% if doc.top %} is-on{% endif %}"
+              data-tooltip="{% if doc.top %}取消置顶{% else %}置顶这篇题解{% endif %}" data-tooltip-pos="bottom center"
+              aria-pressed="{{ 'true' if doc.top else 'false' }}"
+            >{% if doc.top %}已置顶{% else %}置顶{% endif %}</button>
+          </form>
+        {% endif %}
         {% if pdoc %}
           <a href="javascript:;" data-tooltip="{{ _('Copy Link') }}" data-copylink="{{ url('problem_solution_detail', pid=pdoc.pid|default(pdoc.docId), sid=doc._id) }}">
             <span class="icon icon-link"></span>

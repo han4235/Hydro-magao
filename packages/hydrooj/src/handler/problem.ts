@@ -370,9 +370,13 @@ export class ProblemDetailHandler extends ContestDetailBaseHandler {
             problem.getStatus(domainId, this.pdoc.docId, this.user._id),
             user.getById(domainId, this.pdoc.owner),
         ]);
-        const [scnt, dcnt] = await Promise.all([
+        // 「AI 生成题解」入口只给能置顶题解的人（管理员、教师）。学生页面不为它白查一次库，
+        // 所以这个字段只在有权限时才有值；模板那边先判权限，再看这个字段。
+        const canManageSolution = this.user.hasPerm(PERM.PERM_EDIT_PROBLEM_SOLUTION);
+        const [scnt, dcnt, topCnt] = await Promise.all([
             solution.count(domainId, { parentId: this.pdoc.docId }),
             discussion.count(domainId, { parentId: this.pdoc.docId }),
+            canManageSolution ? solution.count(domainId, { parentId: this.pdoc.docId, top: true }) : 0,
         ]);
         this.response.body = {
             pdoc: this.pdoc,
@@ -380,6 +384,7 @@ export class ProblemDetailHandler extends ContestDetailBaseHandler {
             psdoc: tid ? null : this.psdoc,
             title: this.pdoc.title,
             solutionCount: scnt,
+            hasTopSolution: canManageSolution ? topCnt > 0 : undefined,
             discussionCount: dcnt,
             tdoc: this.tdoc,
             owner_udoc: (tid && this.tdoc.owner !== this.pdoc.owner) ? await user.getById(domainId, this.tdoc.owner) : null,
@@ -1002,6 +1007,18 @@ export class ProblemSolutionHandler extends ProblemDetailHandler {
         this.checkPerm(PERM.PERM_VOTE_PROBLEM_SOLUTION);
         const psdoc = await solution.vote(domainId, psid, this.user._id, -1);
         this.back({ vote: psdoc.vote, user_vote: -1 });
+    }
+
+    // 置顶 / 取消置顶：一个入口来回切。鉴权用「编辑他人题解」——
+    // 域内教师与管理员有这一位，学生没有，正好是要限定的两种角色，不必新增权限位。
+    @param('psid', Types.ObjectId)
+    async postPinSolution(domainId: string, psid: ObjectId) {
+        this.checkPerm(PERM.PERM_EDIT_PROBLEM_SOLUTION);
+        const psdoc = await solution.get(domainId, psid);
+        if (psdoc.parentId !== this.pdoc.docId) throw new SolutionNotFoundError(domainId, psid);
+        const top = !psdoc.top;
+        await solution.setTop(domainId, psdoc.docId, top);
+        this.back({ top });
     }
 }
 

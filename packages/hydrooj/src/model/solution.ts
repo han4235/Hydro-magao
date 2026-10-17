@@ -7,8 +7,12 @@ class SolutionModel {
     static add(domainId: string, pid: number, owner: number, content: string) {
         return document.add(
             domainId, content, owner, document.TYPE_PROBLEM_SOLUTION,
-            null, document.TYPE_PROBLEM, pid, { reply: [], vote: 0 },
+            null, document.TYPE_PROBLEM, pid, { reply: [], vote: 0, top: false },
         );
+    }
+
+    static setTop(domainId: string, psid: ObjectId, top: boolean) {
+        return document.set(domainId, document.TYPE_PROBLEM_SOLUTION, psid, { top });
     }
 
     static async get(domainId: string, psid: ObjectId) {
@@ -40,10 +44,12 @@ class SolutionModel {
     }
 
     static getMulti(domainId: string, pid: number, query: any = {}) {
+        // 置顶的先排，其余仍按票数。注意：老题解没有 top 字段，Mongo 会把缺失值排在 false 之前，
+        // 存量数据已一次性补成 top: false，缺失只可能出现在手工插库的记录上。
         return document.getMulti(
             domainId, document.TYPE_PROBLEM_SOLUTION,
             { parentType: document.TYPE_PROBLEM, parentId: pid, ...query },
-        ).sort({ vote: -1 });
+        ).sort({ top: -1, vote: -1 });
     }
 
     static getByUser(domainId: string, uid: number) {
