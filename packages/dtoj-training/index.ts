@@ -40,22 +40,18 @@ function chaptersOf(raw: any) {
     return rows.length ? rows : [{ ...blankChapter }];
 }
 
-async function chaptersFromDoc(domainId: string, tdoc: any) {
+async function chaptersFromDoc(tdoc: any) {
     const dag = tdoc?.dag || [];
     if (!dag.length) return [{ ...blankChapter }];
     const notes = tdoc.dtoj?.notes || {};
     const rows = [];
     for (const node of dag) {
-        const shown = [];
-        for (const pid of node.pids || []) {
-            // eslint-disable-next-line no-await-in-loop
-            const pdoc = await ProblemModel.get(domainId, pid);
-            shown.push(pdoc?.pid || String(pid));
-        }
+        // 题号框给的是题库选择器，取值是 docId（逗号分隔），题号原样显示在标签上
+        const shown = (node.pids || []).map((pid) => String(pid));
         rows.push({
             title: node.title || '',
             note: notes[String(node._id)] || '',
-            pids: shown.join(' '),
+            pids: shown.join(','),
         });
     }
     return rows;
@@ -211,19 +207,6 @@ function tally(docs: any[], dirs: string[], kinds: string[]) {
         if (mark.kind && kind[mark.kind] != null) kind[mark.kind] += 1;
     }
     return { total: docs.length, direction, kind };
-}
-
-async function searchProblems(domainId: string, pq: string) {
-    const q = pq.trim();
-    if (!q) return [];
-    const query: any = /^\d+$/.test(q)
-        ? { docId: +q }
-        : { $or: [{ pid: new RegExp(escapeRegExp(q), 'i') }, { title: new RegExp(escapeRegExp(q), 'i') }] };
-    const docs = await ProblemModel.getMulti(domainId, query).limit(12).toArray();
-    return docs.map((pdoc) => ({
-        pid: pdoc.pid || String(pdoc.docId),
-        title: pdoc.title || '',
-    }));
 }
 
 async function buildPlan(domainId: string, rows: { title: string, note: string, pids: string }[]) {
@@ -826,32 +809,22 @@ class DtojTrainingEditHandler extends DtojDataHandler {
             direction: body.direction ?? tdoc?.dtoj?.direction ?? '',
             kind: body.kind ?? tdoc?.dtoj?.kind ?? '',
             pin: body.pin ?? tdoc?.pin ?? 0,
-            pq: body.pq || '',
             chapters: body.chapters,
-            hits: body.hits || [],
             error: body.error || '',
             canDelete: !!tdoc,
         });
     }
 
-    @param('pq', Types.String, true)
-    async get(domainId: string, pq = '') {
-        if (String(this.args.suggest || '') === '1') {
-            this.response.body = { hits: await searchProblems(domainId, pq) };
-            this.response.template = '';
-            return;
-        }
+    async get() {
         await this.form({
-            pq,
-            chapters: await chaptersFromDoc(domainId, this.tdoc),
-            hits: await searchProblems(domainId, pq),
+            chapters: await chaptersFromDoc(this.tdoc),
         });
     }
 
-    draft(domainId: string, title: string, content: string, direction: string, kind: string, pin: string, pq: string) {
+    draft(domainId: string, title: string, content: string, direction: string, kind: string, pin: string) {
         const chapters = chaptersOf(this.args);
         return {
-            domainId, title, content, direction, kind, pin, pq, chapters,
+            domainId, title, content, direction, kind, pin, chapters,
         };
     }
 
@@ -860,24 +833,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
-    async postSearch(domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '') {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
-        await this.form({ ...draft, hits: await searchProblems(domainId, pq) });
-    }
-
-    @param('title', Types.String, true)
-    @param('content', Types.String, true)
-    @param('direction', Types.String, true)
-    @param('kind', Types.String, true)
-    @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
-    async postAdd(domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '') {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+    async postAdd(domainId: string, title = '', content = '', direction = '', kind = '', pin = '') {
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.form({
             ...draft,
             chapters: draft.chapters.concat([{ ...blankChapter }]),
-            hits: await searchProblems(domainId, pq),
         });
     }
 
@@ -886,12 +846,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('chapterIndex', Types.String, true)
     async postDropChapter(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', chapterIndex = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', chapterIndex = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         const index = Number(chapterIndex);
         const chapters = Number.isInteger(index) && index >= 0
             ? draft.chapters.filter((_, i) => i !== index)
@@ -899,7 +858,6 @@ class DtojTrainingEditHandler extends DtojDataHandler {
         await this.form({
             ...draft,
             chapters,
-            hits: await searchProblems(domainId, pq),
         });
     }
 
@@ -965,12 +923,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('newDirection', Types.String, true)
     async postAddDirection(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', newDirection = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', newDirection = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'direction', 'add', newDirection);
     }
 
@@ -979,12 +936,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('tagName', Types.String, true)
     async postDropDirection(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', tagName = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'direction', 'drop', tagName);
     }
 
@@ -993,12 +949,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('newKind', Types.String, true)
     async postAddKind(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', newKind = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', newKind = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'kind', 'add', newKind);
     }
 
@@ -1007,12 +962,11 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('tagName', Types.String, true)
     async postDropKind(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', tagName = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'kind', 'drop', tagName);
     }
 
@@ -1021,13 +975,12 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('tagName', Types.String, true)
     @param('tagNext', Types.String, true)
     async postRenameDirection(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '', tagNext = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', tagName = '', tagNext = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'direction', 'rename', tagName, tagNext);
     }
 
@@ -1036,13 +989,12 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     @param('tagName', Types.String, true)
     @param('tagNext', Types.String, true)
     async postRenameKind(
-        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', pq = '', tagName = '', tagNext = '',
+        domainId: string, title = '', content = '', direction = '', kind = '', pin = '', tagName = '', tagNext = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         await this.changeTag(domainId, draft, 'kind', 'rename', tagName, tagNext);
     }
 
@@ -1065,7 +1017,6 @@ class DtojTrainingEditHandler extends DtojDataHandler {
     @param('direction', Types.String, true)
     @param('kind', Types.String, true)
     @param('pin', Types.String, true)
-    @param('pq', Types.String, true)
     async postSave(
         domainId: string,
         title = '',
@@ -1073,9 +1024,8 @@ class DtojTrainingEditHandler extends DtojDataHandler {
         direction = '',
         kind = '',
         pin = '',
-        pq = '',
     ) {
-        const draft = this.draft(domainId, title, content, direction, kind, pin, pq);
+        const draft = this.draft(domainId, title, content, direction, kind, pin);
         const nextTitle = title.trim();
         const nextContent = content.trim();
         const vocab = await loadVocab(domainId);
