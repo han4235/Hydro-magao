@@ -39,6 +39,11 @@ export function canManageGroups(actor: GroupActor) {
     return actor.hasPerm(PERM.PERM_MANAGE_GROUP_ALL, PERM.PERM_MANAGE_GROUP);
 }
 
+/** 这个组在不在某个人名下：只比对 owner / maintainers，不看权限位。 */
+export function groupOwnedBy(gdoc: { owner?: number, maintainers?: number[] }, uid: number) {
+    return gdoc.owner === uid || (gdoc.maintainers || []).includes(uid);
+}
+
 /**
  * 这个组归我管吗。
  *
@@ -47,8 +52,7 @@ export function canManageGroups(actor: GroupActor) {
  */
 export function ownsGroup(actor: GroupActor, gdoc: { owner?: number, maintainers?: number[] }) {
     if (managesAllGroups(actor)) return true;
-    if (gdoc.owner === actor._id) return true;
-    return (gdoc.maintainers || []).includes(actor._id);
+    return groupOwnedBy(gdoc, actor._id);
 }
 
 /** 我能管的组。没权限时是空数组，调用方不用再单独判一次权限。 */
