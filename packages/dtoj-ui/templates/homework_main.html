@@ -454,7 +454,7 @@
                   <span>全部</span>
                 </label>
                 {%- for g in groupOptions -%}
-                <label class="dtoj-hw-multi-item" data-owner="{{ g.owner }}" title="{{ g.name }}{% if g.ownerName %} · {{ g.ownerName }}{% endif %}">
+                <label class="dtoj-hw-multi-item" data-owners="{{ g.owners|join(' ') }}" title="{{ g.name }}{% if g.ownerName %} · {{ g.ownerName }}{% endif %}">
                   <input type="checkbox" name="group" value="{{ g.name }}"{% if group.includes(g.name) %} checked{% endif %}>
                   <span>{{ g.name }}</span>
                   {%- if isAdmin and g.ownerName %}<em>{{ g.ownerName }}</em>{% endif %}
@@ -698,7 +698,9 @@
       var uid = teacher ? teacher.value : '';
       var shown = 0;
       items.forEach(function (item) {
-        var match = !uid || item.getAttribute('data-owner') === uid;
+        // 一个组可能归多个人：有 owner 的算 owner，没有 owner 的老组算在所有管理员头上
+        var owners = (item.getAttribute('data-owners') || '').split(' ');
+        var match = !uid || owners.indexOf(uid) !== -1;
         item.hidden = !match;
         if (match) shown += 1;
         else inputOf(item).checked = false;

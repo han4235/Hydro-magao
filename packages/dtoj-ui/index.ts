@@ -14,9 +14,9 @@ import {
 } from './homeworkMerge';
 import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
 import {
-    addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupOwnedBy, groupUsageCounts,
-    HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
-    myGroupNames, ownsGroup,
+    addableGroupMembers, applyUserGroups, canManageGroups, groupAdminUids, groupCreators, groupOwnedBy,
+    groupOwnerUids, groupUsageCounts, HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups,
+    managesAllGroups, memberNames, myGroupNames, ownsGroup,
 } from './userGroups';
 import {
     CreateStudentsResult, createStudents, initStudentPasswords, listStudents,
@@ -175,6 +175,9 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
         const groups = await UserModel.listGroup(domainId, canViewAll ? undefined : this.user._id);
         const ownedGroups = groups.filter((gdoc) => groupOwnedBy(gdoc, this.user._id));
         const visibleGroups = isAdmin ? groups : isTeacher ? ownedGroups : groups;
+        // 没有 owner 的老组算在管理员头上，选教师的时候才有人能认领它们
+        const adminUids = isAdmin ? await groupAdminUids(domainId) : new Set<number>();
+        const ownerUidsOf = (gdoc: { owner?: number, maintainers?: number[] }) => groupOwnerUids(gdoc, adminUids);
         // 组名里可能有中文和空格，所以不用 Types.Name 做 saslprep 归一化，直接跟库里的名字比
         const groupNames = visibleGroups.map((gdoc) => gdoc.name);
         const picked = [...new Set(groupPicked.map((name) => (name || '').trim()).filter(Boolean))];
@@ -200,7 +203,7 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
                 $or: [
                     { owner: teacher },
                     { maintainer: teacher },
-                    { assign: { $in: groups.filter((gdoc) => groupOwnedBy(gdoc, teacher)).map((gdoc) => gdoc.name) } },
+                    { assign: { $in: groups.filter((gdoc) => ownerUidsOf(gdoc).has(teacher)).map((gdoc) => gdoc.name) } },
                 ],
             }];
         } else if (!canViewAll) {
@@ -315,27 +318,31 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             }
         }
 
-        // 小组选项：名字 + 归谁管，管理员选完教师后前端按 owner 过滤这张表
-        const ownerUids = [...new Set(visibleGroups
-            .map((gdoc) => gdoc.owner)
-            .filter((uid): uid is number => typeof uid === 'number'))];
-        const ownerDict = ownerUids.length ? await UserModel.getListForRender(domainId, ownerUids, false) : {};
+        // 小组选项：名字 + 归谁管，管理员选完教师后前端按归属账号过滤这张表
+        const allOwnerUids = [...new Set(visibleGroups.flatMap((gdoc) => [...ownerUidsOf(gdoc)]))];
+        const ownerDict = allOwnerUids.length ? await UserModel.getListForRender(domainId, allOwnerUids, false) : {};
         const nameOfOwner = (uid?: number) => (typeof uid === 'number'
             ? ownerDict[uid]?.displayName || ownerDict[uid]?.uname || `#${uid}`
             : '');
         const groupOptions = visibleGroups
             .filter((gdoc) => !Number.isSafeInteger(+gdoc.name))
-            .map((gdoc) => ({
-                name: gdoc.name,
-                owner: typeof gdoc.owner === 'number' ? gdoc.owner : 0,
-                ownerName: nameOfOwner(gdoc.owner),
-            }))
+            .map((gdoc) => {
+                const owners = [...ownerUidsOf(gdoc)];
+                return {
+                    name: gdoc.name,
+                    owners,
+                    // 老组没有 owner，标成「管理员」，跟小组管理页的叫法一致
+                    ownerName: typeof gdoc.owner === 'number'
+                        ? nameOfOwner(gdoc.owner)
+                        : (owners.length ? '管理员' : ''),
+                };
+            })
             .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 
-        // 「教师」下拉只给管理员：候选 = 名下有组的 + 发过作业的，再要求这个人建得了作业
+        // 「教师」下拉只给管理员：候选 = 名下有组的 + 发过作业的 + 管理员自己，再要求这个人建得了作业
         let teacherOptions: { uid: number, name: string }[] = [];
         if (isAdmin) {
-            const candidates = new Set<number>();
+            const candidates = new Set<number>(adminUids);
             for (const gdoc of groups) {
                 if (typeof gdoc.owner === 'number') candidates.add(gdoc.owner);
                 for (const uid of gdoc.maintainers || []) candidates.add(uid);
@@ -348,6 +355,7 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             // 用 getList 而不是 getListForRender：要按权限位筛掉「能出现但建不了作业」的人
             const dict = candidates.size ? await UserModel.getList(domainId, [...candidates]) : {};
             teacherOptions = [...candidates]
+                .filter((uid) => !HIDDEN_DOMAIN_USER_IDS.has(uid))
                 .filter((uid) => dict[uid]?.hasPerm(PERM.PERM_CREATE_HOMEWORK))
                 .map((uid) => ({ uid, name: dict[uid].displayName || dict[uid].uname || `#${uid}` }))
                 .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
