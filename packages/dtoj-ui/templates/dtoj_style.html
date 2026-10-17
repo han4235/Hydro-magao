@@ -1867,7 +1867,11 @@
     min-height: 160px;
     box-sizing: border-box;
     padding: 16px 16px 16px 3.8em;
-    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    /* 跟题解页的代码框同一套字体：那边由 prism 主题给 code[class*=language-] 定成
+       Consolas 这一串，题目描述里的代码块也是同一个来源。这里原来写死 JetBrains Mono
+       再让内层 code 继承，于是记录页和题目里的代码长得不一样；JetBrains Mono 还开着
+       连字，`<=` 会画成一个 `≤`，学生照抄时容易看错。 */
+    font-family: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
     font-size: 14px;
     line-height: 1.6;
     font-weight: 400;
