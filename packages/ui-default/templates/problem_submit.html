@@ -103,10 +103,16 @@
     color: var(--ink);
     /* 和记录页源码、题解代码块同一套等宽字体（字体栈见 dtoj_style 的 --dtoj-code-font）。
        typography.styl 里 textarea 的 $code-font-family 带了 !important，这里必须同样
-       带 !important，再靠更具体的选择器压过它。 */
+       带 !important，再靠更具体的选择器压过它。
+       字号、行高、字重也要跟记录页的 pre.dtoj-record-code 对齐：textarea 没有自己的
+       font-weight，会从外层 label（700）继承，代码看着比记录页粗一档。
+       连字同理要关，否则 `<=` 在提交框里画成 `≤`，记录页里却是两个字符。 */
     font-family: var(--dtoj-code-font) !important;
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 400;
+    font-variant-ligatures: none;
+    font-feature-settings: "calt" 0, "liga" 0;
     tab-size: 4;
     resize: vertical;
   }
