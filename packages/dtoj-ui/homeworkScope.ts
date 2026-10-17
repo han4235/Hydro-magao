@@ -1,5 +1,5 @@
 import {
-    ContestModel, ObjectId, RecordModel, UserModel,
+    ContestModel, ObjectId, RecordModel, STATUS, UserModel,
 } from 'hydrooj';
 
 /**
@@ -140,3 +140,73 @@ export async function emptyHomeworks(domainId: string, tdocs: any[]) {
     return empty;
 }
 
+/**
+ * 一个人在一份作业里做没做完：每道题的最后一次提交都是 AC。
+ *
+ * journal 一题可能有好几条（反复提交），所以按 pid 取最后一条，和作业计分口径一致。
+ * 改过题目列表后 journal 里可能残留旧 pid，只认还在 tdoc.pids 里的。
+ */
+function allAccepted(pids: number[], journal: any[]) {
+    if (!pids.length) return false;
+    const last = new Map<number, number>();
+    for (const entry of journal || []) {
+        if (!pids.includes(entry.pid)) continue;
+        last.set(entry.pid, entry.status);
+    }
+    return pids.every((pid) => last.get(pid) === STATUS.STATUS_ACCEPTED);
+}
+
+/**
+ * 列表页用：当前用户把题全都 AC 了的作业，键是 docId 字符串。
+ *
+ * 整页一次查完，避免一页 20 份作业查 20 次。只给模板改徽章用，不参与计分。
+ */
+export async function myCompletedHomeworks(domainId: string, uid: number, tdocs: any[]) {
+    const ids = tdocs.map((tdoc) => tdoc.docId);
+    const out = new Set<string>();
+    if (!ids.length) return out;
+    const rows = await ContestModel.getMultiStatus(domainId, {
+        uid, docId: { $in: ids }, attend: { $gte: 1 },
+    }).project({ docId: 1, journal: 1 }).toArray();
+    const byTid = new Map<string, any[]>();
+    for (const tdoc of tdocs) byTid.set(String(tdoc.docId), tdoc.pids || []);
+    for (const row of rows as any[]) {
+        const pids = byTid.get(String(row.docId));
+        if (pids && allAccepted(pids, row.journal || [])) out.add(String(row.docId));
+    }
+    return out;
+}
+
+/**
+ * 列表页用：名单上的每个人都把每道题 AC 了的作业。
+ *
+ * 「都」要有名单才谈得上，所以 roster 为 null（作业对全站可见）时一律不算完成；
+ * 名单为空同理，不能凭一个空集合就宣布全班做完了。
+ */
+export async function classCompletedHomeworks(
+    domainId: string, tdocs: any[], stats: Map<string, { roster: Set<number> | null }>,
+) {
+    const ids = tdocs.map((tdoc) => tdoc.docId);
+    const out = new Set<string>();
+    if (!ids.length) return out;
+    const rows = await ContestModel.getMultiStatus(domainId, {
+        docId: { $in: ids }, attend: { $gte: 1 },
+    }).project({ docId: 1, uid: 1, journal: 1 }).toArray();
+    const byTid = new Map<string, Map<number, any[]>>();
+    for (const row of rows as any[]) {
+        const key = String(row.docId);
+        if (!byTid.has(key)) byTid.set(key, new Map());
+        byTid.get(key)!.set(row.uid, row.journal || []);
+    }
+    for (const tdoc of tdocs) {
+        const key = String(tdoc.docId);
+        const roster = stats.get(key)?.roster;
+        if (!roster?.size) continue;
+        const submitted = byTid.get(key);
+        if (!submitted) continue;
+        if ([...roster].every((uid) => submitted.has(uid) && allAccepted(tdoc.pids || [], submitted.get(uid)))) {
+            out.add(key);
+        }
+    }
+    return out;
+}

@@ -209,6 +209,8 @@
   .dtoj-hw-state[data-state="soon"] { background: #f8efd2; color: #6b5528; }
   .dtoj-hw-state[data-state="late"] { background: #f6e7d4; color: #7a4a12; }
   .dtoj-hw-state[data-state="done"] { background: #eef1f5; color: var(--muted); }
+  /* 已完成：比「已结束」亮一档，表示做完了，不是时间到了 */
+  .dtoj-hw-state[data-state="finished"] { background: #e5f2ea; color: #145c32; }
   /* 认领状态：待认领要人一眼看见（和首页提醒条同一族的深褐），已认领压成安静的一枚 */
   .dtoj-hw-claim {
     display: inline-flex;
@@ -522,10 +524,12 @@
         {% else %}
         <ol class="dtoj-hw-list homework__list">
           {%- for tdoc in tdocs -%}
-          {# 四种状态：延期递交 > 已结束 > 未开始 > 进行中。文字走 Hydro 的 i18n，颜色由本页给。 #}
-          {% set hwState = 'late' if model.contest.isExtended(tdoc) else ('done' if model.contest.isDone(tdoc) else ('soon' if model.contest.isNotStarted(tdoc) else 'live')) %}
+          {# 五种状态：延期递交 > 已结束 > 未开始 > 已完成 > 进行中。文字走 Hydro 的 i18n，颜色由本页给。 #}
+          {% set hwClockState = 'late' if model.contest.isExtended(tdoc) else ('done' if model.contest.isDone(tdoc) else ('soon' if model.contest.isNotStarted(tdoc) else 'live')) %}
+          {# 只有时间上还在进行中才说「已完成」：做完了不等于截止时间到了 #}
+          {% set hwState = 'finished' if (tdoc.hwCompleted and hwClockState == 'live') else hwClockState %}
           {# statusText 对未开始的作业返回 'New'（中文是「创建」），放在这儿读着不对，所以这两态自己写。 #}
-          {% set hwStateText = '延期递交' if model.contest.isExtended(tdoc) else ('未开始' if model.contest.isNotStarted(tdoc) else _(model.contest.statusText(tdoc))) %}
+          {% set hwStateText = '已完成' if hwState == 'finished' else ('延期递交' if model.contest.isExtended(tdoc) else ('未开始' if model.contest.isNotStarted(tdoc) else _(model.contest.statusText(tdoc)))) %}
           {% set hwHasLate = tdoc.endAt.getTime() > tdoc.penaltySince.getTime() %}
           <li class="dtoj-hw-row">
             <a class="dtoj-hw-when" href="{{ url('homework_detail', tid=tdoc.docId) }}">
@@ -668,6 +672,11 @@
       }
       dialog.addEventListener('change', sync);
       sync();
+      // 合并要跑好几步数据库操作，双击很容易发出两个请求：第二个带的作业已经被第一个删掉了。
+      // 服务端现在会把这种情况当成「已经并过」，按钮这边顺手也按住，别让人看见一次白屏跳转。
+      dialog.addEventListener('submit', function () {
+        if (submit) submit.disabled = true;
+      });
     });
   }());
 

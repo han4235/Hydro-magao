@@ -2,7 +2,7 @@ import { escapeRegExp } from 'lodash';
 import {
     canViewAllDomainRecords, ContestModel, ContestNotFoundError, Context, CreateError as Err, DocumentModel, DomainModel, ForbiddenError, Handler,
     HomeworkNotAttendedError, HomeworkNotLiveError, moment, NotAssignedError, ObjectId, OplogModel, param,
-    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, query, RecordModel, StorageModel, Types, UserModel, ValidationError,
+    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, query, RecordModel, STATUS, StorageModel, Types, UserModel, ValidationError,
 } from 'hydrooj';
 import {
     askHomeworkQuestion, bridgeInboxReply, listHomeworkProgress, listHomeworkQuestions,
@@ -12,7 +12,7 @@ import { applyInboxNotices } from './inboxNotices';
 import {
     assignSignature, homeworkMergeGroups, mergeAssignLabel, mergedPids, mergedWindow, pickMergeTarget,
 } from './homeworkMerge';
-import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
+import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myCompletedHomeworks, classCompletedHomeworks, myHomeworkGroups } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupAdminUids, groupCreators, groupOwnedBy,
     groupOwnerUids, groupUsageCounts, HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups,
@@ -261,12 +261,16 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
         const stats = canViewAll
             ? await homeworkRosterStats(domainId, tdocs)
             : new Map<string, { roster: Set<number> | null, claimed: Set<number> }>();
+        // 徽章上的「已完成」：老师看名单上是不是人人 AC，学生看自己是不是每道题都 AC
+        const myDone = loggedIn ? await myCompletedHomeworks(domainId, this.user._id, tdocs) : new Set<string>();
+        const classDone = canViewAll ? await classCompletedHomeworks(domainId, tdocs, stats) : new Set<string>();
         const rows = tdocs.map((tdoc) => {
             const stat = stats.get(String(tdoc.docId));
             return {
                 ...tdoc,
                 hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
                 hwAttended: attended.has(String(tdoc.docId)),
+                hwCompleted: (canViewAll ? classDone : myDone).has(String(tdoc.docId)),
                 hwClaimed: stat ? stat.claimed.size : (tdoc.attend || 0),
                 hwUnclaimed: stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null,
             };
@@ -411,9 +415,20 @@ class DtojHomeworkMergeHandler extends DtojDataHandler {
         if (ids.length < 2) throw new ValidationError('tids');
         const tdocs = [];
         for (const id of ids) {
-            const tdoc = ObjectId.isValid(id) ? await ContestModel.get(domainId, new ObjectId(id)) : null;
-            if (tdoc?.rule !== 'homework') throw new ContestNotFoundError(domainId, id);
-            tdocs.push(tdoc);
+            // ContestModel.get 在文档不存在时直接抛 ContestNotFoundError，所以这里得压成 null，
+            // 否则重复提交根本走不到下面的「已经并过」分支。
+            const tdoc = ObjectId.isValid(id)
+                ? await ContestModel.get(domainId, new ObjectId(id)).catch(() => null)
+                : null;
+            if (tdoc?.rule === 'homework') tdocs.push(tdoc);
+        }
+        // 连点两下、浏览器回退后重发、或者另一个标签页里还挂着旧弹层，都会把已经被删掉的那份
+        // 再提交一遍。这时候合并其实早就做完了，直接把人和到保留的那份上，不要甩一个「找不到作业」。
+        if (!tdocs.length) throw new ContestNotFoundError(domainId, ids[0]);
+        if (tdocs.length === 1) {
+            this.response.body = { tid: tdocs[0].docId };
+            this.response.redirect = this.url('homework_detail', { tid: tdocs[0].docId });
+            return;
         }
         // 已经结束的作业成绩已定，原则上不并；唯一的例外是那份「空的」——
         // 没人认领也没人交过题，并进来只是把题目挪过去，没有历史可改。
@@ -1080,7 +1095,15 @@ export async function apply(ctx: Context) {
         const stat = (await homeworkRosterStats(tdoc.domainId, [tdoc])).get(String(tdoc.docId));
         body.hwClaimed = stat?.claimed.size ?? (tdoc.attend || 0);
         body.hwUnclaimed = stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null;
-        if (!canManage) return;
+        // 自己的完成度：每道题都 AC 才算做完。core 的 psdict 按查看者自己算，
+        // 所以老师看这页时它永远是空的，不能拿它判断学生做没做完。
+        const myAc = new Set((body.tsdoc?.journal || [])
+            .filter((entry: any) => entry.status === STATUS.STATUS_ACCEPTED && tdoc.pids.includes(entry.pid))
+            .map((entry: any) => entry.pid));
+        body.hwSelfDone = !!body.tsdoc?.attend && tdoc.pids.length > 0
+            && tdoc.pids.every((pid: number) => myAc.has(pid));
+        // 老师/管理员还要看得到全班每道题的通过情况，不只是自己的
+        if (!canManage && !that.user.hasPerm(PERM.PERM_VIEW_HOMEWORK_HIDDEN_SCOREBOARD)) return;
         const progress = await listHomeworkProgress(tdoc.domainId, tdoc, stat?.roster);
         body.hwProgress = {
             ...progress,

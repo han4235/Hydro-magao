@@ -20,8 +20,12 @@
 {% set hwExtended = model.contest.isExtended(tdoc) %}
 {% set hwDone = model.contest.isDone(tdoc) %}
 {% set hwSoon = model.contest.isNotStarted(tdoc) %}
-{% set hwState = 'late' if hwExtended else ('done' if hwDone else ('soon' if hwSoon else 'live')) %}
-{% set hwStateText = '延期递交' if hwExtended else ('未开始' if hwSoon else _(model.contest.statusText(tdoc))) %}
+{# 时间维度和完成维度分开：倒计时永远按时间走，徽章在有完成信号时才改说「已完成」 #}
+{% set hwClockState = 'late' if hwExtended else ('done' if hwDone else ('soon' if hwSoon else 'live')) %}
+{# 学生看自己有没有全 AC；老师/管理员看名单上是不是每个人都全 AC（hwProgress 只给这两种人） #}
+{% set hwFinished = hwProgress.allDone if hwProgress else hwSelfDone %}
+{% set hwState = 'finished' if (hwFinished and hwClockState == 'live') else hwClockState %}
+{% set hwStateText = '已完成' if hwState == 'finished' else ('延期递交' if hwExtended else ('未开始' if hwSoon else _(model.contest.statusText(tdoc)))) %}
 {% set hwHasLate = tdoc.endAt.getTime() > tdoc.penaltySince.getTime() %}
 
 {# 时间轨道：整段是「开始 → 硬截止」，蓝色是正常窗口，金色是延期窗口 #}
@@ -158,6 +162,8 @@
   .dtoj-hw-view .dtoj-hw-state[data-state="soon"] { background: #f8efd2; color: #6b5528; }
   .dtoj-hw-view .dtoj-hw-state[data-state="late"] { background: #f6e7d4; color: #7a4a12; }
   .dtoj-hw-view .dtoj-hw-state[data-state="done"] { background: #eef1f5; color: var(--muted); }
+  /* 已完成：比「已结束」亮一档，表示是自己做完了，不是时间到了 */
+  .dtoj-hw-view .dtoj-hw-state[data-state="finished"] { background: #e5f2ea; color: #145c32; }
   .dtoj-hw-view .dtoj-hw-claimed {
     display: inline-flex;
     align-items: center;
@@ -593,6 +599,12 @@
               已经过了截止时间，延期窗口里交的题会按老师设的规则扣分。
               {%- elif hwDone -%}
               这次作业已经结束，题目和提交记录还能翻出来复习。
+              {%- elif hwFinished -%}
+              {%- if hwProgress -%}
+              名单上的同学都做完了，等截止时间到了这份作业就自动结束。
+              {%- else -%}
+              题目都通过了，等截止时间到了这份作业就自动结束。
+              {%- endif -%}
               {%- else -%}
               在截止时间之前交，交完记得回来看一眼状态。
               {%- endif -%}
@@ -635,11 +647,11 @@
           </div>
         </div>
 
-        <div class="dtoj-hw-clock" data-clock data-state="{{ hwState }}"
+        <div class="dtoj-hw-clock" data-clock data-state="{{ hwClockState }}"
              data-begin="{{ (tBegin / 1000)|int }}" data-dead="{{ (tDead / 1000)|int }}" data-end="{{ (tEnd / 1000)|int }}">
           <div class="dtoj-hw-clock-head">
             <h2>提交时间</h2>
-            <span class="dtoj-hw-count" data-count data-state="{{ hwState }}">—</span>
+            <span class="dtoj-hw-count" data-count data-state="{{ hwClockState }}">—</span>
           </div>
           <div class="dtoj-hw-rail">
             <span class="dtoj-hw-rail-ontime" style="width: {{ pctDead }}%"></span>
@@ -759,7 +771,23 @@
                 <tbody>
                 {%- for pid in tdoc.pids -%}
                   <tr>
-                  {% if handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
+                  {% if hwProgress %}
+                    {# 老师/管理员看全班：core 的 psdict 是按查看者自己算的，老师看到的永远是「没有递交」 #}
+                    {% set cell = hwProgress.byPid[pid] %}
+                    <td class="col--status record-status--border">
+                      {% if cell and cell.ac %}
+                      <span class="record-status--text pass">{{ cell.ac }} / {{ hwProgress.denom }} 通过</span>
+                      {% elif cell and cell.submitted %}
+                      <span class="record-status--text">{{ cell.submitted }} / {{ hwProgress.denom }} 已提交</span>
+                      {% else %}
+                      没有递交
+                      {% endif %}
+                    </td>
+                    <td class="col--problem col--problem-name">
+                      {{ problem.render_problem_title(pdict[pid], show_invisible_flag=false, show_tags=false) }}
+                    </td>
+                    <td class="col--submit-at">{% if cell and cell.lastAt %}{{ datetimeSpan(cell.lastAt)|safe }}{% else %}-{% endif %}</td>
+                  {% elif handler.user.hasPriv(PRIV.PRIV_USER_PROFILE) %}
                     {% if psdict[pid] and psdict[pid].rid %}
                       {% set rdoc = rdict[psdict[pid].rid] %}
                       {% if model.contest.canShowSelfRecord.call(handler, tdoc) %}
