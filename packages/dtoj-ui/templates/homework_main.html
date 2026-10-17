@@ -206,6 +206,94 @@
   .dtoj-hw-page .calendar__row__content .calendar__banner.is-masked { background-color: #f8efd2; color: #6b5528; }
   .dtoj-hw-page .calendar__row__content .calendar__banner:hover { filter: brightness(1.05); }
 
+  /* 合并建议：暖色提示卡。它不是主操作，所以不抢「新建作业」的位置 */
+  .dtoj-hw-merge {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 22px;
+    border-left: 4px solid #d8b45a;
+    background: linear-gradient(180deg, #fffdf7, #fff);
+  }
+  .dtoj-hw-merge h2 {
+    margin: 0;
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.4;
+  }
+  .dtoj-hw-merge > div > p { margin: 6px 0 0; max-width: 68ch; color: var(--muted); font-size: 13px; line-height: 1.85; }
+  .dtoj-hw-merge-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .dtoj-hw-merge-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 14px;
+    border: 1px solid #ede2c8;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .dtoj-hw-merge-who b { display: block; color: var(--ink); font-size: 14px; font-weight: 800; line-height: 1.5; }
+  .dtoj-hw-merge-who span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .dtoj-hw-merge-open { flex: none; width: auto; height: 36px; padding: 0 16px; font-size: 13px; cursor: pointer; }
+
+  /* 合并弹层：和站内其它表单同一套字号与圆角，白底盖住页面 */
+  .dtoj-hw-merge-dialog {
+    width: min(620px, calc(100vw - 32px));
+    max-height: 86vh;
+    padding: 0;
+    border: 0;
+    border-radius: 20px;
+    background: #fff;
+    overflow: auto;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+  }
+  .dtoj-hw-merge-dialog::backdrop { background: rgba(15, 23, 42, 0.42); }
+  .dtoj-hw-merge-form { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 24px 26px; }
+  .dtoj-hw-merge-form h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", serif;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.4;
+  }
+  .dtoj-hw-merge-sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .dtoj-hw-merge-hint { margin: 0; padding: 10px 12px; border-radius: 12px; background: #f6f8fb; color: #4b5563; font-size: 12px; line-height: 1.8; }
+  .dtoj-hw-merge-picks { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; margin: 0; padding: 0 2px 0 0; overflow-y: auto; list-style: none; }
+  .dtoj-hw-merge-picks label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+  .dtoj-hw-merge-picks label:hover { background: #f8fafc; }
+  .dtoj-hw-merge-picks input { flex: none; width: 15px; height: 15px; margin-top: 3px; accent-color: var(--brand-deep); }
+  .dtoj-hw-merge-picks b { display: block; color: var(--ink); font-size: 14px; font-weight: 700; line-height: 1.5; }
+  .dtoj-hw-merge-picks span span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .dtoj-hw-merge-field { display: flex; flex-direction: column; gap: 6px; color: #4b5563; font-size: 13px; font-weight: 700; }
+  .dtoj-hw-merge-field .textbox { width: 100%; }
+  .dtoj-hw-merge-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+  .dtoj-hw-merge-actions .dtoj-go,
+  .dtoj-hw-merge-actions .dtoj-alt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: 40px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dtoj-hw-merge-actions .dtoj-go { color: #fff; background: var(--brand-deep); box-shadow: 0 8px 18px rgba(30, 64, 175, 0.18); }
+  .dtoj-hw-merge-actions .dtoj-go:hover { background: #1c3aa0; }
+  .dtoj-hw-merge-actions .dtoj-go[disabled] { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  .dtoj-hw-merge-actions .dtoj-go[disabled]:hover { background: var(--brand-deep); }
+  .dtoj-hw-merge-actions .dtoj-alt { border: 1px solid var(--line); background: #fff; color: var(--brand-deep); }
+  .dtoj-hw-merge-note { margin: -4px 0 0; color: #a1472a; font-size: 12px; line-height: 1.7; }
+
   @media (max-width: 800px) {
     .dtoj-hw-page .dtoj-hw-filter .dtoj-fields { grid-template-columns: 1fr 1fr; }
     .dtoj-hw-row { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 16px; }
@@ -262,6 +350,26 @@
           {% endif %}
         </div>
       </form>
+
+      {% if mergeGroups|length %}
+      <section class="dtoj-sheet dtoj-hw-merge" aria-labelledby="dtoj-hw-merge-title">
+        <div>
+          <h2 id="dtoj-hw-merge-title">有 {{ mergeGroups|length }} 组作业可以合并</h2>
+          <p>同一批人收到了好几份作业。勾选要并的，题目取并集、时间取最早开始与最晚截止，其余几份会被删掉；学生已认领和已交的记录一起带过去。</p>
+        </div>
+        <ul class="dtoj-hw-merge-list">
+          {%- for g in mergeGroups -%}
+          <li>
+            <div class="dtoj-hw-merge-who">
+              <b>{{ g.label }}</b>
+              <span>{{ g.tdocs|length }} 份作业 · 共 {{ g.pids }} 题</span>
+            </div>
+            <button type="button" class="dtoj-alt dtoj-hw-merge-open" data-hw-merge-open="dtoj-hw-merge-dialog-{{ loop.index }}">合并…</button>
+          </li>
+          {%- endfor -%}
+        </ul>
+      </section>
+      {% endif %}
 
       <section class="dtoj-sheet dtoj-hw-sheet">
         {% if not tdocs.length %}
@@ -326,6 +434,39 @@
         <div class="dtoj-hw-cal" name="calendar_entry"></div>
         {% endif %}
       </section>
+
+      {%- for g in mergeGroups -%}
+      <dialog class="dtoj-hw-merge-dialog" id="dtoj-hw-merge-dialog-{{ loop.index }}">
+        <form method="post" action="{{ url('dtoj_homework_merge') }}" class="dtoj-hw-merge-form">
+          <div>
+            <h2>合并作业</h2>
+            <p class="dtoj-hw-merge-sub">{{ g.label }} · {{ g.tdocs|length }} 份</p>
+          </div>
+          <p class="dtoj-hw-merge-hint">保留开始最早的那一份「{{ g.tdocs[0].title }}」，它原来的作业链接继续有效，其余几份会被删除。题目取并集，开始取最早、截止取最晚，已认领和已交的记录一起转过来；作业说明沿用保留的那一份。</p>
+          <ul class="dtoj-hw-merge-picks">
+            {%- for item in g.tdocs -%}
+            <li>
+              <label>
+                <input type="checkbox" name="tids" value="{{ item.tid }}" checked>
+                <span>
+                  <b>{{ item.title }}</b>
+                  <span>{{ item.pids }} 题 · 开始 {{ item.beginText }} · 截止 {{ item.penaltyText }} · 已认领 {{ item.attend }}</span>
+                </span>
+              </label>
+            </li>
+            {%- endfor -%}
+          </ul>
+          <label class="dtoj-hw-merge-field">合并后的标题
+            <input class="textbox" type="text" name="title" value="{{ g.tdocs[0].title }}" maxlength="64" required>
+          </label>
+          <div class="dtoj-hw-merge-actions">
+            <button type="submit" class="dtoj-go">确认合并</button>
+            <button type="button" class="dtoj-alt" data-hw-merge-close>取消</button>
+          </div>
+          <p class="dtoj-hw-merge-note" data-hw-merge-note hidden>至少要勾两份作业才能合并。</p>
+        </form>
+      </dialog>
+      {%- endfor -%}
     </div>
   </div>
 </div>
@@ -356,6 +497,48 @@
     }
     new MutationObserver(localize).observe(entry, { childList: true, subtree: true, characterData: true });
     localize();
+  }());
+
+  // 合并弹层：按钮只负责开合，勾选与标题还是原生表单提交。
+  // 少于两份时直接拦下 —— 服务端也会拒绝，但没必要让学生看到一次报错页。
+  (function () {
+    var dialogs = document.querySelectorAll('.dtoj-hw-merge-dialog');
+    if (!dialogs.length) return;
+    function open(id) {
+      var dialog = document.getElementById(id);
+      if (!dialog) return;
+      if (dialog.showModal) dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    document.addEventListener('click', function (e) {
+      var opener = e.target.closest && e.target.closest('[data-hw-merge-open]');
+      if (opener) {
+        open(opener.getAttribute('data-hw-merge-open'));
+        return;
+      }
+      var closer = e.target.closest && e.target.closest('[data-hw-merge-close]');
+      if (closer) {
+        var dialog = closer.closest('dialog');
+        if (dialog) dialog.close();
+      }
+    });
+    Array.prototype.forEach.call(dialogs, function (dialog) {
+      // 点遮罩关掉，和原生弹层的手感一致
+      dialog.addEventListener('click', function (e) {
+        if (e.target === dialog) dialog.close();
+      });
+      // 少于两份时把提交按钮关掉，而不是在 submit 里 alert 再拦一次：
+      // Chromium 在 submit 处理器里弹 alert 之后，同一个表单可能再也提交不出去。
+      var submit = dialog.querySelector('button[type=submit]');
+      var note = dialog.querySelector('[data-hw-merge-note]');
+      function sync() {
+        var count = dialog.querySelectorAll('input[name="tids"]:checked').length;
+        if (submit) submit.disabled = count < 2;
+        if (note) note.hidden = count >= 2;
+      }
+      dialog.addEventListener('change', sync);
+      sync();
+    });
   }());
 </script>
 {% endblock %}

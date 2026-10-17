@@ -1,14 +1,17 @@
 import { escapeRegExp } from 'lodash';
 import {
     canViewAllDomainRecords, ContestModel, ContestNotFoundError, Context, CreateError as Err, DocumentModel, DomainModel, ForbiddenError, Handler,
-    HomeworkNotAttendedError, HomeworkNotLiveError, NotAssignedError, ObjectId, OplogModel, param,
-    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, query, Types, UserModel, ValidationError,
+    HomeworkNotAttendedError, HomeworkNotLiveError, moment, NotAssignedError, ObjectId, OplogModel, param,
+    PERM, PermissionError, ProblemModel, ProblemNotFoundError, PRIV, query, RecordModel, StorageModel, Types, UserModel, ValidationError,
 } from 'hydrooj';
 import {
     askHomeworkQuestion, bridgeInboxReply, listHomeworkProgress, listHomeworkQuestions,
     notifyHomeworkAttended, notifyHomeworkCompleted, replyHomeworkQuestion,
 } from './homeworkQA';
 import { applyInboxNotices } from './inboxNotices';
+import {
+    assignSignature, homeworkMergeGroups, mergeAssignLabel, mergedPids, mergedWindow, pickMergeTarget,
+} from './homeworkMerge';
 import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, unclaimedCounts } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
@@ -203,11 +206,38 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             hwUnclaimed: unclaimed.get(String(tdoc.docId)) ?? null,
         }));
 
+        // 合并建议：同一批人收到了好几份作业，就给一个一键并成一份的入口。
+        // 只对能改作业的人算；扫的是当前筛选条件下的全部作业而不是当前页，
+        // 免得同一批人的作业正好分在两页时漏掉。
+        const mergeGroups = [];
+        if (this.user.hasPerm(PERM.PERM_EDIT_HOMEWORK) || this.user.hasPerm(PERM.PERM_CREATE_HOMEWORK)) {
+            const canEditAll = this.user.hasPerm(PERM.PERM_EDIT_HOMEWORK);
+            const candidates = (await ContestModel.getMulti(domainId, filter).toArray())
+                .filter((tdoc) => canEditAll || this.user.own(tdoc));
+            const when = (date: Date) => moment(date).tz(this.user.timeZone || 'Asia/Shanghai').format('M-D H:mm');
+            for (const merge of homeworkMergeGroups(candidates)) {
+                mergeGroups.push({
+                    key: merge.key,
+                    label: mergeAssignLabel(merge.assign),
+                    pids: mergedPids(merge.tdocs).length,
+                    tdocs: merge.tdocs.map((tdoc) => ({
+                        tid: String(tdoc.docId),
+                        title: tdoc.title,
+                        pids: (tdoc.pids || []).length,
+                        beginText: when(tdoc.beginAt),
+                        penaltyText: when(tdoc.penaltySince),
+                        attend: tdoc.attend || 0,
+                    })),
+                });
+            }
+        }
+
         let qs = group ? `group=${group}` : '';
         if (q) qs += `${qs ? '&' : ''}q=${encodeURIComponent(q)}`;
         this.response.body = {
             tdocs: rows,
             calendar,
+            mergeGroups,
             tpcount,
             page,
             qs,
@@ -217,6 +247,98 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             hwSelfOnly: !canViewAll && loggedIn,
         };
         this.response.template = 'homework_main.html';
+    }
+}
+
+/**
+ * 合并作业：把分给同一批人的几份作业并成一份。
+ *
+ * 为什么并进「最早开始的那一份」而不是新建一份再删旧的：新建会换 docId，
+ * 学生收藏的作业链接、站内消息里的链接全会失效；并进现成的一份，
+ * 至少最早那条链接还能打开。
+ *
+ * 合并做五件事：
+ *   1. 题目取并集，保留那份的题目排在最前；
+ *   2. 开始取最早、截止取最晚，延期窗口跟着最晚的走；
+ *   3. 别处的提交先挂到保留那份的 journal 上，再改 record.contest —— 只改 record
+ *      不改 journal 的话，作业成绩表里看不到这些提交；
+ *   4. 认领状态补齐，学生重新打开时还是「已认领」；
+ *   5. 其余几份连附件、答疑一起清掉。
+ */
+class DtojHomeworkMergeHandler extends DtojDataHandler {
+    @param('tids', Types.CommaSeperatedArray)
+    @param('title', Types.Title)
+    async post(domainId: string, tids: string[], title: string) {
+        const ids = [...new Set(tids.map((tid) => tid.trim()).filter(Boolean))];
+        if (ids.length < 2) throw new ValidationError('tids');
+        const tdocs = [];
+        for (const id of ids) {
+            const tdoc = ObjectId.isValid(id) ? await ContestModel.get(domainId, new ObjectId(id)) : null;
+            if (tdoc?.rule !== 'homework') throw new ContestNotFoundError(domainId, id);
+            // 已经结束的作业成绩已定，不参与合并：列表里不给入口，这里再拦一道
+            if (ContestModel.isDone(tdoc)) throw new ValidationError('tids');
+            tdocs.push(tdoc);
+        }
+        // 自己建的作业可以合并；动别人建的作业要有「编辑任意作业」的权限
+        if (!tdocs.every((tdoc) => this.user.own(tdoc))) this.checkPerm(PERM.PERM_EDIT_HOMEWORK);
+        // 只并「同一批人」的：assign 只有一个字面差别就拒绝，免得把别班的人卷进来
+        if (new Set(tdocs.map((tdoc) => assignSignature(tdoc.assign))).size > 1) {
+            throw new ValidationError('tids');
+        }
+
+        const target = pickMergeTarget(tdocs);
+        const rest = tdocs.filter((tdoc) => String(tdoc.docId) !== String(target.docId));
+        const pids = mergedPids([target, ...rest]);
+        const { beginAt, penaltySince, endAt } = mergedWindow(tdocs);
+
+        // 先搬提交：按记录的顺序写回 journal，成绩表重算出来才和原来一致
+        for (const tdoc of rest) {
+            const rdocs = await RecordModel.getMulti(domainId, { contest: tdoc.docId }).toArray();
+            for (const rdoc of rdocs) {
+                await ContestModel.updateStatus(domainId, target.docId, rdoc.uid, rdoc._id, rdoc.pid, {
+                    status: rdoc.status, score: rdoc.score, subtasks: rdoc.subtasks, lang: rdoc.lang,
+                });
+            }
+            if (rdocs.length) {
+                await RecordModel.updateMulti(domainId, { contest: tdoc.docId }, { contest: target.docId });
+            }
+        }
+
+        // 再搬认领：保留那份还没有这个人的认领记录时补一条，已有就跳过
+        for (const tdoc of rest) {
+            const tsdocs = await ContestModel.getMultiStatus(domainId, { docId: tdoc.docId, attend: { $gte: 1 } }).toArray();
+            for (const tsdoc of tsdocs) {
+                const existing = await ContestModel.getStatus(domainId, target.docId, tsdoc.uid);
+                if (existing?.attend) continue;
+                await ContestModel.attend(domainId, target.docId, tsdoc.uid);
+            }
+        }
+
+        await ContestModel.edit(domainId, target.docId, {
+            title, pids, beginAt, penaltySince, endAt,
+        });
+
+        // 其余几份：附件、答疑先处理掉，再把作业本身删掉（contest.del 会清状态文档）
+        for (const tdoc of rest) {
+            await StorageModel.del(
+                (tdoc.files || []).map((file) => `contest/${domainId}/${tdoc.docId}/public/${file.name}`),
+                this.user._id,
+            );
+            await DocumentModel.coll.updateMany(
+                {
+                    domainId,
+                    docType: DocumentModel.TYPE_CONTEST_CLARIFICATION,
+                    parentType: DocumentModel.TYPE_CONTEST,
+                    parentId: tdoc.docId,
+                },
+                { $set: { parentId: target.docId } },
+            );
+            await ContestModel.del(domainId, tdoc.docId);
+        }
+        await ContestModel.recalcStatus(domainId, target.docId);
+
+        this.response.body = { tid: target.docId };
+        this.response.redirect = this.url('homework_detail', { tid: target.docId });
     }
 }
 
@@ -753,6 +875,10 @@ export async function apply(ctx: Context) {
 
     // 撤销认领。core 没有这个接口，见 DtojHomeworkUnclaimHandler
     ctx.Route('homework_unclaim', '/homework/:tid/unclaim', DtojHomeworkUnclaimHandler, PERM.PERM_ATTEND_HOMEWORK);
+
+    // 把分给同一批人的几份作业并成一份，见 DtojHomeworkMergeHandler。
+    // 路径避开 /homework/:tid，免得被作业详情那条动态路由吃掉。
+    ctx.Route('dtoj_homework_merge', '/dtoj/homework-merge', DtojHomeworkMergeHandler, PRIV.PRIV_USER_PROFILE);
 
     // 个人主页自助加入分组，见 DtojUserGroupHandler
     ctx.Route('dtoj_user_group', '/user/:uid/group', DtojUserGroupHandler, PRIV.PRIV_USER_PROFILE);
