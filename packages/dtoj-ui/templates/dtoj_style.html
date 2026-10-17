@@ -15,6 +15,9 @@
     --s4: 16px;
     --s5: 24px;
     --s6: 32px;
+    /* 代码等宽字体。题解与题目描述里的代码块由 prism 主题给 code[class*=language-]
+       定成这一串，提交页的代码框和记录页的源码也跟着用，全站代码才是同一个样子。 */
+    --dtoj-code-font: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
     color: var(--ink);
     font-size: 1rem;
     line-height: 1.65;
@@ -1867,11 +1870,9 @@
     min-height: 160px;
     box-sizing: border-box;
     padding: 16px 16px 16px 3.8em;
-    /* 跟题解页的代码框同一套字体：那边由 prism 主题给 code[class*=language-] 定成
-       Consolas 这一串，题目描述里的代码块也是同一个来源。这里原来写死 JetBrains Mono
-       再让内层 code 继承，于是记录页和题目里的代码长得不一样；JetBrains Mono 还开着
-       连字，`<=` 会画成一个 `≤`，学生照抄时容易看错。 */
-    font-family: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+    /* 跟题解页的代码框同一套字体，字体栈统一收在 --dtoj-code-font。
+       JetBrains Mono 会开连字，`<=` 画成一个 `≤`，学生照抄时容易看错。 */
+    font-family: var(--dtoj-code-font);
     font-size: 14px;
     line-height: 1.6;
     font-weight: 400;

@@ -101,6 +101,10 @@
     outline: 0;
     background: transparent;
     color: var(--ink);
+    /* 和记录页源码、题解代码块同一套等宽字体（字体栈见 dtoj_style 的 --dtoj-code-font）。
+       typography.styl 里 textarea 的 $code-font-family 带了 !important，这里必须同样
+       带 !important，再靠更具体的选择器压过它。 */
+    font-family: var(--dtoj-code-font) !important;
     font-size: 13px;
     line-height: 1.7;
     tab-size: 4;
