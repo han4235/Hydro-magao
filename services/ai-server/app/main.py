@@ -6,6 +6,8 @@ from app.kinds import require_kind
 from app.llm import LlmClient
 from app.ojimport_spec import bundle_missing, spec_version
 from app.skills.registry import SKILLS
+from app.solution_spec import bundle_missing as solution_bundle_missing
+from app.solution_spec import spec_version as solution_spec_version
 
 app = FastAPI(title='ai-server')
 
@@ -13,15 +15,22 @@ app = FastAPI(title='ai-server')
 @app.get('/health')
 def health():
     missing = bundle_missing()
+    solution_missing = solution_bundle_missing()
     bundle_ok = len(missing) == 0
+    solution_ok = len(solution_missing) == 0
     return {
-        'ok': bundle_ok,
+        'ok': bundle_ok and solution_ok,
         'skills': list(SKILLS),
         'llm': LlmClient().status(),
         'ojimport': {
             'version': spec_version(),
             'bundle_ok': bundle_ok,
             'missing': missing,
+        },
+        'solution': {
+            'version': solution_spec_version(),
+            'bundle_ok': solution_ok,
+            'missing': solution_missing,
         },
     }
 
@@ -106,6 +115,14 @@ async def create(
             raise HTTPException(
                 503,
                 f'搬题姬材料未就绪: {", ".join(missing[:5])}'
+                + ('…' if len(missing) > 5 else ''),
+            )
+    if skill == 'problem_solution':
+        missing = solution_bundle_missing()
+        if missing:
+            raise HTTPException(
+                503,
+                f'题解技能材料未就绪: {", ".join(missing[:5])}'
                 + ('…' if len(missing) > 5 else ''),
             )
     try:

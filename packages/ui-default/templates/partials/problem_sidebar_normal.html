@@ -171,6 +171,18 @@
     {% if handler.user.own(pdoc, perm.PERM_EDIT_PROBLEM_SELF) or handler.user.hasPerm(perm.PERM_EDIT_PROBLEM) %}
       <li class="menu__seperator"></li>
       {% if page_name == 'problem_detail' %}
+      {% if handler.user.hasPerm(perm.PERM_EDIT_PROBLEM_SOLUTION) and not hasTopSolution %}
+      <li class="menu__item">
+        {# 没有置顶题解 = 这题还缺一份可当参考答案的题解，给管理员和教师留个入口。
+           生成按 md-playwright-solution 流程走 ai-server，完成后自动作为置顶题解写入。 #}
+        <form method="post" action="{{ url('dtoj_ai_problem_solution', pid=pdoc.docId) }}"
+              onsubmit='return confirm("AI 会按金牌教练题解流程通读本题题面，写出分档解析、多版代码与复杂度分析，完成后自动作为置顶题解发布。过程需要几分钟，确定生成吗？");'>
+          <button type="submit" class="menu__link" name="problem-sidebar__ai-solution">
+            <span class="dtoj-ai-glyph" aria-hidden="true">AI</span> 生成题解
+          </button>
+        </form>
+      </li>
+      {% endif %}
       <li class="menu__item">
         {# 再生会重做标程与全部测试数据，完成后自动覆盖本题，先让用户确认再进任务页 #}
         <form method="post" action="{{ url('dtoj_ai_problem_sample', pid=pdoc.docId) }}"

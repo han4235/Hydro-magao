@@ -1,10 +1,11 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
-import { Context, PERM, ProblemModel, Types, param } from 'hydrooj';
+import { Context, PERM, ProblemModel, SolutionModel, Types, param } from 'hydrooj';
 import { DtojPageHandler } from 'dtoj-ui';
 
 const SKILL = 'pdf_to_problem_packs';
 const SAMPLE_SKILL = 'problem_sample_regen';
+const SOLUTION_SKILL = 'problem_solution';
 
 const KINDS = [
     ['single', '单题'],
@@ -74,8 +75,9 @@ function jobMaterial(job: Record<string, unknown>) {
         const text = url.length > MATERIAL_MAX ? `${url.slice(0, MATERIAL_MAX - 1)}…` : url;
         return { text, url, title: url };
     }
-    if (job.skill === SAMPLE_SKILL) {
+    if (job.skill === SAMPLE_SKILL || job.skill === SOLUTION_SKILL) {
         const docId = (job.meta as { docId?: number } | undefined)?.docId;
+        if (job.skill === SOLUTION_SKILL) return { text: docId ? `题目 P${docId} 题解` : '题目题解', url: '', title: '' };
         return { text: docId ? `题目 P${docId}` : '题目样例再生', url: '', title: '' };
     }
     if (source === 'text') return { text: '粘贴的文本', url: '', title: '' };
@@ -95,7 +97,7 @@ class DtojAiJobsHandler extends DtojPageHandler {
                 createdAtText: job.createdAt
                     ? new Date(job.createdAt * 1000).toLocaleString('zh-CN', { hour12: false })
                     : '',
-                sourceLabel: job.skill === SAMPLE_SKILL
+                sourceLabel: job.skill === SAMPLE_SKILL || job.skill === SOLUTION_SKILL
                     ? '题面'
                     : job.source === 'url' ? '链接' : job.source === 'text' ? '文本' : '文件',
             }));
@@ -236,6 +238,63 @@ class DtojAiJobApplyHandler extends DtojPageHandler {
     }
 }
 
+class DtojAiSolutionHandler extends DtojPageHandler {
+    @param('pid', Types.PositiveInt)
+    async post(domainId: string, pid: number) {
+        this.checkPerm(PERM.PERM_EDIT_PROBLEM_SOLUTION);
+        const pdoc = await ProblemModel.get(domainId, pid);
+        if (!pdoc) throw new Error('题目不存在');
+        // 与侧栏入口同一条件：已经有置顶题解就不再生成，避免多份都挂着置顶
+        const topCnt = await SolutionModel.count(domainId, { parentId: pid, top: true });
+        if (topCnt) throw new Error('本题已有置顶题解，先取消置顶再生成');
+        // 签名须覆盖 ai-server 实际收到的字节：text 源即该字符串本身
+        const text = `solution:${domainId}:${pid}`;
+        const digest = digestOf(Buffer.from(text, 'utf8'));
+        const form = new FormData();
+        form.append('skill', SOLUTION_SKILL);
+        form.append('kind', 'solution');
+        form.append('domain_id', domainId);
+        form.append('doc_id', String(pid));
+        form.append('text', text);
+        const created = await aiFetch('/internal/jobs', SOLUTION_SKILL, digest, { method: 'POST', body: form }, 'solution');
+        this.response.redirect = this.url('dtoj_ai_job', { id: created.id });
+    }
+}
+
+class DtojAiSolutionApplyHandler extends DtojPageHandler {
+    @param('id', Types.String)
+    async post(domainId: string, id: string) {
+        this.checkPerm(PERM.PERM_EDIT_PROBLEM_SOLUTION);
+        // 这个接口只给任务页的 fetch 用，出错也回 JSON，前端才能把原因显示出来
+        try {
+            const job = await aiFetch(`/internal/jobs/${id}`, 'get', id);
+            if (job.skill !== SOLUTION_SKILL || !job.payload) throw new Error('该任务不是 AI 题解');
+            const docId = Number(job.payload.docId || job.meta?.docId);
+            if (!docId) throw new Error('任务缺少题号');
+            const pdoc = await ProblemModel.get(domainId, docId);
+            if (!pdoc) throw new Error('题目不存在');
+            const content = String(job.payload.content || '').trim();
+            if (!content) throw new Error('题解内容为空');
+            const topCnt = await SolutionModel.count(domainId, { parentId: docId, top: true });
+            if (topCnt) throw new Error('本题已有置顶题解，先取消置顶再写入');
+            // add 返回的是新题解的 _id（不是文档），置顶要用它
+            const psid = await SolutionModel.add(domainId, docId, this.user._id, content);
+            await SolutionModel.setTop(domainId, psid as any, true);
+            this.response.type = 'application/json';
+            this.response.body = {
+                ok: true,
+                docId,
+                psid: String(psid),
+                url: this.url('problem_solution', { pid: docId }),
+            };
+        } catch (e) {
+            this.response.status = 400;
+            this.response.type = 'application/json';
+            this.response.body = { error: e.message || String(e) };
+        }
+    }
+}
+
 class DtojAiJobPollHandler extends DtojPageHandler {
     @param('id', Types.String)
     async get(domainId: string, id: string) {
@@ -275,12 +334,15 @@ export async function apply(ctx: Context) {
     ctx.Route('dtoj_ai_job_poll', '/ai/jobs/:id/poll', DtojAiJobPollHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_jobs_poll', '/ai-jobs-status', DtojAiJobsPollHandler, PERM.PERM_CREATE_PROBLEM);
     ctx.Route('dtoj_ai_job_apply', '/ai/jobs/:id/apply-samples', DtojAiJobApplyHandler, PERM.PERM_EDIT_PROBLEM);
+    ctx.Route('dtoj_ai_job_apply_solution', '/ai/jobs/:id/apply-solution', DtojAiSolutionApplyHandler, PERM.PERM_EDIT_PROBLEM_SOLUTION);
     ctx.Route('dtoj_ai_problem_sample', '/ai/problem/:pid/sample-regen', DtojAiProblemSampleHandler, PERM.PERM_EDIT_PROBLEM);
+    ctx.Route('dtoj_ai_problem_solution', '/ai/problem/:pid/solution', DtojAiSolutionHandler, PERM.PERM_EDIT_PROBLEM_SOLUTION);
     ctx.injectUI('ProblemAdd', 'dtoj_ai_jobs', { icon: 'copy', text: 'Import From AI' });
     ctx.i18n.load('zh', {
         dtoj_ai_jobs: 'AI 导题',
         dtoj_ai_job: 'AI 任务',
         dtoj_ai_problem_sample: 'AI 样例再生',
+        dtoj_ai_problem_solution: 'AI 生成题解',
         'Import From AI': '从 AI 导入',
     });
 }

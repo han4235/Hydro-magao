@@ -385,7 +385,7 @@
           {% for job in jobs %}
           <tr>
             <td>{{ job.createdAtText }}</td>
-            <td>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% else %}未填写{% endif %}</td>
+            <td>{% if job.kind == 'single' %}单题{% elif job.kind == 'theory' %}理论试卷{% elif job.kind == 'sample_regen' %}样例再生{% elif job.kind == 'solution' %}AI 题解{% else %}未填写{% endif %}</td>
             <td>{{ job.sourceLabel or '文件' }}</td>
             <td class="ai-material">{% if job.material and job.material.url %}<a href="{{ job.material.url }}" target="_blank" rel="noopener noreferrer" title="{{ job.material.title }}">{{ job.material.text }}</a>{% elif job.material %}<span title="{{ job.material.text }}">{{ job.material.text }}</span>{% else %}{{ job.filename }}{% endif %}</td>
             <td data-job-id="{{ job.id }}" data-status="{{ job.status }}">
