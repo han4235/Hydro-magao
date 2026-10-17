@@ -17,6 +17,8 @@ declare module 'hydrooj' {
   }
   interface UiContextBase {
     constantVersion?: string;
+    /** 前端产物（public 下的 hydro-*.js、theme-*.css）的版本戳，用来给它们的 URL 加 ?v=。 */
+    bundleVersion?: string;
   }
 }
 
@@ -24,6 +26,29 @@ const vfs: Record<string, string> = {};
 const hashes: Record<string, string> = {};
 const logger = new Logger('ui');
 const tmp = tmpdir();
+
+/**
+ * 前端产物（webpack 打到 packages/ui-default/public）的版本戳。
+ * 浏览器把 hydro-*.js、theme-*.css 缓存一天，而且模板里的 URL 只有版本号
+ * （4.58.5 这种），重新构建后 URL 不变，用户就一直在跑旧包——表现为新模板配旧脚本，
+ * 页面功能像是没生效。这里把文件名和大小拼起来取哈希，构建一换戳就换，URL 跟着变。
+ * 在模块加载时算一次：产物变了要重启进程才会生效，和模板的加载时机一致。
+ */
+const bundleVersion = (() => {
+  try {
+    const dir = resolve(__dirname, '../public');
+    // 只哈希入口产物本身：chunk 的文件名里已经带内容哈希，入口一变它就跟着变。
+    // 用文件内容而不是大小/时间戳，重新构建但产物没变时戳保持不变，浏览器不用重下。
+    const sig = fs.readdirSync(dir)
+      .filter((i) => /^(?:hydro-.*\.js|theme-.*\.css)$/.test(i))
+      .sort()
+      .map((i) => `${i}:${sha1(fs.readFileSync(join(dir, i), 'utf-8'))}`)
+      .join('|');
+    return sha1(sig).substring(0, 8);
+  } catch (e) {
+    return '';
+  }
+})();
 
 const federationPlugin: esbuild.Plugin = {
   name: 'federation',
@@ -143,6 +168,7 @@ export async function buildUI() {
     ${pages.join('\n')}
   };`);
   UiContextBase.constantVersion = hashes['entry.js'];
+  UiContextBase.bundleVersion = bundleVersion;
   for (const key in vfs) {
     if (newFiles.includes(key)) continue;
     delete vfs[key];
