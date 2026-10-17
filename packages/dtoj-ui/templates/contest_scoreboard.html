@@ -428,6 +428,21 @@
     font-weight: 800;
     color: var(--ink);
   }
+  /* 作业的列头是题目名，比字母长得多：最多两行，放不下的省略，
+     完整标题还在 tooltip 里。比赛页没有这个 span，走上面的字母样式。 */
+  .dtoj-sb .dtoj-sb-prob-name {
+    display: -webkit-box;
+    overflow: hidden;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0;
+    text-align: center;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+  }
 
   /* 冻结成绩表的提示（partial 里的 blockquote.note） */
   .dtoj-sb .section__body > .note {
