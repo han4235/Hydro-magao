@@ -62,29 +62,6 @@
   .dtoj-problem .problem-content .section__body { padding: 0; }
   .dtoj-problem-head { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
   .dtoj-problem-titleline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .dtoj-problem-modes { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
-  .dtoj-problem-modes button,
-  .dtoj-problem-modes a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 14px;
-    border: 1px solid rgba(30, 41, 59, 0.1);
-    border-radius: 999px;
-    background: #f4f7fb;
-    color: #243044;
-    font-size: 13px;
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .dtoj-problem-modes [hidden] { display: none; }
-  .dtoj-problem.is-focus [data-problem-focus] {
-    background: #172237;
-    border-color: #172237;
-    color: #f6f8fd;
-  }
   .dtoj-problem-modes [data-problem-submit] {
     background: #eef3ff;
     border-color: #d5e2fb;
@@ -1209,6 +1186,7 @@
   function paint() {
     var focus = root.classList.contains('is-focus');
     var wide = root.classList.contains('is-wide');
+    focusBtn.classList.toggle('is-on', focus);
     focusBtn.textContent = focus ? '退出纯享' : '纯享模式';
     wideBtn.hidden = focus;
     wideBtn.textContent = wide ? '收起题目' : '展开题目';

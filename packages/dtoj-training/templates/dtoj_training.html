@@ -114,6 +114,63 @@
     font-weight: 700;
   }
   .dtoj-train-block > p { margin: 6px 0 0; color: var(--muted); }
+  /* 顶部「继续上次」：一条窄链接，指向最近浏览过、还没做出来的那道题 */
+  .dtoj-train-resume {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: -8px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color 0.18s, background 0.18s;
+  }
+  .dtoj-train-resume:hover { border-color: rgba(37, 99, 235, 0.35); background: #f8fbff; }
+  .dtoj-train-resume:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+  .dtoj-train-resume-tag {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #e7f0f6;
+    color: #143044;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-train-resume-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .dtoj-train-resume-title b {
+    font-size: 15px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dtoj-train-resume-title em { font-style: normal; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .dtoj-train-resume-go {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .dtoj-train-resume-go svg { width: 14px; height: 14px; }
+  @media (max-width: 600px) {
+    .dtoj-train-resume { gap: 8px; padding: 10px 12px; }
+    .dtoj-train-resume-go span { display: none; }
+  }
   .dtoj-course-grid,
   .dtoj-learn {
     display: grid;
@@ -528,6 +585,18 @@
         </div>
         {% if canCreate %}<a class="dtoj-train-new" href="{{ url('dtoj_training_create') }}">新建训练</a>{% endif %}
       </header>
+      {% if lastProblem %}
+      <a class="dtoj-train-resume" href="{{ url('problem_detail', pid=lastProblem.pid) }}">
+        <span class="dtoj-train-resume-tag">继续上次</span>
+        <span class="dtoj-train-resume-title">
+          <b>{{ lastProblem.title or '未命名题目' }}</b>
+          <em>{{ lastProblem.show }} · 还没做完</em>
+        </span>
+        <span class="dtoj-train-resume-go"><span>进入题目</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </a>
+      {% endif %}
       {% if learning.length %}
       <section class="dtoj-train-block">
         <h2>继续学习</h2>

@@ -7,6 +7,7 @@ import { DtojDataHandler, dropEarlierRoutes, pick, queryOf, queryString } from '
 import {
     courseKinds, directionBucket, directions, listed, markOf, noteOf,
 } from './data';
+import { lastUnfinishedProblem, markProblemVisited } from './recent';
 
 const blankChapter = { title: '', note: '', pids: '' };
 const luoguLevels = ['入门', '普及−', '普及/提高−', '普及+/提高', '提高+/省选−', '省选/NOI−', 'NOI/NOI+/CTSC'];
@@ -286,6 +287,9 @@ class DtojTrainingHandler extends DtojDataHandler {
         const searched = sortCourses(await TrainingModel.getMulti(domainId, query).toArray(), vocab.order);
         const hotDocs = searched.filter((tdoc) => tdoc.pin > 0);
         const learning = await learningOf(domainId, this.user);
+        const lastProblem = await lastUnfinishedProblem(
+            domainId, this.user, this.user.hasPerm(PERM.PERM_VIEW_PROBLEM_HIDDEN) || this.user._id,
+        );
         const counts = tally(searched, vocab.directions, vocab.kinds);
         const matched = searched.filter((tdoc) => listed(tdoc, direction, kind, vocab.directions));
         const pageSize = 12;
@@ -299,6 +303,7 @@ class DtojTrainingHandler extends DtojDataHandler {
             q,
             hot: hotDocs.map(courseOf),
             learning,
+            lastProblem,
             courses: tdocs.map(courseOf),
             page,
             pages,
@@ -1141,6 +1146,21 @@ export async function apply(ctx: Context) {
         if (!body?.pdoc) return;
         if (!that.user.hasPerm(PERM.PERM_EDIT_TRAINING)) return;
         body.courseAdd = await courseAddOptions(that.args.domainId, body.pdoc.docId);
+    });
+
+    // 记下「这个人刚看过这道题」，训练页顶部那条「继续上次」就靠它。
+    // 游客不记：写进去也永远不会有一条链接给游客看，只是白白多一次写入。
+    // 写失败不能把题目页拖垮：这只是个便利入口，记不上就算了。
+    ctx.on('handler/after/ProblemDetail#get', async (that) => {
+        const body = that.response.body as Record<string, any> | undefined;
+        const pdoc = body?.pdoc;
+        if (!pdoc?.docId) return;
+        if (!that.user.hasPriv(PRIV.PRIV_USER_PROFILE)) return;
+        try {
+            await markProblemVisited(that.args.domainId, that.user._id, pdoc.docId);
+        } catch {
+            // 忽略：记录失败不影响看题
+        }
     });
 
     for (const lang of ['zh', 'zh_TW', 'en', 'kr']) {
