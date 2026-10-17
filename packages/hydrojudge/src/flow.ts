@@ -33,9 +33,10 @@ function judgeSubtask(subtask: NormalizedSubtask, sid: string, judgeCase: Task['
         for (const cid in subtask.cases) {
             const runner = judgeCase(subtask.cases[cid]);
             cases.push(ctx.queue.add(async () => {
+                // 不因为子任务已经拿 0 分（或已拿满分）就跳过剩下的测试点：
+                // 那样学生看到的是一堆 IGN，看不出到底哪几个点真的错了。
+                // 只有评测出错、或 if 依赖的子任务失败时才取消。
                 const res = (ctx.errored
-                    || (subtask.type === 'min' && ctxSubtask.score === 0)
-                    || (subtask.type === 'max' && ctxSubtask.score === subtask.score)
                     || (subtask.if || []).filter((i) => ctx.failed[i]).length)
                     ? {
                         id: subtask.cases[cid].id,
