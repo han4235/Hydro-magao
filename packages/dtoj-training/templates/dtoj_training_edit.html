@@ -182,8 +182,20 @@
   }
   .dtoj-note-edit { display: flex; flex-direction: column; gap: 8px; }
   .dtoj-note-edit > span { color: #3e4c63; font-size: 12px; font-weight: 700; }
-  .dtoj-plan-find { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-  .dtoj-plan-find label { flex: 1 1 240px; }
+  /* 题号用题库选择器：组件自带一套外框，这里把它改成和别的输入框一样高、一样圆 */
+  .dtoj-plan .autocomplete-container { display: block !important; width: 100% !important; margin-bottom: 0 !important; }
+  .dtoj-plan .autocomplete-wrapper {
+    padding: 0;
+    border: 1px solid rgba(30, 41, 59, 0.14);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .dtoj-plan .autocomplete-wrapper:focus-within {
+    border-color: rgba(79, 70, 229, 0.45);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+  .dtoj-plan .autocomplete-wrapper input { min-height: 48px; padding: 0 14px; color: var(--ink); font-size: 16px; }
+  .dtoj-plan .autocomplete-tag { font-size: 14px; }
   .dtoj-plan button[type="submit"],
   .dtoj-plan button[data-pick],
   .dtoj-plan button[data-op],
@@ -212,24 +224,6 @@
     display: inline-flex;
     align-items: center;
     text-decoration: none;
-  }
-  .dtoj-plan-hits { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .dtoj-plan-hit {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: baseline;
-    margin: 0;
-    color: var(--ink);
-    font-size: 14px;
-    line-height: 1.6;
-    cursor: pointer;
-  }
-  .dtoj-plan-hit span {
-    color: #4338ca;
-    font-size: 12px;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
   }
   .dtoj-plan-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   .dtoj-plan-danger {
@@ -280,7 +274,7 @@
     <div class="dtoj-shell dtoj-plan-page">
       <header>
         <h1>{% if canDelete %}编辑训练{% else %}新建训练{% endif %}</h1>
-        <p class="dtoj-plan-lead">先写课程，再按章节填题号。题号要能在后台题库里找到，显示题号和内部编号都可以。</p>
+        <p class="dtoj-plan-lead">先写课程，再按章节点题号，从题库里搜题号或标题挑。</p>
       </header>
       <form method="post" class="dtoj-plan" id="dtoj-plan">
         <input type="hidden" name="tagName" value="">
@@ -352,7 +346,7 @@
                   <span>讲义</span>
                   <textarea name="chapterNote" class="textbox" data-markdown></textarea>
                 </div>
-                <label>题号<input name="chapterPids" value="" placeholder="用空格或逗号分开"></label>
+                <label>题号<input name="chapterPids" class="dtoj-pids" value="" placeholder="输入题号或标题搜题"></label>
               </div>
             </template>
             {% for ch in chapters %}
@@ -370,24 +364,12 @@
                 <span>讲义</span>
                 <textarea name="chapterNote" class="textbox" data-markdown>{{ ch.note }}</textarea>
               </div>
-              <label>题号<input name="chapterPids" value="{{ ch.pids }}" placeholder="用空格或逗号分开"></label>
+              <label>题号<input name="chapterPids" class="dtoj-pids" value="{{ ch.pids }}" placeholder="输入题号或标题搜题"></label>
             </div>
             {% endfor %}
             <div>
               <button class="dtoj-plan-save" type="button" data-add-chapter>加一章</button>
             </div>
-          </div>
-        </section>
-        <section>
-          <h2>从题库找题号</h2>
-          <div class="dtoj-plan-find">
-            <label>题号或标题<input name="pq" value="{{ pq }}" autocomplete="off" placeholder="输入题号或标题"></label>
-            <button class="dtoj-plan-quiet" type="button" data-search>搜索</button>
-          </div>
-          <div class="dtoj-plan-hits" id="dtoj-plan-hits">
-            {% for hit in hits %}
-            <p class="dtoj-plan-hit"><span>{{ hit.pid }}</span> {{ hit.title }}</p>
-            {% endfor %}
           </div>
         </section>
         <div class="dtoj-plan-actions">
@@ -520,6 +502,7 @@
             var stack = document.getElementById('dtoj-chapters');
             if (!chapter || !stack) return;
             var y = window.pageYOffset;
+            detachPids(chapter);
             chapter.remove();
             renumberChapters();
             window.scrollTo(0, y);
@@ -535,65 +518,34 @@
               stack.insertBefore(node, add.parentElement);
               renumberChapters();
               if (window.jQuery) window.jQuery(node).trigger('vjContentNew');
+              attachPids(node);
               node.scrollIntoView({ block: 'nearest' });
             });
           }
-          var find = form.querySelector('[name="pq"]');
-          var hits = document.getElementById('dtoj-plan-hits');
-          var searchTimer = 0;
-          var searchSeq = 0;
-          function showHits(list) {
-            if (!hits) return;
-            hits.textContent = '';
-            (list || []).forEach(function (hit) {
-              var row = document.createElement('p');
-              row.className = 'dtoj-plan-hit';
-              var pid = document.createElement('span');
-              pid.textContent = hit.pid || '';
-              row.appendChild(pid);
-              row.appendChild(document.createTextNode(' ' + (hit.title || '')));
-              row.addEventListener('click', function () {
-                if (!find) return;
-                find.value = hit.pid || '';
-                find.focus();
-              });
-              hits.appendChild(row);
-            });
+          function attachPids(root) {
+            var api = window.HydroExports;
+            if (!api || !api.ProblemSelectAutoComplete || !api.$) return false;
+            var scope = root || document;
+            var list = scope.querySelectorAll ? scope.querySelectorAll('input.dtoj-pids') : [];
+            for (var i = 0; i < list.length; i++) {
+              if (api.ProblemSelectAutoComplete.get(api.$(list[i]))) continue;
+              api.ProblemSelectAutoComplete.getOrConstruct(api.$(list[i]), { multi: true });
+            }
+            return true;
           }
-          function searchProblems() {
-            if (!find) return;
-            var q = find.value.trim();
-            var seq = ++searchSeq;
-            if (!q) { showHits([]); return; }
-            var url = new URL(window.location.href);
-            url.searchParams.set('suggest', '1');
-            url.searchParams.set('pq', q);
-            fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (res) {
-              return res.json();
-            }).then(function (data) {
-              if (seq !== searchSeq) return;
-              showHits(data && data.hits);
-            }).catch(function () {
-              if (seq === searchSeq) showHits([]);
-            });
+          function detachPids(node) {
+            var api = window.HydroExports;
+            if (!api || !api.ProblemSelectAutoComplete || !api.$) return;
+            var input = node.querySelector('input.dtoj-pids');
+            var instance = input && api.ProblemSelectAutoComplete.get(api.$(input));
+            if (instance) instance.detach();
           }
-          if (find) {
-            find.addEventListener('input', function () {
-              window.clearTimeout(searchTimer);
-              searchTimer = window.setTimeout(searchProblems, 200);
-            });
-            find.addEventListener('keydown', function (event) {
-              if (event.key !== 'Enter') return;
-              event.preventDefault();
-              window.clearTimeout(searchTimer);
-              searchProblems();
-            });
-          }
-          var search = form.querySelector('[data-search]');
-          if (search) search.addEventListener('click', function () {
-            window.clearTimeout(searchTimer);
-            searchProblems();
-          });
+          // 组件在 entry.js 里异步加载，这里等它到位再把题号框换成题库选择器
+          (function waitForPicker(tries) {
+            if (attachPids(form)) return;
+            if ((tries || 0) > 200) return;
+            window.setTimeout(function () { waitForPicker((tries || 0) + 1); }, 50);
+          }(0));
           var ask = document.getElementById('dtoj-plan-ask-delete');
           var dialog = document.getElementById('dtoj-plan-dialog');
           if (ask && dialog) {
