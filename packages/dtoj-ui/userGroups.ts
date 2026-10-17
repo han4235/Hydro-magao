@@ -39,6 +39,42 @@ export function canManageGroups(actor: GroupActor) {
     return actor.hasPerm(PERM.PERM_MANAGE_GROUP_ALL, PERM.PERM_MANAGE_GROUP);
 }
 
+/** 这个组在不在某个人名下：只比对 owner / maintainers，不看权限位。 */
+export function groupOwnedBy(gdoc: { owner?: number, maintainers?: number[] }, uid: number) {
+    return gdoc.owner === uid || (gdoc.maintainers || []).includes(uid);
+}
+
+/**
+ * 域内「能管全部分组」的账号。
+ *
+ * 用来给没有 owner 的老组找主人：加 owner 字段之前，建组只能走 /domain/group，
+ * 那个路由要 PERM_EDIT_DOMAIN，所以这些组是管理员建的，不该算无主。
+ * 按角色位反查，比逐个账号算一遍权限省事：roles 里带 MANAGE_GROUP_ALL 的角色 +
+ * 内置的 root（root 的权限是 PERM_ALL，不存在 roles 表里）。
+ */
+export async function groupAdminUids(domainId: string) {
+    const ddoc = await DomainModel.get(domainId);
+    const roles = Object.entries(ddoc?.roles || {})
+        .filter(([, perm]) => (BigInt(perm) & PERM.PERM_MANAGE_GROUP_ALL) === PERM.PERM_MANAGE_GROUP_ALL)
+        .map(([role]) => role);
+    roles.push('root');
+    const dudocs = await DomainModel.getMultiUserInDomain(domainId, { role: { $in: roles } })
+        .project<{ uid: number }>({ uid: 1 })
+        .toArray();
+    return new Set(dudocs.map((dudoc) => dudoc.uid));
+}
+
+/**
+ * 一个组归哪些账号。有 owner / maintainers 就按它们；一个都没有（老组）就摊给所有管理员，
+ * 否则这些组在「按教师筛」的界面里谁也选不到。
+ */
+export function groupOwnerUids(gdoc: { owner?: number, maintainers?: number[] }, adminUids: Set<number>) {
+    const owners = new Set<number>(gdoc.maintainers || []);
+    if (typeof gdoc.owner === 'number') owners.add(gdoc.owner);
+    if (!owners.size) for (const uid of adminUids) owners.add(uid);
+    return owners;
+}
+
 /**
  * 这个组归我管吗。
  *
@@ -47,8 +83,7 @@ export function canManageGroups(actor: GroupActor) {
  */
 export function ownsGroup(actor: GroupActor, gdoc: { owner?: number, maintainers?: number[] }) {
     if (managesAllGroups(actor)) return true;
-    if (gdoc.owner === actor._id) return true;
-    return (gdoc.maintainers || []).includes(actor._id);
+    return groupOwnedBy(gdoc, actor._id);
 }
 
 /** 我能管的组。没权限时是空数组，调用方不用再单独判一次权限。 */

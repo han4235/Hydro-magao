@@ -17,8 +17,103 @@
   .dtoj-hw-sheet { padding: 0; overflow: hidden; border-radius: 20px; box-shadow: 0 16px 40px rgba(28, 39, 64, 0.07); }
 
   /* 筛选条 */
+  /* .dtoj-sheet 默认 overflow:auto，会把小组面板裁在卡片里，这里放开 */
+  .dtoj-hw-page .dtoj-hw-filter { overflow: visible; }
   .dtoj-hw-page .dtoj-hw-filter .dtoj-fields {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) minmax(0, 1.8fr);
+  }
+  /* 管理员多一格「教师」，四列重排 */
+  .dtoj-hw-page .dtoj-hw-filter .dtoj-fields.has-teacher {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.5fr);
+  }
+  /* 小组多选：外层是 label 的替身，样式跟旁边的输入框对齐 */
+  .dtoj-hw-page .dtoj-hw-filter .dtoj-hw-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dtoj-hw-multi { position: relative; font-weight: 400; }
+  .dtoj-hw-multi-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    text-align: left;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .dtoj-hw-multi-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .dtoj-hw-multi-caret {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-top: -4px;
+    border-right: 1.6px solid currentcolor;
+    border-bottom: 1.6px solid currentcolor;
+    transform: rotate(45deg);
+    opacity: 0.55;
+    transition: transform 0.16s ease;
+  }
+  .dtoj-hw-multi.is-open .dtoj-hw-multi-caret { margin-top: 3px; transform: rotate(-135deg); }
+  .dtoj-hw-multi-panel {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  }
+  .dtoj-hw-multi-panel[hidden] { display: none; }
+  .dtoj-hw-multi-panel label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .dtoj-hw-multi-panel label:hover { background: #f2f6fd; }
+  .dtoj-hw-multi-panel input { flex: none; margin: 0; }
+  .dtoj-hw-multi-panel label > span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .dtoj-hw-multi-panel em {
+    flex: none;
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+    font-style: normal;
+  }
+  .dtoj-hw-multi-all { border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; margin-bottom: 4px; }
+  .dtoj-hw-multi-item[hidden] { display: none; }
+  .dtoj-hw-multi-empty {
+    margin: 6px 9px 8px;
+    color: var(--muted);
+    font-size: 12px;
   }
   /* 时间范围：两个日期并排，中间一个短横，占住原来「查看」那格 */
   .dtoj-hw-range {
@@ -331,21 +426,44 @@
       </header>
 
       <form method="get" class="dtoj-sheet dtoj-sheet-pad dtoj-hw-filter" name="filter-form">
-        <div class="dtoj-fields">
+        <div class="dtoj-fields{% if isAdmin %} has-teacher{% endif %}">
           <label>{{ _('Search') }}
             <input type="text" class="textbox" name="q" value="{{ q }}" placeholder="{{ _('Search homeworks...') }}">
           </label>
-          <label>{{ _('Group') }}
-            <select class="select" name="group">
-              <option value=""{% if not group %} selected{% endif %}>{{ _('All') }}</option>
-              {%- for g in groups -%}
-              <option value="{{ g }}"{% if group == g %} selected{% endif %}>{{ g }}</option>
+          {% if isAdmin %}
+          <label>教师
+            <select class="select" name="teacher" data-hw-teacher>
+              <option value=""{% if not teacher %} selected{% endif %}>全部</option>
+              {%- for t in teacherOptions -%}
+              <option value="{{ t.uid }}"{% if teacher == t.uid %} selected{% endif %}>{{ t.name }}</option>
               {%- endfor -%}
-              {%- if not groups|length -%}
-              <option disabled>{{ _('No group available') }}</option>
-              {%- endif -%}
             </select>
           </label>
+          {% endif %}
+          <div class="dtoj-hw-field">
+            <span class="dtoj-hw-field-label">{{ _('Group') }}</span>
+            <div class="dtoj-hw-multi" data-hw-multi>
+              <button type="button" class="textbox dtoj-hw-multi-toggle" data-hw-multi-toggle
+                      aria-haspopup="true" aria-expanded="false">
+                <span class="dtoj-hw-multi-text" data-hw-multi-text>{% if group|length == 0 %}全部{% elif group|length == 1 %}{{ group[0] }}{% else %}已选 {{ group|length }} 项{% endif %}</span>
+                <span class="dtoj-hw-multi-caret" aria-hidden="true"></span>
+              </button>
+              <div class="dtoj-hw-multi-panel" data-hw-multi-panel hidden>
+                <label class="dtoj-hw-multi-all">
+                  <input type="checkbox" data-hw-multi-all{% if group|length == 0 %} checked{% endif %}>
+                  <span>全部</span>
+                </label>
+                {%- for g in groupOptions -%}
+                <label class="dtoj-hw-multi-item" data-owners="{{ g.owners|join(' ') }}" title="{{ g.name }}{% if g.ownerName %} · {{ g.ownerName }}{% endif %}">
+                  <input type="checkbox" name="group" value="{{ g.name }}"{% if group.includes(g.name) %} checked{% endif %}>
+                  <span>{{ g.name }}</span>
+                  {%- if isAdmin and g.ownerName %}<em>{{ g.ownerName }}</em>{% endif %}
+                </label>
+                {%- endfor -%}
+                <p class="dtoj-hw-multi-empty" data-hw-multi-empty hidden>这个教师名下还没有小组</p>
+              </div>
+            </div>
+          </div>
           <label class="dtoj-hw-range-label">{{ _('Time Range') }}
             <span class="dtoj-hw-range">
               <input type="date" class="textbox" name="from" value="{{ from }}" aria-label="起始日期">
@@ -386,9 +504,9 @@
       <section class="dtoj-sheet dtoj-hw-sheet">
         {% if not tdocs.length %}
         <div class="dtoj-hw-empty">
-          {% if q or group or from or to %}
+          {% if q or group|length or teacher or from or to %}
           <h2>没有符合条件的作业</h2>
-          <p>换个关键字、调一下时间范围，或者把小组筛选清掉再看看。</p>
+          <p>换个关键字、调一下时间范围，或者把教师、小组筛选清掉再看看。</p>
           <a class="dtoj-hw-reset" href="{{ url('homework_main') }}">清空筛选</a>
           {% elif hwSelfOnly %}
           <h2>暂时没有你的作业</h2>
@@ -551,6 +669,65 @@
       dialog.addEventListener('change', sync);
       sync();
     });
+  }());
+
+  // 小组多选：原生 select 只能选一个，这里用一个勾选面板替代。
+  // 「全部」等于不带 group 参数；选了教师之后，面板里只留那个教师名下的小组，
+  // 被隐藏的小组同时取消勾选 —— 否则提交出去的条件和界面上看到的不一致。
+  (function () {
+    var box = document.querySelector('[data-hw-multi]');
+    if (!box) return;
+    var form = box.closest('form');
+    var toggle = box.querySelector('[data-hw-multi-toggle]');
+    var panel = box.querySelector('[data-hw-multi-panel]');
+    var text = box.querySelector('[data-hw-multi-text]');
+    var all = box.querySelector('[data-hw-multi-all]');
+    var empty = box.querySelector('[data-hw-multi-empty]');
+    var teacher = form ? form.querySelector('[data-hw-teacher]') : null;
+    var items = Array.prototype.slice.call(box.querySelectorAll('.dtoj-hw-multi-item'));
+    function inputOf(item) { return item.querySelector('input[type="checkbox"]'); }
+
+    function syncText() {
+      var picked = items.filter(function (item) { return inputOf(item).checked; });
+      if (!picked.length) text.textContent = '全部';
+      else if (picked.length === 1) text.textContent = inputOf(picked[0]).value;
+      else text.textContent = '已选 ' + picked.length + ' 项';
+      if (all) all.checked = !picked.length;
+    }
+    function applyTeacher() {
+      var uid = teacher ? teacher.value : '';
+      var shown = 0;
+      items.forEach(function (item) {
+        // 一个组可能归多个人：有 owner 的算 owner，没有 owner 的老组算在所有管理员头上
+        var owners = (item.getAttribute('data-owners') || '').split(' ');
+        var match = !uid || owners.indexOf(uid) !== -1;
+        item.hidden = !match;
+        if (match) shown += 1;
+        else inputOf(item).checked = false;
+      });
+      if (empty) empty.hidden = shown > 0;
+      syncText();
+    }
+    function setOpen(open) {
+      panel.hidden = !open;
+      box.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setOpen(panel.hidden);
+    });
+    document.addEventListener('click', function (e) {
+      if (!box.contains(e.target)) setOpen(false);
+    });
+    box.addEventListener('change', function (e) {
+      if (e.target === all) {
+        items.forEach(function (item) { inputOf(item).checked = false; });
+      }
+      syncText();
+    });
+    if (teacher) teacher.addEventListener('change', applyTeacher);
+    applyTeacher();
   }());
 </script>
 {% endblock %}

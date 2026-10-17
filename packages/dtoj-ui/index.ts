@@ -14,9 +14,9 @@ import {
 } from './homeworkMerge';
 import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
 import {
-    addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
-    HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
-    myGroupNames, ownsGroup,
+    addableGroupMembers, applyUserGroups, canManageGroups, groupAdminUids, groupCreators, groupOwnedBy,
+    groupOwnerUids, groupUsageCounts, HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups,
+    managesAllGroups, memberNames, myGroupNames, ownsGroup,
 } from './userGroups';
 import {
     CreateStudentsResult, createStudents, initStudentPasswords, listStudents,
@@ -137,35 +137,76 @@ export class DtojDataHandler extends DtojPageHandler {
 }
 
 /**
- * 作业列表。行为对齐 core 的 HomeworkMainHandler，只改一件事：
- * 没有「看全部作业」权限的人（学生）不再看到分给别人的作业。
+ * 作业列表。行为对齐 core 的 HomeworkMainHandler，改两件事：
  *
- * core 的过滤条件里有一条 `assign: { $size: 0 }`，意思是没指定给任何人的作业对全站可见，
- * 于是学生会在列表里看到别人班的作业。这里把这条去掉，学生只看两类：
- *   - assign 命中自己的用户组（含按 uid 单点布置）→ 待认领或已认领的作业
- *   - 自己已经认领过的（哪怕后来被移出用户组）→ 历史作业
- * 老师（PERM_VIEW_HIDDEN_HOMEWORK）仍然看到全部。
+ * 一、没有「看全部作业」权限的人（学生）不再看到分给别人的作业。
+ *    core 的过滤条件里有一条 `assign: { $size: 0 }`，意思是没指定给任何人的作业对全站可见，
+ *    于是学生会在列表里看到别人班的作业。这里把这条去掉，学生只看两类：
+ *      - assign 命中自己的用户组（含按 uid 单点布置）→ 待认领或已认领的作业
+ *      - 自己已经认领过的（哪怕后来被移出用户组）→ 历史作业
+ *
+ * 二、教师之间互相隔离。教师名下的组归他，列表里只出现「自己发的 + 分到自己组的」
+ *    作业，别的老师布置的看不到；小组筛选也只列自己名下那几个。
+ *    管理员（能管全部分组）不受限，并且多一个「教师」筛选：先选老师再选他的小组。
  *
  * 另外给每行补 hwAssigned / hwAttended，让页面能标出「待认领 / 已认领」。
  */
 class DtojHomeworkMainHandler extends DtojPageHandler {
-    @param('group', Types.Name, true)
+    // 小组是多选，重复的 group 参数由 ArrayOf 收成数组；空值在这里先过一遍再按库里真实组名核验
+    @param('group', Types.ArrayOf(Types.String, true), true)
+    @param('teacher', Types.PositiveInt, true)
     @param('page', Types.PositiveInt, true)
     @param('q', Types.String, true)
     @param('from', Types.Date, true)
     @param('to', Types.Date, true)
-    async get(domainId: string, group = '', page = 1, q = '', fromDate = '', toDate = '') {
+    async get(
+        domainId: string, groupPicked: string[] = [], teacherPick: number, page = 1, q = '',
+        fromDate = '', toDate = '',
+    ) {
         const canViewAll = this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_HOMEWORK);
         const loggedIn = this.user.hasPriv(PRIV.PRIV_USER_PROFILE);
-        const groups = (await UserModel.listGroup(domainId, canViewAll ? undefined : this.user._id))
-            .map((i) => i.name);
-        if (group && !groups.includes(group)) throw new NotAssignedError(group);
+        // 管理员 = 能管全部分组（域主与 root 有这一位，教师只有 MANAGE_GROUP）；教师 = 其余能看全部作业的人
+        const isAdmin = managesAllGroups(this.user);
+        const isTeacher = !isAdmin && canViewAll;
+        // 管理员按教师筛；教师、学生一律看自己的口径，传进来的 teacher 直接忽略
+        const teacher = isAdmin && teacherPick ? teacherPick : null;
+
+        // 能看到的小组：管理员全部、教师只有自己名下的、学生只有自己加入的
+        const groups = await UserModel.listGroup(domainId, canViewAll ? undefined : this.user._id);
+        const ownedGroups = groups.filter((gdoc) => groupOwnedBy(gdoc, this.user._id));
+        const visibleGroups = isAdmin ? groups : isTeacher ? ownedGroups : groups;
+        // 没有 owner 的老组算在管理员头上，选教师的时候才有人能认领它们
+        const adminUids = isAdmin ? await groupAdminUids(domainId) : new Set<number>();
+        const ownerUidsOf = (gdoc: { owner?: number, maintainers?: number[] }) => groupOwnerUids(gdoc, adminUids);
+        // 组名里可能有中文和空格，所以不用 Types.Name 做 saslprep 归一化，直接跟库里的名字比
+        const groupNames = visibleGroups.map((gdoc) => gdoc.name);
+        const picked = [...new Set(groupPicked.map((name) => (name || '').trim()).filter(Boolean))];
+        const unknown = picked.find((name) => !groupNames.includes(name));
+        if (unknown) throw new NotAssignedError(unknown);
 
         const myGroups = loggedIn ? await myHomeworkGroups(domainId, this.user._id) : [];
         const attended = loggedIn ? await myAttendedHomeworkIds(domainId, this.user._id) : new Set<string>();
 
         const filter: Record<string, any> = { rule: 'homework' };
-        if (!canViewAll || group) {
+        if (isTeacher) {
+            // 自己发的（含按 uid 布置的）or 分到自己名下小组的
+            filter.$and = [{
+                $or: [
+                    { owner: this.user._id },
+                    { maintainer: this.user._id },
+                    { assign: { $in: ownedGroups.map((gdoc) => gdoc.name) } },
+                ],
+            }];
+        } else if (teacher) {
+            // 管理员的「教师」筛选，口径与教师自己看到的范围一致
+            filter.$and = [{
+                $or: [
+                    { owner: teacher },
+                    { maintainer: teacher },
+                    { assign: { $in: groups.filter((gdoc) => ownerUidsOf(gdoc).has(teacher)).map((gdoc) => gdoc.name) } },
+                ],
+            }];
+        } else if (!canViewAll) {
             const scope: Record<string, any>[] = [
                 { owner: this.user._id },
                 { maintainer: this.user._id },
@@ -174,7 +215,7 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             if (attended.size) scope.push({ _id: { $in: [...attended] } });
             filter.$or = scope;
         }
-        if (group) filter.assign = { $in: [group] };
+        if (picked.length) filter.assign = { $in: picked };
         if (q) {
             const escaped = escapeRegExp(q.toLowerCase());
             filter.title = { $regex: new RegExp(q.length >= 2 ? escaped : `\\A${escaped}`, 'gim') };
@@ -277,19 +318,67 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             }
         }
 
-        let qs = group ? `group=${group}` : '';
-        if (q) qs += `${qs ? '&' : ''}q=${encodeURIComponent(q)}`;
-        if (from) qs += `${qs ? '&' : ''}from=${from}`;
-        if (to) qs += `${qs ? '&' : ''}to=${to}`;
+        // 小组选项：名字 + 归谁管，管理员选完教师后前端按归属账号过滤这张表
+        const allOwnerUids = [...new Set(visibleGroups.flatMap((gdoc) => [...ownerUidsOf(gdoc)]))];
+        const ownerDict = allOwnerUids.length ? await UserModel.getListForRender(domainId, allOwnerUids, false) : {};
+        const nameOfOwner = (uid?: number) => (typeof uid === 'number'
+            ? ownerDict[uid]?.displayName || ownerDict[uid]?.uname || `#${uid}`
+            : '');
+        const groupOptions = visibleGroups
+            .filter((gdoc) => !Number.isSafeInteger(+gdoc.name))
+            .map((gdoc) => {
+                const owners = [...ownerUidsOf(gdoc)];
+                return {
+                    name: gdoc.name,
+                    owners,
+                    // 老组没有 owner，标成「管理员」，跟小组管理页的叫法一致
+                    ownerName: typeof gdoc.owner === 'number'
+                        ? nameOfOwner(gdoc.owner)
+                        : (owners.length ? '管理员' : ''),
+                };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+
+        // 「教师」下拉只给管理员：候选 = 名下有组的 + 发过作业的 + 管理员自己，再要求这个人建得了作业
+        let teacherOptions: { uid: number, name: string }[] = [];
+        if (isAdmin) {
+            const candidates = new Set<number>(adminUids);
+            for (const gdoc of groups) {
+                if (typeof gdoc.owner === 'number') candidates.add(gdoc.owner);
+                for (const uid of gdoc.maintainers || []) candidates.add(uid);
+            }
+            const owners = await ContestModel.getMulti(domainId, { rule: 'homework' })
+                .project<{ owner?: number }>({ owner: 1 })
+                .toArray();
+            for (const tdoc of owners) if (typeof tdoc.owner === 'number') candidates.add(tdoc.owner);
+            if (teacher) candidates.add(teacher);
+            // 用 getList 而不是 getListForRender：要按权限位筛掉「能出现但建不了作业」的人
+            const dict = candidates.size ? await UserModel.getList(domainId, [...candidates]) : {};
+            teacherOptions = [...candidates]
+                .filter((uid) => !HIDDEN_DOMAIN_USER_IDS.has(uid))
+                .filter((uid) => dict[uid]?.hasPerm(PERM.PERM_CREATE_HOMEWORK))
+                .map((uid) => ({ uid, name: dict[uid].displayName || dict[uid].uname || `#${uid}` }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+        }
+
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (teacher) params.set('teacher', String(teacher));
+        for (const name of picked) params.append('group', name);
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
         this.response.body = {
             tdocs: rows,
             calendar,
             mergeGroups,
             tpcount,
             page,
-            qs,
-            groups: groups.filter((i) => !Number.isSafeInteger(+i)),
-            group,
+            qs: params.toString(),
+            isAdmin,
+            teacher,
+            teacherOptions,
+            groupOptions,
+            group: picked,
             q,
             from,
             to,
