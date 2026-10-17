@@ -117,6 +117,24 @@
     resize: vertical;
   }
 
+  /* 代码框换了 Monaco 之后：边框和圆角仍留在外层 .textarea-container 上，
+     编辑器那个 div 只负责铺满，去掉主题给 div.textbox 的 min-height 和外边距。 */
+  .dtoj-sub-code .textarea-container > div.textbox {
+    min-height: 0;
+    /* 和原来的 textarea 一样高（textarea 的 380px 含内边距，编辑器没有内边距，
+       不补这一句会矮掉一截）。 */
+    height: 380px !important;
+    margin: 0;
+    border: 0;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .dtoj-sub-code .textarea-container > div.textbox .monaco-editor,
+  .dtoj-sub-code .textarea-container > div.textbox .monaco-editor .margin,
+  .dtoj-sub-code .textarea-container > div.textbox .monaco-editor-background {
+    border-radius: 14px;
+  }
+
   /* 上传。原生 file 控件套一层虚线行，按钮跟着次按钮的样子走 */
   .dtoj-sub-upload {
     display: flex;
