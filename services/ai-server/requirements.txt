@@ -2,4 +2,6 @@ fastapi==0.115.6
 uvicorn==0.34.0
 python-multipart==0.0.20
 markitdown==0.0.1a3
+# markdownify 1.x 改了 convert_img 的签名，markitdown 0.0.1a3 会抛 TypeError 并静默退回纯文本
+markdownify==0.12.1
 pymongo==4.10.1
