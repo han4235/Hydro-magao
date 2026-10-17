@@ -152,7 +152,9 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
     @param('group', Types.Name, true)
     @param('page', Types.PositiveInt, true)
     @param('q', Types.String, true)
-    async get(domainId: string, group = '', page = 1, q = '') {
+    @param('from', Types.Date, true)
+    @param('to', Types.Date, true)
+    async get(domainId: string, group = '', page = 1, q = '', fromDate = '', toDate = '') {
         const canViewAll = this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_HOMEWORK);
         const loggedIn = this.user.hasPriv(PRIV.PRIV_USER_PROFILE);
         const groups = (await UserModel.listGroup(domainId, canViewAll ? undefined : this.user._id))
@@ -176,6 +178,23 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
         if (q) {
             const escaped = escapeRegExp(q.toLowerCase());
             filter.title = { $regex: new RegExp(q.length >= 2 ? escaped : `\\A${escaped}`, 'gim') };
+        }
+
+        // 时间范围按用户所在时区整天算：起那天 00:00、止那天 23:59:59。
+        // 只要作业的进行期（开始 → 最终截止）跟这段时间有重叠就列出来，
+        // 这样查「这周要做哪些作业」时，跨周的作业不会漏掉。
+        const tz = this.user.timeZone || 'Asia/Shanghai';
+        let from = fromDate;
+        let to = toDate;
+        if (from && to && from > to) [from, to] = [to, from];
+        const fromAt = from ? moment.tz(from, 'YYYY-MM-DD', tz).startOf('day').toDate() : null;
+        const toAt = to ? moment.tz(to, 'YYYY-MM-DD', tz).endOf('day').toDate() : null;
+        if (fromAt || toAt) {
+            const range: Record<string, any> = {};
+            if (toAt) range.beginAt = { $lte: toAt };
+            if (fromAt) range.endAt = { $gte: fromAt };
+            // 权限那一段已经占了 $or，日期条件用 $and 单独放，免得把范围写串
+            filter.$and = [...(filter.$and || []), range];
         }
 
         const cursor = ContestModel.getMulti(domainId, filter)
@@ -260,6 +279,8 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 
         let qs = group ? `group=${group}` : '';
         if (q) qs += `${qs ? '&' : ''}q=${encodeURIComponent(q)}`;
+        if (from) qs += `${qs ? '&' : ''}from=${from}`;
+        if (to) qs += `${qs ? '&' : ''}to=${to}`;
         this.response.body = {
             tdocs: rows,
             calendar,
@@ -270,6 +291,8 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             groups: groups.filter((i) => !Number.isSafeInteger(+i)),
             group,
             q,
+            from,
+            to,
             hwSelfOnly: !canViewAll && loggedIn,
         };
         this.response.template = 'homework_main.html';

@@ -18,8 +18,19 @@
 
   /* 筛选条 */
   .dtoj-hw-page .dtoj-hw-filter .dtoj-fields {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) minmax(0, 1.8fr);
   }
+  /* 时间范围：两个日期并排，中间一个短横，占住原来「查看」那格 */
+  .dtoj-hw-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dtoj-hw-range .textbox {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .dtoj-hw-range-sep { flex: none; color: var(--muted); }
   .dtoj-hw-page form.dtoj-sheet-pad.dtoj-hw-filter .dtoj-actions .dtoj-go {
     color: #fff;
     background: var(--brand-deep);
@@ -335,11 +346,12 @@
               {%- endif -%}
             </select>
           </label>
-          <label class="nojs--hide">{{ _('View') }}
-            <select class="select" name="homework_display">
-              <option value="list" selected>{{ _('List View') }}</option>
-              <option value="calendar">{{ _('Calendar View') }}</option>
-            </select>
+          <label class="dtoj-hw-range-label">{{ _('Time Range') }}
+            <span class="dtoj-hw-range">
+              <input type="date" class="textbox" name="from" value="{{ from }}" aria-label="起始日期">
+              <span class="dtoj-hw-range-sep">—</span>
+              <input type="date" class="textbox" name="to" value="{{ to }}" aria-label="结束日期">
+            </span>
           </label>
         </div>
         <div class="dtoj-actions">
@@ -374,9 +386,9 @@
       <section class="dtoj-sheet dtoj-hw-sheet">
         {% if not tdocs.length %}
         <div class="dtoj-hw-empty">
-          {% if q or group %}
+          {% if q or group or from or to %}
           <h2>没有符合条件的作业</h2>
-          <p>换个关键字，或者把小组筛选清掉再看看。</p>
+          <p>换个关键字、调一下时间范围，或者把小组筛选清掉再看看。</p>
           <a class="dtoj-hw-reset" href="{{ url('homework_main') }}">清空筛选</a>
           {% elif hwSelfOnly %}
           <h2>暂时没有你的作业</h2>
