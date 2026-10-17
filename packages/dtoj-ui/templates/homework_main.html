@@ -18,8 +18,19 @@
 
   /* 筛选条 */
   .dtoj-hw-page .dtoj-hw-filter .dtoj-fields {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) minmax(0, 1.8fr);
   }
+  /* 时间范围：两个日期并排，中间一个短横，占住原来「查看」那格 */
+  .dtoj-hw-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dtoj-hw-range .textbox {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .dtoj-hw-range-sep { flex: none; color: var(--muted); }
   .dtoj-hw-page form.dtoj-sheet-pad.dtoj-hw-filter .dtoj-actions .dtoj-go {
     color: #fff;
     background: var(--brand-deep);
@@ -335,11 +346,12 @@
               {%- endif -%}
             </select>
           </label>
-          <label class="nojs--hide">{{ _('View') }}
-            <select class="select" name="homework_display">
-              <option value="list" selected>{{ _('List View') }}</option>
-              <option value="calendar">{{ _('Calendar View') }}</option>
-            </select>
+          <label class="dtoj-hw-range-label">{{ _('Time Range') }}
+            <span class="dtoj-hw-range">
+              <input type="date" class="textbox" name="from" value="{{ from }}" aria-label="起始日期">
+              <span class="dtoj-hw-range-sep">—</span>
+              <input type="date" class="textbox" name="to" value="{{ to }}" aria-label="结束日期">
+            </span>
           </label>
         </div>
         <div class="dtoj-actions">
@@ -355,7 +367,7 @@
       <section class="dtoj-sheet dtoj-hw-merge" aria-labelledby="dtoj-hw-merge-title">
         <div>
           <h2 id="dtoj-hw-merge-title">有 {{ mergeGroups|length }} 组作业可以合并</h2>
-          <p>同一批人收到了好几份作业。勾选要并的，题目取并集、时间取最早开始与最晚截止，其余几份会被删掉；学生已认领和已交的记录一起带过去。</p>
+          <p>同一批人收到了好几份作业。勾选要并的，题目取并集，起止时间沿用还在进行的那几份，其余几份会被删掉；学生已认领和已交的记录一起带过去。</p>
         </div>
         <ul class="dtoj-hw-merge-list">
           {%- for g in mergeGroups -%}
@@ -374,9 +386,9 @@
       <section class="dtoj-sheet dtoj-hw-sheet">
         {% if not tdocs.length %}
         <div class="dtoj-hw-empty">
-          {% if q or group %}
+          {% if q or group or from or to %}
           <h2>没有符合条件的作业</h2>
-          <p>换个关键字，或者把小组筛选清掉再看看。</p>
+          <p>换个关键字、调一下时间范围，或者把小组筛选清掉再看看。</p>
           <a class="dtoj-hw-reset" href="{{ url('homework_main') }}">清空筛选</a>
           {% elif hwSelfOnly %}
           <h2>暂时没有你的作业</h2>
@@ -421,7 +433,7 @@
             <dl class="dtoj-hw-facts">
               <div><dt>题目</dt><dd>{{ tdoc.pids|length }}</dd></div>
               {% if not hwSelfOnly %}
-              <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }}</dd></div>
+              <div><dt>已认领</dt><dd>{{ tdoc.hwClaimed|default(0) }}</dd></div>
               {% if tdoc.hwUnclaimed is not none %}
               <div><dt>未认领</dt><dd>{{ tdoc.hwUnclaimed }}</dd></div>
               {% endif %}
@@ -442,7 +454,7 @@
             <h2>合并作业</h2>
             <p class="dtoj-hw-merge-sub">{{ g.label }} · {{ g.tdocs|length }} 份</p>
           </div>
-          <p class="dtoj-hw-merge-hint">保留开始最早的那一份「{{ g.tdocs[0].title }}」，它原来的作业链接继续有效，其余几份会被删除。题目取并集，开始取最早、截止取最晚，已认领和已交的记录一起转过来；作业说明沿用保留的那一份。</p>
+          <p class="dtoj-hw-merge-hint">保留「{{ g.targetTitle }}」，它原来的作业链接继续有效，其余几份会被删除。题目取并集，起止时间沿用还在进行的那几份，已认领和已交的记录一起转过来；作业说明沿用保留的那一份。已经结束、又没人认领也没人交过题的作业也可以并进来，它只贡献题目，期限不会因此延长。</p>
           <ul class="dtoj-hw-merge-picks">
             {%- for item in g.tdocs -%}
             <li>
@@ -450,14 +462,14 @@
                 <input type="checkbox" name="tids" value="{{ item.tid }}" checked>
                 <span>
                   <b>{{ item.title }}</b>
-                  <span>{{ item.pids }} 题 · 开始 {{ item.beginText }} · 截止 {{ item.penaltyText }} · 已认领 {{ item.attend }}</span>
+                  <span>{{ item.pids }} 题 · 开始 {{ item.beginText }} · 截止 {{ item.penaltyText }} · 已认领 {{ item.attend }}{% if item.done %} · 已结束（无人认领、无提交）{% endif %}</span>
                 </span>
               </label>
             </li>
             {%- endfor -%}
           </ul>
           <label class="dtoj-hw-merge-field">合并后的标题
-            <input class="textbox" type="text" name="title" value="{{ g.tdocs[0].title }}" maxlength="64" required>
+            <input class="textbox" type="text" name="title" value="{{ g.targetTitle }}" maxlength="64" required>
           </label>
           <div class="dtoj-hw-merge-actions">
             <button type="submit" class="dtoj-go">确认合并</button>

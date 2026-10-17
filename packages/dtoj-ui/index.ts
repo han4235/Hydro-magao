@@ -12,7 +12,7 @@ import { applyInboxNotices } from './inboxNotices';
 import {
     assignSignature, homeworkMergeGroups, mergeAssignLabel, mergedPids, mergedWindow, pickMergeTarget,
 } from './homeworkMerge';
-import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, unclaimedCounts } from './homeworkScope';
+import { emptyHomeworks, hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
     HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
@@ -152,7 +152,9 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
     @param('group', Types.Name, true)
     @param('page', Types.PositiveInt, true)
     @param('q', Types.String, true)
-    async get(domainId: string, group = '', page = 1, q = '') {
+    @param('from', Types.Date, true)
+    @param('to', Types.Date, true)
+    async get(domainId: string, group = '', page = 1, q = '', fromDate = '', toDate = '') {
         const canViewAll = this.user.hasPerm(PERM.PERM_VIEW_HIDDEN_HOMEWORK);
         const loggedIn = this.user.hasPriv(PRIV.PRIV_USER_PROFILE);
         const groups = (await UserModel.listGroup(domainId, canViewAll ? undefined : this.user._id))
@@ -178,6 +180,23 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             filter.title = { $regex: new RegExp(q.length >= 2 ? escaped : `\\A${escaped}`, 'gim') };
         }
 
+        // 时间范围按用户所在时区整天算：起那天 00:00、止那天 23:59:59。
+        // 只要作业的进行期（开始 → 最终截止）跟这段时间有重叠就列出来，
+        // 这样查「这周要做哪些作业」时，跨周的作业不会漏掉。
+        const tz = this.user.timeZone || 'Asia/Shanghai';
+        let from = fromDate;
+        let to = toDate;
+        if (from && to && from > to) [from, to] = [to, from];
+        const fromAt = from ? moment.tz(from, 'YYYY-MM-DD', tz).startOf('day').toDate() : null;
+        const toAt = to ? moment.tz(to, 'YYYY-MM-DD', tz).endOf('day').toDate() : null;
+        if (fromAt || toAt) {
+            const range: Record<string, any> = {};
+            if (toAt) range.beginAt = { $lte: toAt };
+            if (fromAt) range.endAt = { $gte: fromAt };
+            // 权限那一段已经占了 $or，日期条件用 $and 单独放，免得把范围写串
+            filter.$and = [...(filter.$and || []), range];
+        }
+
         const cursor = ContestModel.getMulti(domainId, filter)
             .sort({ penaltySince: -1, endAt: -1, beginAt: -1, _id: -1 });
         const [tdocs, tpcount] = await this.paginate(cursor, page, 'contest');
@@ -195,16 +214,22 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 
         // 行上要标「待认领 / 已认领」：assign 命中我就是分给我的，attend 记录我认领过没有
         const groupSet = new Set(myGroups);
-        // 未认领人数只给看得到「已认领」那一列的人算：学生那边模板不渲染这两列
-        const unclaimed = canViewAll
-            ? await unclaimedCounts(domainId, tdocs)
-            : new Map<string, number | null>();
-        const rows = tdocs.map((tdoc) => ({
-            ...tdoc,
-            hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
-            hwAttended: attended.has(String(tdoc.docId)),
-            hwUnclaimed: unclaimed.get(String(tdoc.docId)) ?? null,
-        }));
+        // 已认领 / 未认领都以名单为准：老师改过分配之后，被移出名单的人
+        // 之前的认领记录还在库里，但那已经不算这次作业的成绩了。
+        // 这两列只有看得到的人需要算，学生那边模板不渲染。
+        const stats = canViewAll
+            ? await homeworkRosterStats(domainId, tdocs)
+            : new Map<string, { roster: Set<number> | null, claimed: Set<number> }>();
+        const rows = tdocs.map((tdoc) => {
+            const stat = stats.get(String(tdoc.docId));
+            return {
+                ...tdoc,
+                hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
+                hwAttended: attended.has(String(tdoc.docId)),
+                hwClaimed: stat ? stat.claimed.size : (tdoc.attend || 0),
+                hwUnclaimed: stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null,
+            };
+        });
 
         // 合并建议：同一批人收到了好几份作业，就给一个一键并成一份的入口。
         // 只对能改作业的人算；扫的是当前筛选条件下的全部作业而不是当前页，
@@ -214,19 +239,39 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             const canEditAll = this.user.hasPerm(PERM.PERM_EDIT_HOMEWORK);
             const candidates = (await ContestModel.getMulti(domainId, filter).toArray())
                 .filter((tdoc) => canEditAll || this.user.own(tdoc));
+            // 「已认领」按名单口径，和作业行上那一列保持一致
+            const candidateStats = await homeworkRosterStats(domainId, candidates);
+            // 已结束但没人认领、没交过题的作业也允许并进来：它们只贡献题目，没有历史可改
+            const empty = await emptyHomeworks(domainId, candidates);
+            const mergeGroupsRaw = homeworkMergeGroups(
+                candidates, (tdoc) => empty.has(String(tdoc.docId)),
+            );
+            // 按人布置的 assign 存的是 uid，直接摊出来就是「16」，这里换成学生名
+            const numUids = new Set<number>();
+            for (const mergeGroup of mergeGroupsRaw) {
+                for (const name of mergeGroup.assign) if (/^\d+$/.test(name)) numUids.add(+name);
+            }
+            const numUdict = numUids.size
+                ? await UserModel.getListForRender(domainId, [...numUids], false)
+                : {};
+            const nameOf = (uid: number) => numUdict[uid]?.displayName || numUdict[uid]?.uname;
             const when = (date: Date) => moment(date).tz(this.user.timeZone || 'Asia/Shanghai').format('M-D H:mm');
-            for (const merge of homeworkMergeGroups(candidates)) {
+            for (const merge of mergeGroupsRaw) {
+                const target = pickMergeTarget(merge.tdocs);
                 mergeGroups.push({
                     key: merge.key,
-                    label: mergeAssignLabel(merge.assign),
+                    label: mergeAssignLabel(merge.assign, nameOf),
                     pids: mergedPids(merge.tdocs).length,
+                    targetTid: String(target.docId),
+                    targetTitle: target.title,
                     tdocs: merge.tdocs.map((tdoc) => ({
                         tid: String(tdoc.docId),
                         title: tdoc.title,
                         pids: (tdoc.pids || []).length,
+                        done: ContestModel.isDone(tdoc),
                         beginText: when(tdoc.beginAt),
                         penaltyText: when(tdoc.penaltySince),
-                        attend: tdoc.attend || 0,
+                        attend: candidateStats.get(String(tdoc.docId))?.claimed.size ?? (tdoc.attend || 0),
                     })),
                 });
             }
@@ -234,6 +279,8 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 
         let qs = group ? `group=${group}` : '';
         if (q) qs += `${qs ? '&' : ''}q=${encodeURIComponent(q)}`;
+        if (from) qs += `${qs ? '&' : ''}from=${from}`;
+        if (to) qs += `${qs ? '&' : ''}to=${to}`;
         this.response.body = {
             tdocs: rows,
             calendar,
@@ -244,6 +291,8 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             groups: groups.filter((i) => !Number.isSafeInteger(+i)),
             group,
             q,
+            from,
+            to,
             hwSelfOnly: !canViewAll && loggedIn,
         };
         this.response.template = 'homework_main.html';
@@ -253,13 +302,13 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 /**
  * 合并作业：把分给同一批人的几份作业并成一份。
  *
- * 为什么并进「最早开始的那一份」而不是新建一份再删旧的：新建会换 docId，
+ * 为什么并进现成的一份而不是新建一份再删旧的：新建会换 docId，
  * 学生收藏的作业链接、站内消息里的链接全会失效；并进现成的一份，
- * 至少最早那条链接还能打开。
+ * 至少那条链接还能打开。优先并进还没结束的那份，这样并完作业继续在跑。
  *
  * 合并做五件事：
  *   1. 题目取并集，保留那份的题目排在最前；
- *   2. 开始取最早、截止取最晚，延期窗口跟着最晚的走；
+ *   2. 时间只按还没结束的那几份取：最早开始、最晚截止，不因已结束的旧作业把期限往后推；
  *   3. 别处的提交先挂到保留那份的 journal 上，再改 record.contest —— 只改 record
  *      不改 journal 的话，作业成绩表里看不到这些提交；
  *   4. 认领状态补齐，学生重新打开时还是「已认领」；
@@ -275,9 +324,14 @@ class DtojHomeworkMergeHandler extends DtojDataHandler {
         for (const id of ids) {
             const tdoc = ObjectId.isValid(id) ? await ContestModel.get(domainId, new ObjectId(id)) : null;
             if (tdoc?.rule !== 'homework') throw new ContestNotFoundError(domainId, id);
-            // 已经结束的作业成绩已定，不参与合并：列表里不给入口，这里再拦一道
-            if (ContestModel.isDone(tdoc)) throw new ValidationError('tids');
             tdocs.push(tdoc);
+        }
+        // 已经结束的作业成绩已定，原则上不并；唯一的例外是那份「空的」——
+        // 没人认领也没人交过题，并进来只是把题目挪过去，没有历史可改。
+        const empty = await emptyHomeworks(domainId, tdocs);
+        if (tdocs.every((tdoc) => ContestModel.isDone(tdoc))) throw new ValidationError('tids');
+        for (const tdoc of tdocs) {
+            if (ContestModel.isDone(tdoc) && !empty.has(String(tdoc.docId))) throw new ValidationError('tids');
         }
         // 自己建的作业可以合并；动别人建的作业要有「编辑任意作业」的权限
         if (!tdocs.every((tdoc) => this.user.own(tdoc))) this.checkPerm(PERM.PERM_EDIT_HOMEWORK);
@@ -933,10 +987,12 @@ export async function apply(ctx: Context) {
             tdoc.domainId, [...uids], that.user.hasPerm(PERM.PERM_VIEW_USER_PRIVATE_INFO),
         );
         body.hwCanManage = canManage;
-        // 「作业概况」里 已认领 下面那行。assign 为空（全站可见）时给 null，模板不渲染
-        body.hwUnclaimed = (await unclaimedCounts(tdoc.domainId, [tdoc])).get(String(tdoc.docId)) ?? null;
+        // 「作业概况」里的 已认领 / 未认领，同样按名单算，口径和列表页一致
+        const stat = (await homeworkRosterStats(tdoc.domainId, [tdoc])).get(String(tdoc.docId));
+        body.hwClaimed = stat?.claimed.size ?? (tdoc.attend || 0);
+        body.hwUnclaimed = stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null;
         if (!canManage) return;
-        const progress = await listHomeworkProgress(tdoc.domainId, tdoc);
+        const progress = await listHomeworkProgress(tdoc.domainId, tdoc, stat?.roster);
         body.hwProgress = {
             ...progress,
             udict: await UserModel.getListForRender(tdoc.domainId, progress.rows.map((row) => row.uid), false),

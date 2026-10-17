@@ -253,22 +253,29 @@ export async function notifyHomeworkCompleted(
 
 export interface HomeworkProgressRow {
     uid: number;
+    /** 名单里但还没认领，进度表照样列出来，标「待认领」 */
+    attended: boolean;
     done: number;
     lastAt: Date | null;
 }
 
 /**
- * 这次作业下每个已认领同学的完成情况。
+ * 这次作业的完成情况，以「编辑页保存的分配人」为准。
+ *
+ * roster 非空时列出名单上的每个人：认领了的给完成数与最后提交时间，
+ * 没认领的标出来但完成记 0；已经不在名单上的认领记录不再显示。
+ * roster 为空（作业对全站可见）时退回原来的口径，只列认领过的人。
  *
  * 只统计在作业题目列表里的提交（journal 会留下曾经提交过的题，改过题目列表后
  * 可能残留旧 pid）。按「交了最少」排前面，方便老师先看到该催的人。
  */
-export async function listHomeworkProgress(domainId: string, tdoc: any) {
+export async function listHomeworkProgress(domainId: string, tdoc: any, roster?: Set<number> | null) {
     const total = (tdoc.pids || []).length;
     const tsdocs = await ContestModel.getMultiStatus(
         domainId, { docId: tdoc.docId, attend: { $gte: 1 } },
     ).toArray();
-    const rows: HomeworkProgressRow[] = tsdocs.map((tsdoc: any) => {
+    const done = new Map<number, { done: number, lastAt: Date | null }>();
+    for (const tsdoc of tsdocs as any[]) {
         const pids = new Set<number>();
         let lastAt: Date | null = null;
         for (const entry of tsdoc.journal || []) {
@@ -277,8 +284,20 @@ export async function listHomeworkProgress(domainId: string, tdoc: any) {
             const at = entry.rid?.getTimestamp?.();
             if (at && (!lastAt || at > lastAt)) lastAt = at;
         }
-        return { uid: tsdoc.uid, done: pids.size, lastAt };
-    });
+        done.set(tsdoc.uid, { done: pids.size, lastAt });
+    }
+    // 名单未知时只列认领过的人，否则等于把全站用户都列进来说没人认领
+    const uids = roster?.size ? [...roster] : [...done.keys()];
+    const rows: HomeworkProgressRow[] = uids.map((uid) => ({
+        uid,
+        attended: done.has(uid),
+        done: done.get(uid)?.done || 0,
+        lastAt: done.get(uid)?.lastAt || null,
+    }));
     rows.sort((a, b) => (a.done - b.done) || (a.uid - b.uid));
-    return { rows, total, attended: rows.length };
+    const attended = roster?.size
+        ? [...roster].filter((uid) => done.has(uid)).length
+        : done.size;
+    return { rows, total, attended, rosterSize: roster?.size ?? null };
 }
+
