@@ -184,7 +184,9 @@ class HomeworkEditHandler extends Handler {
     @param('extensionDays', Types.Float)
     @param('penaltyRules', Types.Content, validatePenaltyRules, convertPenaltyRules)
     @param('title', Types.Title)
-    @param('content', Types.Content)
+    // 正文可以为空：作业只发题不写说明是正常用法（题目页侧栏的「添加作业」建出来就是这样）。
+    // 不给 true 的话，改个结束时间也会被这条判成「字段 content 验证失败」。
+    @param('content', Types.Content, true)
     @param('pids', Types.Content)
     @param('rated', Types.Boolean)
     @param('maintainer', Types.NumericArray, true)
@@ -193,7 +195,7 @@ class HomeworkEditHandler extends Handler {
     async postUpdate(
         domainId: string, tid: ObjectId, beginAtDate: string, beginAtTime: string,
         penaltySinceDate: string, penaltySinceTime: string, extensionDays: number,
-        penaltyRules: PenaltyRules, title: string, content: string, _pids: string, rated = false,
+        penaltyRules: PenaltyRules, title: string, content = '', _pids: string, rated = false,
         maintainer: number[] = [], assign: string[] = [], langs: string[] = [],
     ) {
         const pids = _pids.replace(/，/g, ',').split(',').map((i) => +i).filter((i) => i);
