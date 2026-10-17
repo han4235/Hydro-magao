@@ -15,12 +15,27 @@
     --s4: 16px;
     --s5: 24px;
     --s6: 32px;
-    /* 代码等宽字体。题解与题目描述里的代码块由 prism 主题给 code[class*=language-]
-       定成这一串，提交页的代码框和记录页的源码也跟着用，全站代码才是同一个样子。 */
-    --dtoj-code-font: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+    /* 全站代码字体。JetBrains Mono 跟着 ui-default 打包（@fontsource），
+       Windows 和 Mac 出来的字形一样；系统里的 Consolas 只有 Windows 有，
+       Mac 会退到 Courier New，细得像打字机，所以不用它。
+       连字在下面的代码规则里关掉，`<=` 要按两个字符显示。 */
+    --dtoj-code-font: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
     color: var(--ink);
     font-size: 1rem;
     line-height: 1.65;
+  }
+  /* 代码块：pre 和它里面的 code 一起定字体。prism 主题单独给
+     code[class*=language-] 设了字体，只改 pre 的话题解里的代码还是旧字形。
+     连字关掉，`<=` 不能被画成一个 `≤`。 */
+  .dtoj-page pre,
+  .dtoj-page pre code,
+  .dtoj-page :not(pre) > code,
+  .dtoj-skin pre,
+  .dtoj-skin pre code,
+  .dtoj-skin :not(pre) > code {
+    font-family: var(--dtoj-code-font);
+    font-variant-ligatures: none;
+    font-feature-settings: "calt" 0, "liga" 0;
   }
   body:has(.dtoj-page),
   body:has(.dtoj-skin),
@@ -147,7 +162,7 @@
   .dtoj-announce p { margin: 0; max-width: 68ch; }
   .dtoj-page pre:not(.dtoj-record-code),
   .dtoj-skin pre:not(.dtoj-record-code) {
-    font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+    font-family: var(--dtoj-code-font);
     font-size: 0.9375rem;
     line-height: 1.5;
     background: var(--wash);
