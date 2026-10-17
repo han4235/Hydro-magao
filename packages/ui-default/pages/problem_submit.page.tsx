@@ -1,9 +1,8 @@
 import $ from 'jquery';
-import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { renderLanguageSelect } from 'vj/components/languageselect';
+import { load } from 'vj/components/monaco/loader';
 import { NamedPage } from 'vj/misc/Page';
-import { getAvailableLangs, i18n, tpl } from 'vj/utils';
+import { getAvailableLangs } from 'vj/utils';
 
 const page = new NamedPage(['problem_submit', 'contest_detail_problem_submit', 'homework_detail_problem_submit'], async () => {
   const { config } = UiContext.pdoc;
@@ -38,21 +37,35 @@ const page = new NamedPage(['problem_submit', 'contest_detail_problem_submit', '
     preferences,
   );
 
-  if (localStorage.getItem('submit-hint') === 'dismiss') return;
-  $(tpl`<div name="hint" class="typo"></div>`).prependTo('[name="submit_section"]');
-  const root = ReactDOM.createRoot(document.querySelector('[name="hint"]'));
-  function ignore() {
-    root.unmount();
-    localStorage.setItem('submit-hint', 'dismiss');
-  }
-
-  root.render(<blockquote className="note">
-    <p>{i18n('This page is only for pasting code from other sources.')}</p>
-    <p>{i18n("To get a better editing experience, with code highlighting and test runs, \
-please go back to the problem detail page and use 'Open Scratchpad' button.")}
-    </p>
-    <a onClick={() => root.unmount()}>{i18n('Dismiss')}</a> / <a onClick={ignore}>{i18n("Don't show again")}</a>
-  </blockquote>);
+  // 代码框换成 Monaco，和题目详情页的草稿本用同一个编辑器：语法高亮、行号、
+  // 括号匹配。原来的 textarea 留着当无脚本兜底，编辑器每次改动都把值同步回去，
+  // 表单提交照旧读 textarea。
+  const $code = $('[name="code"]');
+  if (!$code.length) return;
+  const monacoLang = () => window.LANGS[$('[name="lang"]').val() as string]?.monaco;
+  // 字号字体跟记录页源码、题解代码块保持一致，字体栈从已经生效的 CSS 上读，
+  // 免得这里再抄一份。
+  const style = getComputedStyle($code.get(0));
+  const fontFamily = style.fontFamily;
+  // 字号和行高也照记录页源码来（14px / 1.6），免得两边看着一大一小。
+  const fontSize = Math.round(Number.parseFloat(style.fontSize)) || 14;
+  const lineHeight = Math.round(fontSize * 1.6);
+  const { default: Editor } = await import('vj/components/editor');
+  const editor = new Editor($code, {
+    language: monacoLang() || 'cpp',
+    fontFamily,
+    fontSize,
+    lineHeight,
+    autoResize: false,
+    autoLayout: true,
+    lineNumbers: 'on',
+  });
+  $('[name="lang"]').on('change', async () => {
+    const lang = monacoLang();
+    if (!lang || !editor.model) return;
+    const { monaco } = await load([lang]);
+    monaco.editor.setModelLanguage(editor.model, lang);
+  });
 });
 
 export default page;

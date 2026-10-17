@@ -15,7 +15,10 @@ export default function LanguageSelect({
     if (key.startsWith(`${main}.`)) options[key.split('.')[1]] = availableLangs[key].display;
   }
   React.useEffect(() => {
-    $(fieldSelector).val(sub ? `${main}.${sub}` : main);
+    const value = sub ? `${main}.${sub}` : main;
+    const $field = $(fieldSelector);
+    if ($field.val() === value) return;
+    $field.val(value).trigger('change');
   }, [main, sub]);
   React.useEffect(() => {
     const subselections = Object.keys(options).length;

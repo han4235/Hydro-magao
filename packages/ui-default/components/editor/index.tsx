@@ -17,6 +17,10 @@ interface MonacoOptions {
   value?: string;
   hide?: string[];
   lineNumbers?: 'on' | 'off' | 'relative' | 'interval';
+  /** 不传时用用户的编辑器字体设置（UserContext.codeFontFamily）。 */
+  fontFamily?: string;
+  fontSize?: number;
+  lineHeight?: number;
 }
 type Options = MonacoOptions;
 
@@ -45,6 +49,7 @@ export default class Editor extends DOMAttachedObject {
       model = `file://model-${Math.random().toString(16)}`,
       autoResize = true, autoLayout = true,
       hide = [], lineNumbers = 'on',
+      fontFamily, fontSize, lineHeight: lineHeightOpt,
     } = this.options;
     const { monaco, registerAction } = await load([language]);
     const { $dom } = this;
@@ -71,8 +76,10 @@ export default class Editor extends DOMAttachedObject {
       hideCursorInOverviewRuler: true,
       overviewRulerLanes: 0,
       overviewRulerBorder: false,
-      fontFamily: UserContext.codeFontFamily,
+      fontFamily: fontFamily || UserContext.codeFontFamily,
       fontLigatures: '',
+      ...(fontSize ? { fontSize } : {}),
+      ...(lineHeightOpt ? { lineHeight: lineHeightOpt } : {}),
       unicodeHighlight: {
         ambiguousCharacters: language !== 'markdown',
       },
