@@ -876,6 +876,39 @@ export async function getRelated(domainId: string, pid: number, rule?: string) {
     return await document.getMulti(domainId, document.TYPE_CONTEST, { pids: pid, rule: rule || { $in: rules } }).toArray();
 }
 
+/**
+ * 这次「从题库或训练里直接交」的提交，应该计入哪几份作业。
+ *
+ * 从作业外面提交时不会带 tid，记录里就没有 contest，也就不会进 journal；
+ * 作业详情只认 journal，于是显示「没有递交」。这里挑出可以计入的作业：
+ *   - homework 规则，这道题在 pids 里，当前处在 beginAt ~ endAt 之间
+ *   - 提交人在 assign 名单里（assign 为空是「全站可见」，不挑人）
+ *   - 提交人已经认领：没认领就写 journal，等于凭空空降一条成绩
+ *   - 作业里这道题还没 AC：作业按「同一题最后一条为准」计分，
+ *     AC 之后再挂只可能把成绩改差（变成 WA，或者吃延期罚分），不可能改好
+ * 返回全部候选，交给调用方排除老师自己的试交、并在命中多份时放弃。
+ */
+export async function getHomeworkCandidatesForSubmission(domainId: string, pid: number, uid: number) {
+    const now = new Date();
+    const tdocs = await document.getMulti(domainId, document.TYPE_CONTEST, {
+        rule: 'homework', pids: pid, beginAt: { $lte: now }, endAt: { $gt: now },
+    }).toArray();
+    if (!tdocs.length) return [];
+    // assign 里可能是组名，也可能是单个 uid 的字符串；listGroup 会给本人补一条同名合成组
+    const mine = new Set((await UserModel.listGroup(domainId, uid)).map((group) => group.name));
+    const hits: { tdoc: Tdoc, tsdoc: ContestStatusDoc }[] = [];
+    for (const tdoc of tdocs) {
+        const names = (tdoc.assign || []).map((name) => String(name).trim()).filter((name) => name);
+        if (names.length && !names.some((name) => mine.has(name))) continue;
+        // eslint-disable-next-line no-await-in-loop
+        const tsdoc = await getStatus(domainId, tdoc.docId, uid);
+        if (!tsdoc?.attend) continue;
+        if ((tsdoc.journal || []).some((j) => j.pid === pid && j.status === STATUS.STATUS_ACCEPTED)) continue;
+        hits.push({ tdoc, tsdoc });
+    }
+    return hits;
+}
+
 export async function addBalloon(domainId: string, tid: ObjectId, uid: number, rid: ObjectId, pid: number) {
     const balloon = await collBalloon.find({ domainId, tid, pid }).project({ uid: 1 }).toArray();
     if (balloon.find((i) => i.uid === uid)) return null;
@@ -1210,6 +1243,7 @@ global.Hydro.model.contest = {
     del,
     get,
     getRelated,
+    getHomeworkCandidatesForSubmission,
     updateStatus,
     getStatus,
     count,
