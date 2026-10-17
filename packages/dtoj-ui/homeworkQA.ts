@@ -1,5 +1,5 @@
 import {
-    ContestModel, DocumentModel, MessageModel, ObjectId, db,
+    ContestModel, DocumentModel, MessageModel, ObjectId, STATUS, db,
 } from 'hydrooj';
 
 /**
@@ -259,6 +259,16 @@ export interface HomeworkProgressRow {
     lastAt: Date | null;
 }
 
+/** 一道题在整个班里的情况，给老师看的题目表用。 */
+export interface HomeworkProblemStat {
+    /** 通过（AC）的人数 */
+    ac: number;
+    /** 交过的人数，一个学生只算一次 */
+    submitted: number;
+    /** 这份作业里这道题最后一次提交的时间 */
+    lastAt: Date | null;
+}
+
 /**
  * 这次作业的完成情况，以「编辑页保存的分配人」为准。
  *
@@ -275,16 +285,29 @@ export async function listHomeworkProgress(domainId: string, tdoc: any, roster?:
         domainId, { docId: tdoc.docId, attend: { $gte: 1 } },
     ).toArray();
     const done = new Map<number, { done: number, lastAt: Date | null }>();
+    // 每道题按班统计。看过名单之外的人不参与，否则「2 / 1 通过」这种数字会冒出来
+    const byPid: Record<number, HomeworkProblemStat> = {};
+    for (const pid of tdoc.pids || []) byPid[pid] = { ac: 0, submitted: 0, lastAt: null };
     for (const tsdoc of tsdocs as any[]) {
-        const pids = new Set<number>();
+        if (roster?.size && !roster.has(tsdoc.uid)) continue;
+        // journal 一题可能有多条（交了好几次），和作业计分口径一致，只看最后一条
+        const effective = new Map<number, any>();
         let lastAt: Date | null = null;
         for (const entry of tsdoc.journal || []) {
             if (!tdoc.pids.includes(entry.pid)) continue;
-            pids.add(entry.pid);
+            effective.set(entry.pid, entry);
             const at = entry.rid?.getTimestamp?.();
             if (at && (!lastAt || at > lastAt)) lastAt = at;
         }
-        done.set(tsdoc.uid, { done: pids.size, lastAt });
+        done.set(tsdoc.uid, { done: effective.size, lastAt });
+        for (const [pid, entry] of effective) {
+            const cell = byPid[pid];
+            if (!cell) continue;
+            cell.submitted += 1;
+            if (entry.status === STATUS.STATUS_ACCEPTED) cell.ac += 1;
+            const at = entry.rid?.getTimestamp?.();
+            if (at && (!cell.lastAt || at > cell.lastAt)) cell.lastAt = at;
+        }
     }
     // 名单未知时只列认领过的人，否则等于把全站用户都列进来说没人认领
     const uids = roster?.size ? [...roster] : [...done.keys()];
@@ -298,6 +321,18 @@ export async function listHomeworkProgress(domainId: string, tdoc: any, roster?:
     const attended = roster?.size
         ? [...roster].filter((uid) => done.has(uid)).length
         : done.size;
-    return { rows, total, attended, rosterSize: roster?.size ?? null };
+    // 名单已知才谈「全班都做完了」：对全站可见的作业，谁也不知道还会有谁来认领
+    const allDone = !!roster?.size && total > 0
+        && [...roster].every((uid) => done.get(uid)?.done === total)
+        && Object.values(byPid).every((cell) => cell.ac === roster.size);
+    return {
+        rows,
+        total,
+        attended,
+        rosterSize: roster?.size ?? null,
+        byPid,
+        denom: roster?.size || done.size,
+        allDone,
+    };
 }
 
