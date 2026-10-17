@@ -9,6 +9,8 @@ from pathlib import Path
 
 from markitdown import FileConversionException, MarkItDown, UnsupportedFormatException
 
+from app import luogu, webpage
+
 _CONVERTER: MarkItDown | None = None
 # 默认 UA：不少站点对 Python-urllib/x.y 直接回 418/403
 DEFAULT_UA = (
@@ -51,7 +53,20 @@ def url_to_markdown(url: str, cookie: str = '') -> tuple[str, list[str]]:
     logs = ['markdownify: 抓取网页后 markitdown']
     html, fetch_logs = _fetch_url_html(url, cookie=cookie)
     logs.extend(fetch_logs)
-    suffix = '.html' if '<html' in html[:800].lower() else '.txt'
+    # 洛谷页面里的题面是截断的 SEO 片段，完整内容只在内嵌 JSON，先按题目页专用路径取
+    if luogu.is_problem_url(url):
+        text = luogu.problem_markdown(html)
+        if text:
+            logs.append('markdownify: 洛谷内嵌 JSON（完整题面 + 样例）')
+            return text, logs
+        logs.append('markdownify: 未找到洛谷内嵌 JSON，回落到整页转换')
+    html_page = webpage.is_html(html)
+    if html_page:
+        # 整页含大量导航/侧栏；只留题面容器，并把 rowspan/colspan 展开成真实单元格
+        html = webpage.problem_container(html)
+        html = webpage.expand_merged_cells(html)
+        logs.append('markdownify: 已截取题面容器并展开合并单元格')
+    suffix = '.html' if html_page or '<html' in html[:800].lower() else '.txt'
     with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, encoding='utf-8', delete=False) as f:
         f.write(html)
         path = Path(f.name)
@@ -60,6 +75,12 @@ def url_to_markdown(url: str, cookie: str = '') -> tuple[str, list[str]]:
     finally:
         path.unlink(missing_ok=True)
     text = (text or '').strip()
+    if text and webpage.looks_like_html(text):
+        # markitdown 的 HTML 转换器异常时会静默退回纯文本，把整页 HTML 当正文；宁可报错也别喂模型
+        raise ValueError(
+            '网页没能转成 Markdown（取回的是原始 HTML），可能是 markitdown 与 markdownify 版本不兼容。'
+            '请检查 ai-server 依赖版本。'
+        )
     if not text:
         logs.append('网页正文为空')
     return text, logs
@@ -144,7 +165,14 @@ def text_to_markdown(body: str) -> tuple[str, list[str]]:
     if not body:
         return '', ['markdownify: 文本为空']
     logs = ['markdownify: markitdown (文本)']
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', encoding='utf-8', delete=False) as f:
+    html_page = webpage.is_html(body)
+    suffix = '.txt'
+    if html_page:
+        # 用户把整页 HTML 粘进来时，和链接抓取一样只留题面容器、展开合并单元格
+        body = webpage.expand_merged_cells(webpage.problem_container(body))
+        suffix = '.html'
+        logs.append('markdownify: 粘贴内容是 HTML，已截取题面容器')
+    with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, encoding='utf-8', delete=False) as f:
         f.write(body)
         path = Path(f.name)
     try:
