@@ -355,6 +355,21 @@
   }
   .dtoj-hw-view .dtoj-hw-done b { font-size: 15px; font-weight: 800; }
   .dtoj-hw-view .dtoj-hw-done.is-full { color: #145c32; }
+  /* 名单上还没认领的人：和列表页的「待认领」同一族配色，一眼能挑出来 */
+  .dtoj-hw-view .dtoj-hw-rowstate {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    margin-left: 8px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.5;
+    vertical-align: 1px;
+  }
+  .dtoj-hw-view .dtoj-hw-rowstate.is-todo { background: #6a4b00; color: #f8f1dc; }
+  .dtoj-hw-view .dtoj-hw-rowstate.is-done { background: #eef1f5; color: #4b5563; }
 
   /* 作业答疑：提问框与往返记录 */
   .dtoj-hw-view .dtoj-hw-ask { display: flex; flex-direction: column; gap: 10px; }
@@ -650,7 +665,13 @@
           <section class="dtoj-hw-card">
             <div class="dtoj-hw-card-head">
               <h2>作业进度</h2>
-              <span class="dtoj-hw-count-pill">{{ hwProgress.attended }} 人已认领</span>
+              <span class="dtoj-hw-count-pill">
+                {%- if hwProgress.rosterSize is not none -%}
+                {{ hwProgress.attended }} / {{ hwProgress.rosterSize }} 人已认领
+                {%- else -%}
+                {{ hwProgress.attended }} 人已认领
+                {%- endif -%}
+              </span>
             </div>
             {% if hwProgress.rows.length %}
             <div class="dtoj-hw-card-body is-flush">
@@ -674,6 +695,10 @@
                       {% if hwProgress.udict[row.uid] %}
                       {{ user.render_inline(hwProgress.udict[row.uid], badge=false) }}
                       {% else %}#{{ row.uid }}{% endif %}
+                      {# 名单上还没认领的也要列出来，老师才知道该催谁 #}
+                      {% if hwProgress.rosterSize is not none %}
+                      <span class="dtoj-hw-rowstate {{ 'is-done' if row.attended else 'is-todo' }}">{{ '已认领' if row.attended else '待认领' }}</span>
+                      {% endif %}
                     </td>
                     <td>
                       <span class="dtoj-hw-done{{ ' is-full' if hwProgress.total and row.done >= hwProgress.total }}"><b>{{ row.done }}</b> / {{ hwProgress.total }}</span>
@@ -862,7 +887,7 @@
             <div class="dtoj-hw-card-body">
               <dl class="dtoj-hw-facts">
                 <div><dt>题目</dt><dd>{{ hwPids }} 道</dd></div>
-                <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }} 人</dd></div>
+                <div><dt>已认领</dt><dd>{{ hwClaimed|default(0) }} 人</dd></div>
                 {% if hwUnclaimed is not none %}
                 <div><dt>未认领</dt><dd>{{ hwUnclaimed }} 人</dd></div>
                 {% endif %}

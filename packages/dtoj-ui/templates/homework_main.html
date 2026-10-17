@@ -421,7 +421,7 @@
             <dl class="dtoj-hw-facts">
               <div><dt>题目</dt><dd>{{ tdoc.pids|length }}</dd></div>
               {% if not hwSelfOnly %}
-              <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }}</dd></div>
+              <div><dt>已认领</dt><dd>{{ tdoc.hwClaimed|default(0) }}</dd></div>
               {% if tdoc.hwUnclaimed is not none %}
               <div><dt>未认领</dt><dd>{{ tdoc.hwUnclaimed }}</dd></div>
               {% endif %}

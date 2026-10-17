@@ -12,7 +12,7 @@ import { applyInboxNotices } from './inboxNotices';
 import {
     assignSignature, homeworkMergeGroups, mergeAssignLabel, mergedPids, mergedWindow, pickMergeTarget,
 } from './homeworkMerge';
-import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, unclaimedCounts } from './homeworkScope';
+import { hasHomeworkSubmission, homeworkRosterStats, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
     HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
@@ -195,16 +195,22 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 
         // 行上要标「待认领 / 已认领」：assign 命中我就是分给我的，attend 记录我认领过没有
         const groupSet = new Set(myGroups);
-        // 未认领人数只给看得到「已认领」那一列的人算：学生那边模板不渲染这两列
-        const unclaimed = canViewAll
-            ? await unclaimedCounts(domainId, tdocs)
-            : new Map<string, number | null>();
-        const rows = tdocs.map((tdoc) => ({
-            ...tdoc,
-            hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
-            hwAttended: attended.has(String(tdoc.docId)),
-            hwUnclaimed: unclaimed.get(String(tdoc.docId)) ?? null,
-        }));
+        // 已认领 / 未认领都以名单为准：老师改过分配之后，被移出名单的人
+        // 之前的认领记录还在库里，但那已经不算这次作业的成绩了。
+        // 这两列只有看得到的人需要算，学生那边模板不渲染。
+        const stats = canViewAll
+            ? await homeworkRosterStats(domainId, tdocs)
+            : new Map<string, { roster: Set<number> | null, claimed: Set<number> }>();
+        const rows = tdocs.map((tdoc) => {
+            const stat = stats.get(String(tdoc.docId));
+            return {
+                ...tdoc,
+                hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
+                hwAttended: attended.has(String(tdoc.docId)),
+                hwClaimed: stat ? stat.claimed.size : (tdoc.attend || 0),
+                hwUnclaimed: stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null,
+            };
+        });
 
         // 合并建议：同一批人收到了好几份作业，就给一个一键并成一份的入口。
         // 只对能改作业的人算；扫的是当前筛选条件下的全部作业而不是当前页，
@@ -214,6 +220,8 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
             const canEditAll = this.user.hasPerm(PERM.PERM_EDIT_HOMEWORK);
             const candidates = (await ContestModel.getMulti(domainId, filter).toArray())
                 .filter((tdoc) => canEditAll || this.user.own(tdoc));
+            // 「已认领」按名单口径，和作业行上那一列保持一致
+            const candidateStats = await homeworkRosterStats(domainId, candidates);
             const when = (date: Date) => moment(date).tz(this.user.timeZone || 'Asia/Shanghai').format('M-D H:mm');
             for (const merge of homeworkMergeGroups(candidates)) {
                 mergeGroups.push({
@@ -226,7 +234,7 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
                         pids: (tdoc.pids || []).length,
                         beginText: when(tdoc.beginAt),
                         penaltyText: when(tdoc.penaltySince),
-                        attend: tdoc.attend || 0,
+                        attend: candidateStats.get(String(tdoc.docId))?.claimed.size ?? (tdoc.attend || 0),
                     })),
                 });
             }
@@ -933,10 +941,12 @@ export async function apply(ctx: Context) {
             tdoc.domainId, [...uids], that.user.hasPerm(PERM.PERM_VIEW_USER_PRIVATE_INFO),
         );
         body.hwCanManage = canManage;
-        // 「作业概况」里 已认领 下面那行。assign 为空（全站可见）时给 null，模板不渲染
-        body.hwUnclaimed = (await unclaimedCounts(tdoc.domainId, [tdoc])).get(String(tdoc.docId)) ?? null;
+        // 「作业概况」里的 已认领 / 未认领，同样按名单算，口径和列表页一致
+        const stat = (await homeworkRosterStats(tdoc.domainId, [tdoc])).get(String(tdoc.docId));
+        body.hwClaimed = stat?.claimed.size ?? (tdoc.attend || 0);
+        body.hwUnclaimed = stat?.roster ? Math.max(0, stat.roster.size - stat.claimed.size) : null;
         if (!canManage) return;
-        const progress = await listHomeworkProgress(tdoc.domainId, tdoc);
+        const progress = await listHomeworkProgress(tdoc.domainId, tdoc, stat?.roster);
         body.hwProgress = {
             ...progress,
             udict: await UserModel.getListForRender(tdoc.domainId, progress.rows.map((row) => row.uid), false),

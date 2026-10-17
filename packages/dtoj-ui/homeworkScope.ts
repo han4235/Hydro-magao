@@ -54,19 +54,22 @@ export async function hasHomeworkSubmission(domainId: string, tid: ObjectId, uid
 }
 
 /**
- * 每份作业「还没认领」的人数 = 应到 - 已认领。返回的 Map 键是 docId 的字符串。
+ * 每份作业的「应到名单」与「名单内已认领的人」。
  *
- * 应到人数从 tdoc.assign 摊开算：里面既可能是用户组名（库里 user.group 那一套），
- * 也可能是单个 uid 的字符串 —— 按人布置时 assign 存的就是 '28' 这种，
+ * 名单从 tdoc.assign 摊开算：里面既可能是用户组名（库里 user.group 那一套），
+ * 也可能是单个 uid 的字符串 —— 按人布置时 assign 存的就是 '16' 这种，
  * UserModel.listGroup 会为每个用户补一条同名合成组，所以这两种要分开认。
  * 同一个人同时挂在两个组里只算一次，所以按 uid 去重。
  *
- * 值为 null 表示给不出数字：assign 为空时 core 认为作业对全站可见，
+ * 认领只认名单内的人：老师改过分配之后，被移出名单的人原先的认领记录还在库里，
+ * 但他已经不在这次作业的名单上了，不能继续出现在进度表和「已认领」里。
+ *
+ * roster 为 null 表示给不出名单：assign 为空时 core 认为作业对全站可见，
  * 「应到」就成了域内所有用户，这个数对老师没有意义。
  *
  * 组名一次查完再分发到各作业，避免一页 12 份作业查 12 次。
  */
-export async function unclaimedCounts(domainId: string, tdocs: any[]) {
+export async function homeworkRosterStats(domainId: string, tdocs: any[]) {
     const wanted = new Set<string>();
     for (const tdoc of tdocs) {
         for (const name of tdoc.assign || []) {
@@ -78,14 +81,29 @@ export async function unclaimedCounts(domainId: string, tdocs: any[]) {
     const uidsOf = new Map<string, number[]>();
     for (const group of groups) uidsOf.set(group.name, group.uids || []);
 
-    const out = new Map<string, number | null>();
+    // 一次取回这一页所有作业的认领人，键是 docId 的字符串
+    const ids = tdocs.map((tdoc) => tdoc.docId);
+    const claimedOf = new Map<string, Set<number>>();
+    if (ids.length) {
+        const rows = await ContestModel.getMultiStatus(domainId, {
+            docId: { $in: ids }, attend: { $gte: 1 },
+        }).project({ docId: 1, uid: 1 }).toArray();
+        for (const row of rows) {
+            const key = String(row.docId);
+            if (!claimedOf.has(key)) claimedOf.set(key, new Set());
+            claimedOf.get(key)!.add(row.uid);
+        }
+    }
+
+    const out = new Map<string, { roster: Set<number> | null, claimed: Set<number> }>();
     for (const tdoc of tdocs) {
         const key = String(tdoc.docId);
         const names = (tdoc.assign || [])
             .map((name: unknown) => String(name || '').trim())
             .filter((name: string) => name);
+        const everyone = claimedOf.get(key) || new Set<number>();
         if (!names.length) {
-            out.set(key, null);
+            out.set(key, { roster: null, claimed: everyone });
             continue;
         }
         const roster = new Set<number>();
@@ -93,8 +111,10 @@ export async function unclaimedCounts(domainId: string, tdocs: any[]) {
             if (/^\d+$/.test(name)) roster.add(+name);
             else for (const uid of uidsOf.get(name) || []) roster.add(uid);
         }
-        // 老师自己也可能认领过，或者组后来缩过人，认领数能超过应到，不能出现负数
-        out.set(key, Math.max(0, roster.size - (tdoc.attend || 0)));
+        const claimed = new Set<number>();
+        for (const uid of roster) if (everyone.has(uid)) claimed.add(uid);
+        out.set(key, { roster, claimed });
     }
     return out;
 }
+
