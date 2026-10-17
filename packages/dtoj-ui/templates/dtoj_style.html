@@ -1937,6 +1937,31 @@
   .dtoj-record-list-page .dtoj-sheet td a { color: var(--brand-deep); }
   .dtoj-record-list-problem span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; font-weight: 400; }
 
+  /* 阅读模式按钮：题目页与题解页共用同一套药丸外观，激活态由 .is-on 标记 */
+  .dtoj-problem-modes { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
+  .dtoj-problem-modes button,
+  .dtoj-problem-modes a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid rgba(30, 41, 59, 0.1);
+    border-radius: 999px;
+    background: #f4f7fb;
+    color: #243044;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .dtoj-problem-modes [hidden] { display: none; }
+  .dtoj-problem-modes button.is-on {
+    background: #172237;
+    border-color: #172237;
+    color: #f6f8fd;
+  }
+
   .dtoj-problem-sub { max-width: 1180px; }
   .dtoj-problem-sub .dtoj-problem-back { margin: 0 0 4px; }
   .dtoj-problem-sub .dtoj-problem-back a {
@@ -2070,6 +2095,42 @@
   .dtoj-solution-all { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
   .dtoj-solution-all a { color: var(--brand-deep); font-weight: 700; text-decoration: none; }
   .dtoj-solution-empty { margin-top: 12px; color: var(--muted); }
+  /* 题解页的阅读模式：纯享（隐藏侧栏）/ 展开全部题解 / 加宽 */
+  .dtoj-problem-sub .dtoj-solution-headline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dtoj-problem-sub.is-focus aside { display: none; }
+  .dtoj-problem-sub.is-focus .dtoj-problem-layout { grid-template-columns: minmax(0, 1fr); }
+  .dtoj-problem-sub.is-wide { max-width: 1400px; }
+  /* .row 默认最宽 1200px，不加这条 is-wide 会被它卡住 */
+  .row:has(.dtoj-problem-sub.is-wide) { max-width: 1440px; }
+  /* 题解页阅读优化：票数徽标移到卡片顶部一行，代码框通栏宽屏，正文整体放大 10% */
+  /* 只在双栏布局的宽度上生效（<=900px 时布局会堆叠，放开宽度会导致页面横向溢出） */
+  @media (min-width: 901px) {
+    /* 核心主题用 table-cell 让票数栏与正文并排，这里改成上下两行，代码框才能吃满卡片宽度 */
+    .dtoj-solution-body .dczcomments__item > .media { display: block; }
+    .dtoj-solution-body .dczcomments__item .media__left {
+      display: block;
+      width: 82px;
+      padding: 0 0 10px;
+    }
+    /* 负外边距抵消卡片左右各 18px 内边距，让正文与代码框顶到卡片内沿 */
+    .dtoj-solution-body .dczcomments__item .media__body {
+      display: block;
+      width: auto;
+      max-width: none;
+      margin-left: -18px;
+      margin-right: -18px;
+    }
+    /* 代码框去掉 68ch 上限，铺满整个阅读宽度 */
+    .dtoj-solution-body .typo pre:not(.dtoj-record-code) { max-width: none; }
+  }
+  /* 正文整体放大 10% */
+  .dtoj-solution-body .typo { font-size: 17.6px; }
+  .dtoj-solution-body .typo h1 { font-size: 31.68px; }
+  .dtoj-solution-body .typo h2 { font-size: 24.64px; }
+  .dtoj-solution-body .typo h3 { font-size: 20.59px; }
+  .dtoj-solution-body .typo blockquote,
+  .dtoj-solution-body .typo :not(pre) > code { font-size: 15.4px; }
+  .dtoj-solution-body .typo pre:not(.dtoj-record-code) { font-size: 16.5px; }
   @media (max-width: 900px) {
     .dtoj-problem-sub .dtoj-problem-layout { grid-template-columns: 1fr; }
     .dtoj-problem-sub .dtoj-problem-main { padding: 18px 16px 22px; }

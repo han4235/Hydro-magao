@@ -13,7 +13,14 @@
       <div class="dtoj-problem-layout">
         <div class="dtoj-panel dtoj-problem-main dtoj-solution-main">
           <header class="dtoj-sub-head">
-            <h1>题解</h1>
+            <div class="dtoj-solution-headline">
+              <h1>题解</h1>
+              <div class="dtoj-problem-modes">
+                <button type="button" data-solution-focus>纯享模式</button>
+                <button type="button" data-solution-expand>展开题解</button>
+                <button type="button" data-solution-wide>加宽</button>
+              </div>
+            </div>
             <div class="dtoj-rule" aria-hidden="true"></div>
             <p class="dtoj-sub-lead">
               <a href="{{ url('problem_detail', pid=pdoc.pid|default(pdoc.docId)) }}">{{ pdoc.pid|default(pdoc.docId) }} · {{ pdoc.title }}</a>
@@ -67,4 +74,72 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  var root = document.querySelector('.dtoj-problem-sub');
+  var focusBtn = document.querySelector('[data-solution-focus]');
+  var expandBtn = document.querySelector('[data-solution-expand]');
+  var wideBtn = document.querySelector('[data-solution-wide]');
+  if (!root || !focusBtn || !expandBtn || !wideBtn) return;
+
+  if (localStorage.getItem('dtoj-solution-focus') === '1') root.classList.add('is-focus');
+  if (localStorage.getItem('dtoj-solution-wide') === '1') root.classList.add('is-wide');
+
+  function contents() {
+    return document.querySelectorAll('.dtoj-solution-body .collapsible-content');
+  }
+  // core 的折叠组件只给「真的超长」的题解生成开关，短题解没有开关，也就无从展开
+  function toggleCount() {
+    return document.querySelectorAll('.dtoj-solution-body .collapsible-toggle__link').length;
+  }
+  function allExpanded() {
+    var list = contents();
+    if (!list.length) return false;
+    for (var i = 0; i < list.length; i += 1) {
+      if (!list[i].classList.contains('expanded')) return false;
+    }
+    return true;
+  }
+  function paint() {
+    var focus = root.classList.contains('is-focus');
+    focusBtn.classList.toggle('is-on', focus);
+    focusBtn.textContent = focus ? '退出纯享' : '纯享模式';
+    wideBtn.textContent = root.classList.contains('is-wide') ? '收窄' : '加宽';
+    expandBtn.hidden = toggleCount() === 0;
+    expandBtn.textContent = allExpanded() ? '收起题解' : '展开题解';
+  }
+  focusBtn.addEventListener('click', function () {
+    root.classList.toggle('is-focus');
+    localStorage.setItem('dtoj-solution-focus', root.classList.contains('is-focus') ? '1' : '0');
+    paint();
+  });
+  wideBtn.addEventListener('click', function () {
+    root.classList.toggle('is-wide');
+    localStorage.setItem('dtoj-solution-wide', root.classList.contains('is-wide') ? '1' : '0');
+    paint();
+  });
+  expandBtn.addEventListener('click', function () {
+    // 借 core 自己的开关来展开/收起，动画与高度计算都归它管
+    var want = !allExpanded();
+    var list = contents();
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].classList.contains('expanded') === want) continue;
+      var link = list[i].querySelector('.collapsible-toggle__link');
+      if (link) link.click();
+    }
+  });
+  paint();
+  // 折叠开关是页面加载后异步生成的（childList）；用户也可能用 core 自带的开关单独收起某一篇
+  // （只改 class），所以两类变动都要跟着刷文案。监听范围在按钮之外，不会自激。
+  var body = document.querySelector('.dtoj-solution-body');
+  if (body && window.MutationObserver) {
+    new MutationObserver(paint).observe(body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+})();
+</script>
 {% endblock %}
