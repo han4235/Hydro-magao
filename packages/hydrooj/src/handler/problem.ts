@@ -23,6 +23,7 @@ import {
 import {
     ProblemDoc, ProblemSearchOptions, ProblemStatusDoc, RecordDoc, User,
 } from '../interface';
+import { Logger } from '../logger';
 import { PERM, PRIV, STATUS } from '../model/builtin';
 import * as contest from '../model/contest';
 import * as discussion from '../model/discussion';
@@ -40,6 +41,8 @@ import {
     Handler, param, post, Query, query, route, Types,
 } from '../service/server';
 import { ContestDetailBaseHandler } from './contest';
+
+const logger = new Logger('problem');
 
 export const parseCategory = (value: string) => value.replace(/，/g, ',').split(',').map((e) => e.trim());
 
@@ -566,20 +569,36 @@ export class ProblemSubmitHandler extends ProblemDetailHandler {
             code = code.replace(/\r\n/g, '\n');
             if (code.length > lengthLimit) throw new ValidationError('code');
         }
+        // 学生从题库或训练里直接交的题，如果正好有唯一一份进行中的作业涵盖它，就把这次提交记进作业。
+        // 否则记录里没有 contest，作业详情只认 journal，会一直显示「没有递交」。
+        // 判定规则见 contest.getHomeworkCandidatesForSubmission。
+        let submitTid = tid;
+        if (!pretest && !tid) {
+            const hits = await contest.getHomeworkCandidatesForSubmission(domainId, this.pdoc.docId, this.user._id);
+            // 老师在题库里试交自己管的作业不算：不能在题目页悄悄改掉学生成绩
+            const usable = hits.filter(({ tdoc }) => !this.user.own(tdoc) && !this.user.hasPerm(PERM.PERM_EDIT_HOMEWORK));
+            if (usable.length === 1) {
+                submitTid = usable[0].tdoc.docId;
+                this.tdoc = usable[0].tdoc;
+                this.tsdoc = usable[0].tsdoc;
+            } else if (usable.length > 1) {
+                logger.warn('pid %d uid %d 同时命中 %d 份作业，这次提交不记入作业', this.pdoc.docId, this.user._id, usable.length);
+            }
+        }
         const rid = await record.add(
             domainId, this.pdoc.docId, this.user._id, lang, code, true,
-            pretest ? { input, type: 'pretest' } : { contest: tid, files, type: 'judge' },
+            pretest ? { input, type: 'pretest' } : { contest: submitTid, files, type: 'judge' },
         );
         if (!pretest) {
             await Promise.all([
                 problem.inc(domainId, this.pdoc.docId, 'nSubmit', 1),
                 domain.incUserInDomain(domainId, this.user._id, 'nSubmit'),
-                tid && contest.updateStatus(domainId, tid, this.team ?? this.user._id, rid, this.pdoc.docId),
+                submitTid && contest.updateStatus(domainId, submitTid, this.team ?? this.user._id, rid, this.pdoc.docId),
             ]);
         }
-        if (tid && !pretest && !contest.canShowSelfRecord.call(this, this.tdoc)) {
-            this.response.body = { tid };
-            this.response.redirect = this.url(this.tdoc.rule === 'homework' ? 'homework_detail' : 'contest_problemlist', { tid });
+        if (submitTid && !pretest && !contest.canShowSelfRecord.call(this, this.tdoc)) {
+            this.response.body = { tid: submitTid };
+            this.response.redirect = this.url(this.tdoc.rule === 'homework' ? 'homework_detail' : 'contest_problemlist', { tid: submitTid });
         } else {
             this.response.body = { rid };
             this.response.redirect = this.url('record_detail', { rid });
