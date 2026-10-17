@@ -863,6 +863,9 @@
               <dl class="dtoj-hw-facts">
                 <div><dt>题目</dt><dd>{{ hwPids }} 道</dd></div>
                 <div><dt>已认领</dt><dd>{{ tdoc.attend|default(0) }} 人</dd></div>
+                {% if hwUnclaimed is not none %}
+                <div><dt>未认领</dt><dd>{{ hwUnclaimed }} 人</dd></div>
+                {% endif %}
                 {% if hwHasLate %}
                 <div><dt>可延期</dt><dd>{{ homework.render_extension(tdoc) }} 小时</dd></div>
                 {% endif %}

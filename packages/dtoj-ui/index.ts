@@ -9,7 +9,7 @@ import {
     notifyHomeworkAttended, notifyHomeworkCompleted, replyHomeworkQuestion,
 } from './homeworkQA';
 import { applyInboxNotices } from './inboxNotices';
-import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups } from './homeworkScope';
+import { hasHomeworkSubmission, myAttendedHomeworkIds, myHomeworkGroups, unclaimedCounts } from './homeworkScope';
 import {
     addableGroupMembers, applyUserGroups, canManageGroups, groupCreators, groupUsageCounts,
     HIDDEN_DOMAIN_USER_IDS, joinableGroups, manageableGroups, managesAllGroups, memberNames,
@@ -192,10 +192,15 @@ class DtojHomeworkMainHandler extends DtojPageHandler {
 
         // 行上要标「待认领 / 已认领」：assign 命中我就是分给我的，attend 记录我认领过没有
         const groupSet = new Set(myGroups);
+        // 未认领人数只给看得到「已认领」那一列的人算：学生那边模板不渲染这两列
+        const unclaimed = canViewAll
+            ? await unclaimedCounts(domainId, tdocs)
+            : new Map<string, number | null>();
         const rows = tdocs.map((tdoc) => ({
             ...tdoc,
             hwAssigned: (tdoc.assign || []).some((name) => groupSet.has(name)),
             hwAttended: attended.has(String(tdoc.docId)),
+            hwUnclaimed: unclaimed.get(String(tdoc.docId)) ?? null,
         }));
 
         let qs = group ? `group=${group}` : '';
@@ -802,6 +807,8 @@ export async function apply(ctx: Context) {
             tdoc.domainId, [...uids], that.user.hasPerm(PERM.PERM_VIEW_USER_PRIVATE_INFO),
         );
         body.hwCanManage = canManage;
+        // 「作业概况」里 已认领 下面那行。assign 为空（全站可见）时给 null，模板不渲染
+        body.hwUnclaimed = (await unclaimedCounts(tdoc.domainId, [tdoc])).get(String(tdoc.docId)) ?? null;
         if (!canManage) return;
         const progress = await listHomeworkProgress(tdoc.domainId, tdoc);
         body.hwProgress = {

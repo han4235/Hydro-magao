@@ -52,3 +52,49 @@ export async function hasHomeworkSubmission(domainId: string, tid: ObjectId, uid
         .toArray();
     return rdocs.length > 0;
 }
+
+/**
+ * 每份作业「还没认领」的人数 = 应到 - 已认领。返回的 Map 键是 docId 的字符串。
+ *
+ * 应到人数从 tdoc.assign 摊开算：里面既可能是用户组名（库里 user.group 那一套），
+ * 也可能是单个 uid 的字符串 —— 按人布置时 assign 存的就是 '28' 这种，
+ * UserModel.listGroup 会为每个用户补一条同名合成组，所以这两种要分开认。
+ * 同一个人同时挂在两个组里只算一次，所以按 uid 去重。
+ *
+ * 值为 null 表示给不出数字：assign 为空时 core 认为作业对全站可见，
+ * 「应到」就成了域内所有用户，这个数对老师没有意义。
+ *
+ * 组名一次查完再分发到各作业，避免一页 12 份作业查 12 次。
+ */
+export async function unclaimedCounts(domainId: string, tdocs: any[]) {
+    const wanted = new Set<string>();
+    for (const tdoc of tdocs) {
+        for (const name of tdoc.assign || []) {
+            const n = String(name || '').trim();
+            if (n && !/^\d+$/.test(n)) wanted.add(n);
+        }
+    }
+    const groups = wanted.size ? await UserModel.listGroup(domainId, undefined, [...wanted]) : [];
+    const uidsOf = new Map<string, number[]>();
+    for (const group of groups) uidsOf.set(group.name, group.uids || []);
+
+    const out = new Map<string, number | null>();
+    for (const tdoc of tdocs) {
+        const key = String(tdoc.docId);
+        const names = (tdoc.assign || [])
+            .map((name: unknown) => String(name || '').trim())
+            .filter((name: string) => name);
+        if (!names.length) {
+            out.set(key, null);
+            continue;
+        }
+        const roster = new Set<number>();
+        for (const name of names) {
+            if (/^\d+$/.test(name)) roster.add(+name);
+            else for (const uid of uidsOf.get(name) || []) roster.add(uid);
+        }
+        // 老师自己也可能认领过，或者组后来缩过人，认领数能超过应到，不能出现负数
+        out.set(key, Math.max(0, roster.size - (tdoc.attend || 0)));
+    }
+    return out;
+}
